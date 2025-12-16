@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MICDS Assessment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="login-screen" class="card center">
+  <h1>MICDS Assessment</h1>
+  <p class="muted">Sign in with your MICDS Google account (@micds.org)</p>
+  <button id="login-btn" class="btn primary">Sign in with Google</button>
+  <p id="login-error" class="error hidden"></p>
+</div>
+
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="left">
+      <div class="brand">MICDS Assessment</div>
+      <div id="user-pill" class="pill"></div>
+      <div id="role-pill" class="pill"></div>
+    </div>
+    <div class="right">
+      <button id="export-btn" class="btn">Export</button>
+      <label class="btn ghost filebtn">
+        Import
+        <input id="import-file" type="file" accept="application/json" />
+      </label>
+      <button id="logout-btn" class="btn danger">Log out</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="section-title">Navigation</div>
+      <button class="navbtn active" data-view="overview">Overview</button>
+      <button class="navbtn" data-view="s1">Standard 1</button>
+      <button class="navbtn" data-view="s2">Standard 2</button>
+      <button class="navbtn" data-view="s3">Standard 3</button>
+      <button class="navbtn" data-view="s4">Standard 4</button>
+      <button class="navbtn" data-view="atl">Approach to Learning</button>
+      <div class="divider"></div>
+
+      <div id="teacher-panel" class="hidden">
+        <div class="section-title">Teacher</div>
+        <label class="label">Select student</label>
+        <select id="teacher-student-select"></select>
+        <button id="teacher-new-student" class="btn small">Add student by email</button>
+      </div>
+
+      <div class="divider"></div>
+      <div class="small muted">
+        Honor Code: Students must use only their own knowledge.  [oai_citation:1‡Example%20middle%20school%20assessment%20sheet.pdf.pdf](sediment://file_00000000808471f5a9b08afe30fcedb7)
+      </div>
+    </aside>
+
+    <main class="content">
+      <!-- OVERVIEW -->
+      <section class="view" id="view-overview">
+        <h2>Overview</h2>
+
+        <div class="grid2">
+          <div class="card">
+            <h3>Final Grade</h3>
+            <div class="kpi">
+              <div class="big" id="final-grade">—</div>
+              <div class="muted">Average of 4 standards (each 25%)</div>
+            </div>
+            <div class="grid4">
+              <div class="kpi-mini">
+                <div class="muted">Std 1</div>
+                <div class="big2" id="s1-grade">—</div>
+              </div>
+              <div class="kpi-mini">
+                <div class="muted">Std 2</div>
+                <div class="big2" id="s2-grade">—</div>
+              </div>
+              <div class="kpi-mini">
+                <div class="muted">Std 3</div>
+                <div class="big2" id="s3-grade">—</div>
+              </div>
+              <div class="kpi-mini">
+                <div class="muted">Std 4</div>
+                <div class="big2" id="s4-grade">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Honor Code (Student)</h3>
+            <label class="checkbox">
+              <input type="checkbox" id="honor-code" />
+              I affirm I used only my own knowledge to answer these questions (no AI/Google/Canvas resources unless score is 1–2).  [oai_citation:2‡Example%20middle%20school%20assessment%20sheet.pdf.pdf](sediment://file_00000000808471f5a9b08afe30fcedb7)
+            </label>
+            <p class="muted small">
+              Teachers can still grade even if unchecked, but students should check before submitting.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Quick instructions</h3>
+          <ul class="small">
+            <li><b>Students:</b> fill answers + self-ratings. Reassessment boxes unlock only if the score is 1–2.</li>
+            <li><b>Teachers:</b> select a student, enter teacher scores/ratings, export at end.</li>
+            <li>All scoring rules mirror the sheet’s green/red/bright-green logic.  [oai_citation:3‡Example%20middle%20school%20assessment%20sheet.pdf.pdf](sediment://file_00000000808471f5a9b08afe30fcedb7)</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- STANDARD 1 -->
+      <section class="view hidden" id="view-s1">
+        <h2>Standard 1: Movement Skills</h2>
+        <p class="muted small">
+          Rate each skill 1–4. This app interprets: 4 = bright green, 3 = green, 2 = yellow, 1 = red, then applies the sheet’s conversion rules.  [oai_citation:4‡Example%20middle%20school%20assessment%20sheet.pdf.pdf](sediment://file_00000000808471f5a9b08afe30fcedb7)
+        </p>
+        <div id="s1-skill-table" class="card"></div>
+      </section>
+
+      <!-- STANDARD 2 -->
+      <section class="view hidden" id="view-s2">
+        <h2>Standard 2: Movement Concepts + Sport Strategies</h2>
+        <div class="card">
+          <p class="muted small">
+            Hover the [#] badge to view the rubric for that question.  [oai_citation:5‡Example%20middle%20school%20assessment%20sheet.pdf.pdf](sediment://file_00000000808471f5a9b08afe30fcedb7)
+          </p>
+          <div id="s2-questions"></div>
+        </div>
+      </section>
+
+      <!-- STANDARD 3 -->
+      <section class="view hidden" id="view-s3">
+        <h2>Standard 3: Health + Fitness + Nutrition</h2>
+        <div class="card">
+          <div id="s3-questions"></div>
+        </div>
+      </section>
+
+      <!-- STANDARD 4 -->
+      <section class="view hidden" id="view-s4">
+        <h2>Standard 4: Teamwork + Leadership</h2>
+
+        <div class="card">
+          <h3>Ratings (Self + Teacher)</h3>
+          <div id="s4-ratings"></div>
+        </div>
+
+        <div class="card">
+          <h3>Understanding Questions</h3>
+          <div id="s4-questions"></div>
+        </div>
+      </section>
+
+      <!-- ATL -->
+      <section class="view hidden" id="view-atl">
+        <h2>Approach to Learning</h2>
+        <div class="card">
+          <h3>Days Late / Unprepared</h3>
+          <div class="row">
+            <div class="field">
+              <label class="label"># classes late/unprepared (S1)</label>
+              <input id="atl-late-count" type="number" min="0" step="1" value="0" />
+              <div class="muted small">0 → 4, 1–3 → 3, 4–6 → 2, &gt;6 → 1  [oai_citation:6‡Example%20middle%20school%20assessment%20sheet.pdf.pdf](sediment://file_00000000808471f5a9b08afe30fcedb7)</div>
+            </div>
+            <div class="kpi-mini">
+              <div class="muted">ATL Score</div>
+              <div class="big2" id="atl-score">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Puts Forth Effort To Learn</h3>
+          <div id="atl-effort"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script src="firebase-config.js"></script>
+<script src="data.js"></script>
+<script src="db.js"></script>
+<script src="app.js"></script>
+<script src="auth.js"></script>
+
+</body>
+</html>
