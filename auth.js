@@ -1,17 +1,27 @@
-console.log("auth.js loaded");
+// auth.js
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOM loaded");
-
   const loginBtn = document.getElementById("login-btn");
-  console.log("loginBtn =", loginBtn);
+  const loginError = document.getElementById("login-error");
 
-  if (!loginBtn) {
-    console.error("LOGIN BUTTON NOT FOUND");
-    return;
-  }
+  const auth = firebase.auth();
+  const provider = new firebase.auth.GoogleAuthProvider();
 
+  // When user clicks login → REDIRECT (not popup)
   loginBtn.addEventListener("click", () => {
-    console.log("LOGIN BUTTON CLICKED");
+    auth.signInWithRedirect(provider);
   });
+
+  // Handle redirect result
+  auth.getRedirectResult()
+    .then((result) => {
+      if (result.user) {
+        console.log("Signed in:", result.user.email);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      loginError.textContent = error.message;
+      loginError.classList.remove("hidden");
+    });
 });
