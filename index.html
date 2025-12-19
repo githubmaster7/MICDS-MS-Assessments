@@ -1,126 +1,185 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>MICDS Assessment</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="./styles.css"/>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="login-screen" class="sheet-wrap">
-  <div class="sheet-card">
-    <div class="sheet-title">MICDS Assessment</div>
-    <div class="sheet-subtitle">Sign in with your MICDS Google account (@micds.org)</div>
-    <button id="login-btn" class="btn primary">Sign in with Google</button>
-    <div id="login-error" class="error hidden"></div>
+<header class="topbar">
+  <div class="brand"><span class="dot"></span> MICDS Assessment (Spreadsheet-Style)</div>
+
+  <div class="controls">
+    <select id="student-picker"></select>
+    <input id="student-email" placeholder="student@micds.org" />
+    <button class="btn primary" id="load-student">Load / Create</button>
+
+    <label class="btn ghost" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="honor-code"/>
+      Honor Code (Student)
+    </label>
+
+    <button class="btn" id="export-btn">Export JSON</button>
+    <label class="btn ghost">
+      Import JSON
+      <input id="import-file" type="file" accept="application/json" hidden/>
+    </label>
+    <button class="btn danger" id="reset-student">Reset Student</button>
   </div>
-</div>
+</header>
 
-<!-- APP -->
-<div id="app" class="hidden">
-  <div class="topbar">
-    <div class="topbar-left">
-      <div class="brand">MICDS Assessment</div>
-      <div id="user-pill" class="pill"></div>
-      <div id="role-pill" class="pill"></div>
-    </div>
-
-    <div class="topbar-right">
-      <button id="export-btn" class="btn">Export JSON</button>
-      <label class="btn ghost filebtn">
-        Import JSON
-        <input id="import-file" type="file" accept="application/json" />
-      </label>
-      <button id="logout-btn" class="btn danger">Log out</button>
-    </div>
+<div class="container">
+  <div class="tabs">
+    <button class="tabbtn active" data-view="scores">Scores and Grades</button>
+    <button class="tabbtn" data-view="s1">Movement Skills (Standard 1)</button>
+    <button class="tabbtn" data-view="s2">Movement Concepts (Standard 2)</button>
+    <button class="tabbtn" data-view="s3">Health and Fitness (Standard 3)</button>
+    <button class="tabbtn" data-view="s4">Teamwork and Leadership (Standard 4)</button>
+    <button class="tabbtn" data-view="atl">Approach to Learning</button>
   </div>
 
-  <div class="layout">
-    <aside class="sidebar sheet-card">
-      <div class="sidebar-title">Navigation</div>
-      <button class="navbtn active" data-view="overview">Overview</button>
-
-      <!-- Dynamically filled from data.js -->
-      <div id="nav-sections"></div>
-
-      <div class="divider"></div>
-
-      <div id="teacher-panel" class="hidden">
-        <div class="sidebar-title">Teacher</div>
-        <label class="label">Select student</label>
-        <select id="teacher-student-select"></select>
-        <button id="teacher-new-student" class="btn small">Add student by email</button>
-        <div class="muted small" style="margin-top:8px;">
-          Teachers can view/edit any student record.
-        </div>
-      </div>
-
-      <div class="divider"></div>
-      <div class="muted small">
-        Spreadsheet-style rubric view. Data stored in Firestore.
-      </div>
-    </aside>
-
-    <main class="content">
-      <section class="sheet-card view" id="view-overview">
-        <div class="sheet-h2">Overview</div>
-
-        <div class="grid2">
-          <div class="sheet-card inner">
-            <div class="sheet-h3">Final Grade</div>
-            <div class="kpi">
-              <div class="kpi-big" id="final-grade">—</div>
-              <div class="muted small">Average of Standards 1–4 (25% each)</div>
-            </div>
-            <div class="kpi-row">
-              <div class="kpi-mini"><div class="muted small">Std 1</div><div class="kpi-mid" id="s1-grade">—</div></div>
-              <div class="kpi-mini"><div class="muted small">Std 2</div><div class="kpi-mid" id="s2-grade">—</div></div>
-              <div class="kpi-mini"><div class="muted small">Std 3</div><div class="kpi-mid" id="s3-grade">—</div></div>
-              <div class="kpi-mini"><div class="muted small">Std 4</div><div class="kpi-mid" id="s4-grade">—</div></div>
+  <!-- SCORES -->
+  <section class="view" id="view-scores">
+    <div class="grid2">
+      <div class="card">
+        <div class="kpiRow">
+          <div class="kpiBox">
+            <div class="kpiBig" id="final-grade">—</div>
+            <div>
+              <div style="font-weight:900">CURRENT GRADE</div>
+              <div class="smallMuted">Average of Standards 1–4 (25% each)</div>
             </div>
           </div>
 
-          <div class="sheet-card inner">
-            <div class="sheet-h3">Honor Code (Student)</div>
-            <label class="checkbox">
-              <input type="checkbox" id="honor-code" />
-              I affirm I used only my own knowledge to answer these questions.
-            </label>
-            <div class="muted small" style="margin-top:8px;">
-              Teachers can grade regardless, but students should check before submitting.
+          <div class="kpiBox">
+            <div>
+              <div class="kpiLabel">Standard 1</div>
+              <div class="kpiBig" id="s1-grade">—</div>
+            </div>
+          </div>
+          <div class="kpiBox">
+            <div>
+              <div class="kpiLabel">Standard 2</div>
+              <div class="kpiBig" id="s2-grade">—</div>
+            </div>
+          </div>
+          <div class="kpiBox">
+            <div>
+              <div class="kpiLabel">Standard 3</div>
+              <div class="kpiBig" id="s3-grade">—</div>
+            </div>
+          </div>
+          <div class="kpiBox">
+            <div>
+              <div class="kpiLabel">Standard 4</div>
+              <div class="kpiBig" id="s4-grade">—</div>
             </div>
           </div>
         </div>
 
-        <div class="sheet-card inner" style="margin-top:12px;">
-          <div class="sheet-h3">Quick instructions</div>
-          <ul class="small">
-            <li><b>Students:</b> fill answers + self ratings. Reassessment unlocks only if teacher score is 1–2.</li>
-            <li><b>Teachers:</b> select a student, enter teacher scores/ratings.</li>
-            <li>This page is intentionally formatted like a spreadsheet (grid, compact cells).</li>
-          </ul>
+        <div class="footerRow">
+          <div class="smallMuted">
+            Color meaning: <span style="font-weight:900;color:#26ff2f">4</span> bright green,
+            <span style="font-weight:900;color:#7db64d">3</span> green,
+            <span style="font-weight:900;color:#d4a900">2</span> yellow,
+            <span style="font-weight:900;color:#ff3b30">1</span> red.
+          </div>
         </div>
-      </section>
+      </div>
 
-      <!-- Dynamic views injected by app.js -->
-      <div id="dynamic-views"></div>
-    </main>
-  </div>
+      <div class="card">
+        <div style="font-weight:900;margin-bottom:6px;">Standard Breakdown (Counts)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <canvas id="pie-s1" width="200" height="200"></canvas>
+            <div class="legend" id="pie-s1-legend"></div>
+          </div>
+          <div>
+            <canvas id="pie-s2" width="200" height="200"></canvas>
+            <div class="legend" id="pie-s2-legend"></div>
+          </div>
+          <div>
+            <canvas id="pie-s3" width="200" height="200"></canvas>
+            <div class="legend" id="pie-s3-legend"></div>
+          </div>
+          <div>
+            <canvas id="pie-s4" width="200" height="200"></canvas>
+            <div class="legend" id="pie-s4-legend"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S1 -->
+  <section class="view hidden" id="view-s1">
+    <div class="card">
+      <div style="font-weight:900">Standard 1 — Movement Skills</div>
+      <div class="smallMuted">Enter Student Score + Teacher Score (1–4) for each skill, spreadsheet-style.</div>
+    </div>
+    <div id="s1-root"></div>
+  </section>
+
+  <!-- S2 -->
+  <section class="view hidden" id="view-s2">
+    <div class="card">
+      <div style="font-weight:900">Standard 2 — Movement Concepts + Sport Strategies</div>
+      <div class="smallMuted">Score each question 1–4 and write proof of understanding. Reassessment unlocks only if score is 1–2.</div>
+    </div>
+    <div id="s2-root"></div>
+  </section>
+
+  <!-- S3 -->
+  <section class="view hidden" id="view-s3">
+    <div class="card">
+      <div style="font-weight:900">Standard 3 — Health + Fitness + Nutrition</div>
+      <div class="smallMuted">Same scoring rules as the sheet.</div>
+    </div>
+    <div id="s3-root"></div>
+  </section>
+
+  <!-- S4 -->
+  <section class="view hidden" id="view-s4">
+    <div class="card">
+      <div style="font-weight:900">Standard 4 — Teamwork + Leadership</div>
+      <div class="smallMuted">Ratings table + understanding questions.</div>
+    </div>
+
+    <div id="s4-ratings"></div>
+    <div id="s4-questions"></div>
+  </section>
+
+  <!-- ATL -->
+  <section class="view hidden" id="view-atl">
+    <div class="card">
+      <div style="font-weight:900">Approach to Learning</div>
+      <div class="smallMuted">This section does not directly impact grade (matches the sheet).</div>
+    </div>
+
+    <div class="sheetCard">
+      <div class="sheetTitle">S1 Days Late and Unprepared</div>
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <div class="smallMuted" style="font-weight:800;margin-bottom:6px;"># classes late/unprepared (S1)</div>
+          <input id="atl-late-count" type="number" min="0" step="1" value="0"
+            style="padding:8px 10px;border:1px solid #111;border-radius:10px;max-width:160px;"/>
+          <div class="smallMuted">0 → 4, 1–3 → 3, 4–6 → 2, &gt;6 → 1</div>
+        </div>
+        <div class="kpiBox">
+          <div>
+            <div class="kpiLabel">ATL Score</div>
+            <div class="kpiBig" id="atl-score">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="atl-effort"></div>
+  </section>
 </div>
 
-<!-- Firebase SDKs (COMPAT) - LOAD ONCE, AT BOTTOM -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-
-<script src="firebase-config.js"></script>
-<script src="data.js"></script>
-<script src="db.js"></script>
-<script src="app.js"></script>
-<script src="auth.js"></script>
-
+<script type="module" src="./main.js"></script>
 </body>
 </html>
