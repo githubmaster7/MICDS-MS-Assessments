@@ -1,381 +1,252 @@
-function scoreClass(n){
-  if (n === 4) return "cell-4";
-  if (n === 3) return "cell-3";
-  if (n === 2) return "cell-2";
-  if (n === 1) return "cell-1";
-  return "";
+import { DATA, SCORE_OPTIONS, SCORE_COLOR } from "./data.js";
+import * as DB from "./storage.js";
+
+let currentStudent = null;
+let state = {};
+
+export function init() {
+  bindTabs();
+  bindStudentControls();
+  renderAll();
+  refreshStudentList();
 }
 
-function clampScore(v){
-  const n = Number(v);
-  if (!Number.isFinite(n)) return null;
-  if (n < 1) return 1;
-  if (n > 4) return 4;
-  return n;
+function bindTabs() {
+  document.querySelectorAll(".tabbtn").forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll(".tabbtn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+      document.getElementById("view-" + btn.dataset.view).classList.remove("hidden");
+    };
+  });
 }
 
-function avg(nums){
-  const xs = nums.filter(x => typeof x === "number");
-  if (!xs.length) return null;
-  return xs.reduce((a,b)=>a+b,0)/xs.length;
+function bindStudentControls() {
+  document.getElementById("load-student").onclick = () => {
+    const email = document.getElementById("student-email").value.trim();
+    if (!email) return alert("Enter student email");
+    loadStudent(email);
+  };
+
+  document.getElementById("reset-student").onclick = () => {
+    if (!currentStudent) return;
+    if (!confirm("Reset all data for this student?")) return;
+    state = {};
+    save();
+    renderAll();
+  };
+
+  document.getElementById("export-btn").onclick = () => {
+    const blob = new Blob([JSON.stringify(DB.exportAll(), null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "micds_assessment_export.json";
+    a.click();
+  };
+
+  document.getElementById("import-file").onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      DB.importAll(JSON.parse(reader.result));
+      refreshStudentList();
+      alert("Import successful");
+    };
+    reader.readAsText(file);
+  };
 }
 
-function deepSet(obj, path, value){
-  const copy = structuredClone(obj || {});
-  let cur = copy;
-  for (let i=0;i<path.length-1;i++){
-    const k = path[i];
-    cur[k] = cur[k] ?? {};
-    cur = cur[k];
-  }
-  cur[path[path.length-1]] = value;
-  return copy;
+function refreshStudentList() {
+  const sel = document.getElementById("student-picker");
+  sel.innerHTML = `<option value="">Select student</option>`;
+  DB.listStudents().forEach(email => {
+    const o = document.createElement("option");
+    o.value = email;
+    o.textContent = email;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => sel.value && loadStudent(sel.value);
 }
 
-function makeScoreSelect(value, disabled, onChange){
+function loadStudent(email) {
+  currentStudent = email;
+  state = DB.getStudent(email) || {};
+  renderAll();
+}
+
+function save() {
+  if (!currentStudent) return;
+  DB.setStudent(currentStudent, state);
+  refreshStudentList();
+}
+
+function renderAll() {
+  renderS1();
+  renderS2();
+  renderS3();
+  renderS4();
+  renderATL();
+  updateOverview();
+}
+
+function makeScoreSelect(path) {
   const sel = document.createElement("select");
-  sel.innerHTML = `<option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option>`;
-  sel.value = (value ?? "") === null ? "" : (value ?? "");
-  sel.disabled = disabled;
-  sel.onchange = () => onChange(clampScore(sel.value));
+  sel.className = "scoreSelect";
+  SCORE_OPTIONS.forEach(v => {
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = v || "—";
+    sel.appendChild(o);
+  });
+  sel.value = path in state ? state[path] : "";
+
+  applyScoreColor(sel);
+
+  sel.onchange = () => {
+    state[path] = sel.value;
+    applyScoreColor(sel);
+    save();
+    updateOverview();
+  };
   return sel;
 }
 
-function computeATLScore(n){
-  if (n === 0) return 4;
-  if (n >= 1 && n <= 3) return 3;
-  if (n >= 4 && n <= 6) return 2;
-  return 1;
+function applyScoreColor(sel) {
+  sel.classList.remove("s1", "s2", "s3", "s4");
+  if (SCORE_COLOR[sel.value]) sel.classList.add(SCORE_COLOR[sel.value]);
 }
 
-function computeStandardGrade(state, standardId){
-  const s = state?.[standardId] || {};
-  // Prefer teacher scores for grade (matches typical rubric behavior)
-  if (standardId === "s1"){
-    const t = s.teacher || {};
-    return avg(Object.values(t).map(clampScore));
-  }
-  if (standardId === "s4"){
-    const scores = Object.values(s.teacherScores || {}).map(clampScore);
-    const ratings = Object.values(s.teacherRatings || {}).map(clampScore);
-    return avg([...scores, ...ratings]);
-  }
-  const scores = Object.values(s.teacherScores || {}).map(clampScore);
-  return avg(scores);
-}
-
-function updateKPIs(state){
-  const s1 = computeStandardGrade(state, "s1");
-  const s2 = computeStandardGrade(state, "s2");
-  const s3 = computeStandardGrade(state, "s3");
-  const s4 = computeStandardGrade(state, "s4");
-
-  const set = (id, v) => document.getElementById(id).textContent = (typeof v === "number" ? v.toFixed(2) : "—");
-  set("s1-grade", s1);
-  set("s2-grade", s2);
-  set("s3-grade", s3);
-  set("s4-grade", s4);
-
-  const final = avg([s1,s2,s3,s4].filter(x => typeof x === "number"));
-  document.getElementById("final-grade").textContent = (typeof final === "number" ? final.toFixed(2) : "—");
-}
-
-function setView(viewId){
-  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
-  document.getElementById(`view-${viewId}`).classList.remove("hidden");
-
-  document.querySelectorAll(".navbtn").forEach(b => b.classList.remove("active"));
-  const btn = document.querySelector(`.navbtn[data-view="${viewId}"]`);
-  if (btn) btn.classList.add("active");
-}
-
-function wireNav(){
-  document.querySelectorAll(".navbtn").forEach(btn=>{
-    btn.onclick = () => setView(btn.dataset.view);
-  });
-}
-
-function renderNavAndViews(){
-  const nav = document.getElementById("nav-sections");
-  const views = document.getElementById("dynamic-views");
-  nav.innerHTML = "";
-  views.innerHTML = "";
-
-  for (const st of APP.standards){
-    const b = document.createElement("button");
-    b.className = "navbtn";
-    b.dataset.view = st.id;
-    b.textContent = st.nav;
-    nav.appendChild(b);
-
-    const section = document.createElement("section");
-    section.className = "sheet-card view hidden";
-    section.id = `view-${st.id}`;
-
-    const h2 = document.createElement("div");
-    h2.className = "sheet-h2";
-    h2.textContent = st.title;
-    section.appendChild(h2);
-
-    const body = document.createElement("div");
-    body.id = `mount-${st.id}`;
-    section.appendChild(body);
-
-    views.appendChild(section);
-  }
-}
-
-function renderSkillsTable(mount, standardId, rows, state, perms, onPatch){
-  const s = state?.[standardId] ?? {};
-  const student = s.student ?? {};
-  const teacher = s.teacher ?? {};
-
-  const wrap = document.createElement("div");
-  wrap.className = "table-wrap";
-
+function renderS1() {
+  const root = document.getElementById("s1-root");
+  root.innerHTML = "";
   const table = document.createElement("table");
-  table.className = "sheet-table";
+  table.className = "sheet";
+
   table.innerHTML = `
-    <thead>
-      <tr>
-        <th class="col-skill">Skill</th>
-        <th class="col-student">Student (1–4)</th>
-        <th class="col-teacher">Teacher (1–4)</th>
-      </tr>
-    </thead>
+    <thead><tr>
+      <th>Skill</th>
+      <th>Score</th>
+    </tr></thead>
   `;
-
   const tb = document.createElement("tbody");
-  rows.forEach(r=>{
+
+  DATA.standards.s1.rows.forEach((label, i) => {
     const tr = document.createElement("tr");
-
-    const tdLabel = document.createElement("td");
-    tdLabel.textContent = r.label;
-
-    const tdS = document.createElement("td");
-    const sv = clampScore(student[r.key]);
-    tdS.className = scoreClass(sv);
-    tdS.appendChild(makeScoreSelect(sv, !perms.canEditSelf, (val)=>{
-      onPatch([standardId,"student",r.key], val);
-    }));
-
-    const tdT = document.createElement("td");
-    const tv = clampScore(teacher[r.key]);
-    tdT.className = scoreClass(tv);
-    tdT.appendChild(makeScoreSelect(tv, !perms.canEditTeacher, (val)=>{
-      onPatch([standardId,"teacher",r.key], val);
-    }));
-
-    tr.appendChild(tdLabel);
-    tr.appendChild(tdS);
-    tr.appendChild(tdT);
+    tr.innerHTML = `<td>${label}</td>`;
+    const td = document.createElement("td");
+    td.appendChild(makeScoreSelect(`s1_${i}`));
+    tr.appendChild(td);
     tb.appendChild(tr);
   });
 
   table.appendChild(tb);
-  wrap.appendChild(table);
-  mount.innerHTML = "";
-  mount.appendChild(wrap);
+  root.appendChild(table);
 }
 
-function renderQuestions(mount, standardId, rows, state, perms, onPatch){
-  const s = state?.[standardId] ?? {};
-  const ans = s.studentAnswers ?? {};
-  const tscores = s.teacherScores ?? {};
-  const reassess = s.reassess ?? {};
-
-  mount.innerHTML = "";
-
-  rows.forEach((q, idx)=>{
+function renderQuestions(rootId, prefix, questions) {
+  const root = document.getElementById(rootId);
+  root.innerHTML = "";
+  questions.forEach((q, i) => {
     const card = document.createElement("div");
-    card.className = "sheet-card inner";
-    card.style.marginBottom = "12px";
+    card.className = "sheetCard";
+    card.innerHTML = `<div class="sheetTitle">${q}</div>`;
 
-    const title = document.createElement("div");
-    title.innerHTML = `<b>${q.label}</b><span class="badge">#${idx+1}</span>`;
-    card.appendChild(title);
+    const score = makeScoreSelect(`${prefix}_score_${i}`);
+    const ans = document.createElement("textarea");
+    ans.className = "answer";
+    ans.value = state[`${prefix}_ans_${i}`] || "";
+    ans.oninput = () => {
+      state[`${prefix}_ans_${i}`] = ans.value;
+      save();
+    };
 
-    const prompt = document.createElement("div");
-    prompt.className = "small";
-    prompt.style.marginTop = "6px";
-    prompt.textContent = q.prompt;
-    card.appendChild(prompt);
-
-    const table = document.createElement("table");
-    table.className = "sheet-table";
-    table.style.marginTop = "10px";
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th class="col-skill">Student response</th>
-          <th class="col-teacher">Teacher score (1–4)</th>
-        </tr>
-      </thead>
-    `;
-
-    const tr = document.createElement("tr");
-
-    const tdA = document.createElement("td");
-    const ta = document.createElement("textarea");
-    ta.value = ans[q.key] ?? "";
-    ta.disabled = !perms.canEditSelf;
-    ta.oninput = () => onPatch([standardId,"studentAnswers",q.key], ta.value);
-    tdA.appendChild(ta);
-
-    const tdT = document.createElement("td");
-    const tVal = clampScore(tscores[q.key]);
-    tdT.className = scoreClass(tVal);
-    tdT.appendChild(makeScoreSelect(tVal, !perms.canEditTeacher, (val)=>{
-      onPatch([standardId,"teacherScores",q.key], val);
-    }));
-
-    tr.appendChild(tdA);
-    tr.appendChild(tdT);
-
-    const tb = document.createElement("tbody");
-    tb.appendChild(tr);
-    table.appendChild(tb);
-
-    card.appendChild(table);
-
-    // Reassessment row (unlocked if teacher score <=2)
-    const unlock = (tVal !== null && tVal <= 2);
-    const rLabel = document.createElement("div");
-    rLabel.className = "label";
-    rLabel.textContent = "Reassessment (unlocked if teacher score is 1–2)";
-    card.appendChild(rLabel);
-
-    const rTA = document.createElement("textarea");
-    rTA.value = reassess[q.key] ?? "";
-    rTA.disabled = !(perms.canEditSelf && unlock);
-    rTA.placeholder = unlock ? "Reattempt / reflection..." : "Locked until teacher score is 1–2";
-    rTA.oninput = () => onPatch([standardId,"reassess",q.key], rTA.value);
-    card.appendChild(rTA);
-
-    mount.appendChild(card);
+    card.appendChild(score);
+    card.appendChild(ans);
+    root.appendChild(card);
   });
 }
 
-function renderRatingsTable(mount, standardId, ratings, state, perms, onPatch){
-  const s = state?.[standardId] ?? {};
-  const sr = s.studentRatings ?? {};
-  const tr = s.teacherRatings ?? {};
+function renderS2() {
+  renderQuestions("s2-root", "s2", DATA.standards.s2.questions);
+}
+function renderS3() {
+  renderQuestions("s3-root", "s3", DATA.standards.s3.questions);
+}
 
-  const wrap = document.createElement("div");
-  wrap.className = "table-wrap";
+function renderS4() {
+  const rRoot = document.getElementById("s4-ratings");
+  rRoot.innerHTML = "";
+  renderQuestions("s4-questions", "s4q", DATA.standards.s4.questions);
 
   const table = document.createElement("table");
-  table.className = "sheet-table";
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th class="col-skill">Rating</th>
-        <th class="col-student">Student (1–4)</th>
-        <th class="col-teacher">Teacher (1–4)</th>
-      </tr>
-    </thead>
-  `;
-
+  table.className = "sheet";
+  table.innerHTML = `<thead><tr><th>Rating</th><th>Score</th></tr></thead>`;
   const tb = document.createElement("tbody");
-  ratings.forEach(r=>{
-    const row = document.createElement("tr");
 
-    const tdL = document.createElement("td");
-    tdL.textContent = r.label;
-
-    const tdS = document.createElement("td");
-    const sv = clampScore(sr[r.key]);
-    tdS.className = scoreClass(sv);
-    tdS.appendChild(makeScoreSelect(sv, !perms.canEditSelf, (val)=> onPatch([standardId,"studentRatings",r.key], val)));
-
-    const tdT = document.createElement("td");
-    const tv = clampScore(tr[r.key]);
-    tdT.className = scoreClass(tv);
-    tdT.appendChild(makeScoreSelect(tv, !perms.canEditTeacher, (val)=> onPatch([standardId,"teacherRatings",r.key], val)));
-
-    row.appendChild(tdL); row.appendChild(tdS); row.appendChild(tdT);
-    tb.appendChild(row);
+  DATA.standards.s4.ratings.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r}</td>`;
+    const td = document.createElement("td");
+    td.appendChild(makeScoreSelect(`s4r_${i}`));
+    tr.appendChild(td);
+    tb.appendChild(tr);
   });
 
   table.appendChild(tb);
-  wrap.appendChild(table);
-  mount.innerHTML = "";
-  mount.appendChild(wrap);
+  rRoot.appendChild(table);
 }
 
-function renderATL(mount, state, perms, onPatch){
-  const atl = state?.atl ?? {};
-  mount.innerHTML = "";
+function renderATL() {
+  const root = document.getElementById("atl-effort");
+  root.innerHTML = "";
+  DATA.standards.atl.effort.forEach((label, i) => {
+    const card = document.createElement("div");
+    card.className = "sheetCard";
+    card.innerHTML = `<div class="sheetTitle">${label}</div>`;
+    card.appendChild(makeScoreSelect(`atl_${i}`));
+    root.appendChild(card);
+  });
 
-  const card1 = document.createElement("div");
-  card1.className = "sheet-card inner";
-  card1.style.marginBottom = "12px";
-  card1.innerHTML = `<div class="sheet-h3">Days Late / Unprepared</div>`;
-
-  const label = document.createElement("div");
-  label.className = "label";
-  label.textContent = "# classes late/unprepared";
-  card1.appendChild(label);
-
-  const input = document.createElement("input");
-  input.type = "number"; input.min = "0"; input.step = "1";
-  input.value = Number(atl.lateCount ?? 0);
-  input.disabled = !perms.canEditSelf;
-  input.oninput = () => onPatch(["atl","lateCount"], Number(input.value || 0));
-  card1.appendChild(input);
-
-  const score = document.createElement("div");
-  score.className = "label";
-  score.style.marginTop = "10px";
-  score.textContent = `ATL Score: ${computeATLScore(Number(input.value || 0))}  (0→4, 1–3→3, 4–6→2, >6→1)`;
-  card1.appendChild(score);
-
-  mount.appendChild(card1);
-
-  const card2 = document.createElement("div");
-  card2.className = "sheet-card inner";
-  card2.innerHTML = `<div class="sheet-h3">Effort Ratings</div>`;
-  mount.appendChild(card2);
-
-  renderRatingsTable(card2, "atl", APP.standards.find(s=>s.id==="atl").effortRatings, state, perms, onPatch);
+  const late = document.getElementById("atl-late-count");
+  late.oninput = () => {
+    const n = parseInt(late.value || "0", 10);
+    state.atl_late = n;
+    save();
+    updateOverview();
+  };
 }
 
-function renderAll(state, perms, onPatch){
-  // honor code
-  const hc = document.getElementById("honor-code");
-  hc.checked = !!state?.honorCode;
-  hc.disabled = !perms.canEditSelf;
-  hc.onchange = () => onPatch(["honorCode"], !!hc.checked);
-
-  // sections
-  for (const st of APP.standards){
-    const mount = document.getElementById(`mount-${st.id}`);
-    if (!mount) continue;
-
-    if (st.type === "skills"){
-      renderSkillsTable(mount, st.id, st.rows, state, perms, onPatch);
-    } else if (st.type === "questions"){
-      renderQuestions(mount, st.id, st.rows, state, perms, onPatch);
-    } else if (st.type === "mixed"){
-      const ratingsCard = document.createElement("div");
-      ratingsCard.className = "sheet-card inner";
-      ratingsCard.style.marginBottom = "12px";
-      ratingsCard.innerHTML = `<div class="sheet-h3">Ratings</div>`;
-      mount.innerHTML = "";
-      mount.appendChild(ratingsCard);
-      renderRatingsTable(ratingsCard, st.id, st.ratings, state, perms, onPatch);
-
-      const qCard = document.createElement("div");
-      qCard.className = "sheet-card inner";
-      qCard.innerHTML = `<div class="sheet-h3">Understanding Questions</div>`;
-      mount.appendChild(qCard);
-      renderQuestions(qCard, st.id, st.rows, state, perms, onPatch);
-    } else if (st.type === "atl"){
-      renderATL(mount, state, perms, onPatch);
-    }
-  }
-
-  updateKPIs(state);
+function avg(keys) {
+  const vals = keys.map(k => parseInt(state[k], 10)).filter(v => !isNaN(v));
+  if (!vals.length) return null;
+  return (vals.reduce((a,b)=>a+b,0) / vals.length).toFixed(2);
 }
 
-window.__APP_RENDER = { renderNavAndViews, renderAll, deepSet, updateKPIs };
+function updateOverview() {
+  const s1 = avg(DATA.standards.s1.rows.map((_,i)=>`s1_${i}`));
+  const s2 = avg(DATA.standards.s2.questions.map((_,i)=>`s2_score_${i}`));
+  const s3 = avg(DATA.standards.s3.questions.map((_,i)=>`s3_score_${i}`));
+  const s4 = avg([
+    ...DATA.standards.s4.ratings.map((_,i)=>`s4r_${i}`),
+    ...DATA.standards.s4.questions.map((_,i)=>`s4q_score_${i}`)
+  ]);
+
+  setText("s1-grade", s1);
+  setText("s2-grade", s2);
+  setText("s3-grade", s3);
+  setText("s4-grade", s4);
+
+  const finals = [s1,s2,s3,s4].map(Number).filter(n=>!isNaN(n));
+  setText("final-grade", finals.length ? (finals.reduce((a,b)=>a+b,0)/finals.length).toFixed(2) : "—");
+
+  const late = state.atl_late || 0;
+  const atl = late===0?4:late<=3?3:late<=6?2:1;
+  setText("atl-score", atl);
+}
+
+function setText(id, v) {
+  document.getElementById(id).textContent = v ?? "—";
+}
