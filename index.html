@@ -1,53 +1,58 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MICDS Assessment</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>MICDS Assessment (Full)</title>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="dot"></div>
+        <div>
+          <div class="title">MICDS Assessment</div>
+          <div class="subtitle">(Spreadsheet-Style)</div>
+        </div>
+      </div>
 
-<header>
-  <h2>MICDS Assessment (Spreadsheet-Style)</h2>
+      <div class="controls">
+        <div class="row">
+          <select id="studentSelect" class="control"></select>
 
-  <input id="studentEmail" placeholder="student@micds.org" />
-  <button id="loadBtn">Load / Create</button>
+          <input id="studentEmail" class="control" type="email" placeholder="student@micds.org" />
 
-  <label style="margin-left:16px;">
-    <input type="checkbox" id="roleToggle" />
-    Teacher View
-  </label>
+          <button id="btnLoadCreate" class="btn primary">Load / Create</button>
 
-  <button id="exportBtn">Export JSON</button>
-  <button id="importBtn">Import JSON</button>
-</header>
+          <label class="toggle">
+            <input type="checkbox" id="teacherToggle"/>
+            <span>Teacher View</span>
+          </label>
+        </div>
 
-<nav>
-  <button data-tab="scores">Scores & Grades</button>
-  <button data-tab="std1">Standard 1</button>
-  <button data-tab="std2">Standard 2</button>
-  <button data-tab="std3">Standard 3</button>
-  <button data-tab="std4">Standard 4</button>
-</nav>
+        <div class="row">
+          <label class="toggle">
+            <input type="checkbox" id="honorCode"/>
+            <span>Honor Code (Student)</span>
+          </label>
 
-<main id="content"></main>
+          <button id="btnExport" class="btn">Export JSON</button>
+          <button id="btnImport" class="btn">Import JSON</button>
+          <button id="btnResetStudent" class="btn danger-outline">Reset Student</button>
+        </div>
 
-<section>
-  <h3>Student vs Teacher Scores</h3>
-  <canvas id="studentChart"></canvas>
-</section>
+        <div id="status" class="status"></div>
+      </div>
+    </header>
 
-<section id="teacherDashboard" style="display:none;">
-  <h3>Teacher Dashboard – All Students</h3>
-  <canvas id="teacherChart"></canvas>
-</section>
+    <nav class="tabs" id="tabs"></nav>
 
-<script type="module" src="data.js"></script>
-<script type="module" src="storage.js"></script>
-<script type="module" src="charts.js"></script>
-<script type="module" src="app.js"></script>
-  
+    <main class="content">
+      <div id="view"></div>
+    </main>
+  </div>
+
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
