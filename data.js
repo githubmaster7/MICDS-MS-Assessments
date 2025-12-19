@@ -1,66 +1,124 @@
-// This file defines what rows/questions exist.
-// To match your spreadsheet "almost exactly", you will replace these labels/rows with the sheet’s text.
-
-const APP = {
-  standards: [
-    {
-      id: "s1",
-      nav: "Standard 1",
-      title: "Standard 1: Movement Skills",
-      type: "skills", // spreadsheet table with skill rows
+export const DATA = {
+  standards: {
+    s1: {
+      title: "Standard 1 — Movement Skills",
       rows: [
-        { key: "throwing", label: "Throwing" },
-        { key: "catching", label: "Catching" },
-        { key: "kicking", label: "Kicking" },
-        { key: "striking", label: "Striking" }
+        "Locomotor Skills",
+        "Manipulative Skills",
+        "Balance & Stability",
+        "Rhythm & Timing",
+        "Spatial Awareness"
       ]
     },
-    {
-      id: "s2",
-      nav: "Standard 2",
-      title: "Standard 2: Movement Concepts + Sport Strategies",
-      type: "questions", // prompt + student response + teacher score + reassessment
-      rows: [
-        { key: "s2q1", label: "Question 1", prompt: "Explain one offensive strategy you used." },
-        { key: "s2q2", label: "Question 2", prompt: "Explain one defensive strategy you used." }
+    s2: {
+      title: "Standard 2 — Movement Concepts + Sport Strategies",
+      questions: [
+        "Explain how force affects movement.",
+        "Describe offensive strategy in a team sport.",
+        "Describe defensive positioning.",
+        "Explain how rules impact gameplay."
       ]
     },
-    {
-      id: "s3",
-      nav: "Standard 3",
-      title: "Standard 3: Health + Fitness + Nutrition",
-      type: "questions",
-      rows: [
-        { key: "s3q1", label: "Question 1", prompt: "Describe one benefit of regular physical activity." },
-        { key: "s3q2", label: "Question 2", prompt: "Give one example of a balanced meal and why." }
+    s3: {
+      title: "Standard 3 — Health, Fitness, and Nutrition",
+      questions: [
+        "Explain cardiovascular endurance.",
+        "Describe muscular strength vs endurance.",
+        "Explain why nutrition matters for performance.",
+        "Describe healthy recovery practices."
       ]
     },
-    {
-      id: "s4",
-      nav: "Standard 4",
-      title: "Standard 4: Teamwork + Leadership",
-      type: "mixed", // ratings table + questions
+    s4: {
+      title: "Standard 4 — Teamwork and Leadership",
       ratings: [
-        { key: "coop", label: "Cooperation" },
-        { key: "lead", label: "Leadership" },
-        { key: "respect", label: "Respect" }
+        "Communication",
+        "Respect",
+        "Leadership",
+        "Responsibility"
       ],
-      rows: [
-        { key: "s4q1", label: "Question 1", prompt: "Describe how you demonstrated teamwork/leadership." }
+      questions: [
+        "Describe how you contributed to a team.",
+        "Explain how you handled conflict.",
+        "Describe a leadership decision you made."
       ]
     },
-    {
-      id: "atl",
-      nav: "ATL",
-      title: "Approach to Learning",
-      type: "atl",
-      effortRatings: [
-        { key: "effort", label: "Puts forth effort to learn" },
-        { key: "focus", label: "Focus / Preparedness" }
+    atl: {
+      effort: [
+        "Puts forth effort to learn",
+        "Follows instructions",
+        "Stays on task"
       ]
     }
-  ],
-  weights: { s1: 0.25, s2: 0.25, s3: 0.25, s4: 0.25 },
-  micdsDomain: "@micds.org",
-  teacherWhitelist: ["prosen@micds.org"] // add more later
+  }
+};
+
+export const SCORE_OPTIONS = ["", "4", "3", "2", "1"];
+
+export const SCORE_COLOR = {
+  "4": "s4",
+  "3": "s3",
+  "2": "s2",
+  "1": "s1"
+};
+export const DATA = {
+  standards: {
+    s1: {
+      title: "Standard 1 — Movement Skills",
+      rows: [
+        "Locomotor Skills",
+        "Manipulative Skills",
+        "Balance & Stability",
+        "Rhythm & Timing",
+        "Spatial Awareness"
+      ]
+    },
+    s2: {
+      title: "Standard 2 — Movement Concepts + Sport Strategies",
+      questions: [
+        "Explain how force affects movement.",
+        "Describe offensive strategy in a team sport.",
+        "Describe defensive positioning.",
+        "Explain how rules impact gameplay."
+      ]
+    },
+    s3: {
+      title: "Standard 3 — Health, Fitness, and Nutrition",
+      questions: [
+        "Explain cardiovascular endurance.",
+        "Describe muscular strength vs endurance.",
+        "Explain why nutrition matters for performance.",
+        "Describe healthy recovery practices."
+      ]
+    },
+    s4: {
+      title: "Standard 4 — Teamwork and Leadership",
+      ratings: [
+        "Communication",
+        "Respect",
+        "Leadership",
+        "Responsibility"
+      ],
+      questions: [
+        "Describe how you contributed to a team.",
+        "Explain how you handled conflict.",
+        "Describe a leadership decision you made."
+      ]
+    },
+    atl: {
+      effort: [
+        "Puts forth effort to learn",
+        "Follows instructions",
+        "Stays on task"
+      ]
+    }
+  }
+};
+
+export const SCORE_OPTIONS = ["", "4", "3", "2", "1"];
+
+export const SCORE_COLOR = {
+  "4": "s4",
+  "3": "s3",
+  "2": "s2",
+  "1": "s1"
 };
