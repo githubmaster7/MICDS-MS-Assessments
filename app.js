@@ -402,3 +402,7 @@ export function initApp(){
   buildTabs();
   render();
 }
+
+window.addEventListener("DOMContentLoaded", ()=> {
+         initApp();
+});
