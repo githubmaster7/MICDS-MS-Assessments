@@ -6,426 +6,231 @@
   <title>MICDS Peer Tutoring Club</title>
   <style>
     :root {
-      --navy:      #1a2e5a;
-      --navy-dark: #111e3c;
-      --gold:      #c9a84c;
-      --gold-lt:   #f0e0a8;
-      --bg:        #f3f5f9;
-      --white:     #ffffff;
-      --text:      #1e293b;
-      --muted:     #64748b;
-      --border:    #d1d5db;
-      --blue-lt:   #dbeafe;
-      --blue-dk:   #1d4ed8;
-      --green-lt:  #d1fae5;
-      --green-dk:  #065f46;
-      --red-lt:    #fee2e2;
-      --red-dk:    #991b1b;
-      --amber-lt:  #fef3c7;
-      --amber-dk:  #92400e;
-      --shadow:    0 2px 10px rgba(0,0,0,0.08);
+      --navy:     #1a2e5a;
+      --navy-dk:  #111e3c;
+      --gold:     #c9a84c;
+      --gold-lt:  #f0e0a8;
+      --bg:       #f3f5f9;
+      --white:    #ffffff;
+      --text:     #1e293b;
+      --muted:    #64748b;
+      --border:   #d1d5db;
+      --blue-lt:  #dbeafe;
+      --blue-dk:  #1d4ed8;
+      --grn-lt:   #d1fae5;
+      --grn-dk:   #065f46;
+      --red-lt:   #fee2e2;
+      --red-dk:   #991b1b;
+      --amb-lt:   #fef3c7;
+      --amb-dk:   #92400e;
+      --shadow:   0 2px 10px rgba(0,0,0,0.08);
     }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 
     /* ── Header ── */
-    header {
-      background: var(--navy);
-      color: #fff;
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.25);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
+    header{background:var(--navy);color:#fff;padding:1rem 1.5rem;display:flex;align-items:center;gap:1.25rem;box-shadow:0 3px 12px rgba(0,0,0,0.25);position:sticky;top:0;z-index:100}
+    .logo{width:48px;height:48px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:900;color:var(--navy);flex-shrink:0;letter-spacing:-1px}
+    .hdr-text h1{font-size:1.25rem;font-weight:700}
+    .hdr-text p{font-size:0.78rem;opacity:0.7;margin-top:1px}
+    #user-info{margin-left:auto;display:flex;align-items:center;gap:0.65rem;flex-shrink:0}
+    .user-name{font-size:0.82rem;opacity:0.85}
+    .role-badge-hdr{font-size:0.68rem;font-weight:800;padding:0.2rem 0.6rem;border-radius:12px;text-transform:uppercase;letter-spacing:0.4px;background:var(--gold);color:var(--navy)}
+    .btn-outline-white{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.5);padding:0.35rem 0.85rem;font-size:0.78rem;font-weight:600;border-radius:7px;cursor:pointer;transition:all 0.18s}
+    .btn-outline-white:hover{background:rgba(255,255,255,0.15)}
 
-    .logo {
-      width: 52px; height: 52px;
-      background: var(--gold);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.3rem; font-weight: 900;
-      color: var(--navy); flex-shrink: 0;
-      letter-spacing: -1px;
-    }
+    /* ── Nav ── */
+    nav{background:var(--white);border-bottom:2px solid var(--border);padding:0 1.5rem;display:flex;overflow-x:auto}
+    .tab-btn{padding:0.88rem 1.3rem;border:none;background:none;font-size:0.86rem;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .18s,border-color .18s;white-space:nowrap;display:flex;align-items:center;gap:0.4rem}
+    .tab-btn:hover{color:var(--navy)}
+    .tab-btn.active{color:var(--navy);border-bottom-color:var(--gold);font-weight:700}
+    .tab-badge{background:var(--navy);color:#fff;font-size:0.66rem;font-weight:700;padding:0.12rem 0.48rem;border-radius:20px;min-width:18px;text-align:center}
+    .tab-btn.active .tab-badge{background:var(--gold);color:var(--navy)}
+    .tab-badge.hot{background:#f59e0b}
 
-    .header-text h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.3px; }
-    .header-text p  { font-size: 0.8rem; opacity: 0.7; margin-top: 2px; }
+    /* ── Main / panels ── */
+    #app{max-width:1080px;margin:2rem auto;padding:0 1.25rem 4rem}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
 
-    /* ── Nav Tabs ── */
-    nav {
-      background: var(--white);
-      border-bottom: 2px solid var(--border);
-      padding: 0 1.5rem;
-      display: flex;
-      overflow-x: auto;
-    }
+    /* ── Auth screen ── */
+    .auth-outer{display:flex;align-items:flex-start;justify-content:center;padding:2.5rem 1rem 4rem}
+    .auth-card{background:var(--white);border-radius:16px;padding:2rem 2rem 2.25rem;box-shadow:0 4px 24px rgba(0,0,0,0.12);width:100%;max-width:450px}
+    .auth-logo-row{display:flex;align-items:center;gap:0.85rem;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:2px solid var(--gold-lt)}
+    .auth-brand{font-size:1.1rem;font-weight:800;color:var(--navy)}
+    .auth-sub-txt{font-size:0.78rem;color:var(--muted);margin-top:2px}
+    .auth-form-title{font-size:1.05rem;font-weight:700;color:var(--navy);margin-bottom:1.25rem}
+    .auth-switch{font-size:0.82rem;color:var(--muted);margin-top:1.1rem;text-align:center}
+    .auth-switch a{color:var(--navy);font-weight:600;text-decoration:none}
+    .auth-switch a:hover{text-decoration:underline}
+    .auth-hint{font-size:0.82rem;color:var(--muted);margin-bottom:1rem}
+    .back-link{font-size:0.82rem;color:var(--muted);text-decoration:none;font-weight:600}
+    .back-link:hover{color:var(--navy)}
 
-    .tab-btn {
-      padding: 0.9rem 1.4rem;
-      border: none; background: none;
-      font-size: 0.88rem; font-weight: 500;
-      color: var(--muted);
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      margin-bottom: -2px;
-      transition: color 0.18s, border-color 0.18s;
-      white-space: nowrap;
-      display: flex; align-items: center; gap: 0.45rem;
-    }
-    .tab-btn:hover { color: var(--navy); }
-    .tab-btn.active {
-      color: var(--navy);
-      border-bottom-color: var(--gold);
-      font-weight: 700;
-    }
+    /* Role picker */
+    .role-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.25rem}
+    .role-card{background:var(--bg);border:2px solid var(--border);border-radius:12px;padding:1rem 0.75rem;text-align:center;cursor:pointer;transition:all 0.18s;user-select:none}
+    .role-card:hover{border-color:var(--navy);background:#eef1f8}
+    .role-card.selected{border-color:var(--navy);background:var(--blue-lt)}
+    .role-icon{font-size:1.75rem;margin-bottom:0.35rem}
+    .role-lbl{font-size:0.88rem;font-weight:700;color:var(--navy)}
+    .role-sublbl{font-size:0.72rem;color:var(--muted);margin-top:2px}
 
-    .tab-badge {
-      background: var(--navy);
-      color: #fff;
-      font-size: 0.68rem; font-weight: 700;
-      padding: 0.15rem 0.5rem;
-      border-radius: 20px;
-      min-width: 20px; text-align: center;
-    }
-    .tab-btn.active .tab-badge { background: var(--gold); color: var(--navy); }
-    .tab-badge.pending-alert { background: #f59e0b; color: #fff; }
-
-    /* ── Main ── */
-    main {
-      max-width: 1080px;
-      margin: 2rem auto;
-      padding: 0 1.25rem 4rem;
-    }
-
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+    /* ── Pending screen ── */
+    .pending-outer{display:flex;align-items:flex-start;justify-content:center;padding:3rem 1rem}
+    .pending-card{background:var(--white);border-radius:16px;padding:2.5rem 2rem;box-shadow:var(--shadow);max-width:420px;width:100%;text-align:center}
+    .pending-icon{font-size:3rem;margin-bottom:1rem;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+    .pending-card h2{font-size:1.15rem;font-weight:700;color:var(--navy);margin-bottom:0.6rem}
+    .pending-card p{font-size:0.85rem;color:var(--muted);line-height:1.6;margin-bottom:0.5rem}
 
     /* ── Card ── */
-    .card {
-      background: var(--white);
-      border-radius: 14px;
-      padding: 1.5rem;
-      box-shadow: var(--shadow);
-      margin-bottom: 1.5rem;
-    }
+    .card{background:var(--white);border-radius:14px;padding:1.5rem;box-shadow:var(--shadow);margin-bottom:1.5rem}
+    .card-title{font-size:1.05rem;font-weight:700;color:var(--navy);margin-bottom:1.25rem;padding-bottom:0.85rem;border-bottom:2px solid var(--gold-lt);display:flex;align-items:center;gap:0.6rem}
 
-    .card-title {
-      font-size: 1.05rem; font-weight: 700;
-      color: var(--navy);
-      margin-bottom: 1.25rem;
-      padding-bottom: 0.85rem;
-      border-bottom: 2px solid var(--gold-lt);
-      display: flex; align-items: center; gap: 0.6rem;
-    }
+    /* ── Form ── */
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    .fg{display:flex;flex-direction:column;gap:0.35rem}
+    .fg.span2{grid-column:1/-1}
+    label.lbl{font-size:0.76rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.4px}
+    input[type=text],input[type=email],input[type=date],input[type=time],input[type=password],select{padding:0.6rem 0.9rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;color:var(--text);background:var(--white);outline:none;transition:border-color .18s,box-shadow .18s;width:100%}
+    input:focus,select:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(26,46,90,0.1)}
 
-    /* ── Form grid ── */
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-
-    .fg { display: flex; flex-direction: column; gap: 0.35rem; }
-    .fg.span2 { grid-column: 1 / -1; }
-
-    label.lbl {
-      font-size: 0.78rem; font-weight: 700;
-      color: var(--text);
-      text-transform: uppercase; letter-spacing: 0.4px;
-    }
-
-    input[type="text"],
-    input[type="email"],
-    input[type="date"],
-    input[type="time"],
-    input[type="password"],
-    select {
-      padding: 0.6rem 0.9rem;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      font-size: 0.9rem;
-      color: var(--text); background: var(--white);
-      outline: none;
-      transition: border-color 0.18s, box-shadow 0.18s;
-      width: 100%;
-    }
-    input:focus, select:focus {
-      border-color: var(--navy);
-      box-shadow: 0 0 0 3px rgba(26,46,90,0.1);
-    }
-
-    /* ── Pill checkboxes ── */
-    .pill-grid { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-
-    .pill-grid label {
-      display: flex; align-items: center; gap: 0.35rem;
-      font-size: 0.8rem; font-weight: 500;
-      background: var(--bg);
-      padding: 0.38rem 0.78rem;
-      border-radius: 20px; cursor: pointer;
-      border: 1.5px solid var(--border);
-      transition: all 0.15s; user-select: none;
-    }
-    .pill-grid label:hover { border-color: var(--navy); background: #e8edf5; }
-    .pill-grid label:has(input:checked) {
-      background: var(--gold-lt); border-color: var(--gold);
-      color: #7a5c00; font-weight: 600;
-    }
-    .pill-grid input[type="checkbox"] { display: none; }
+    /* ── Pills ── */
+    .pill-grid{display:flex;flex-wrap:wrap;gap:0.4rem}
+    .pill-grid label{display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:500;background:var(--bg);padding:0.35rem 0.72rem;border-radius:20px;cursor:pointer;border:1.5px solid var(--border);transition:all .15s;user-select:none}
+    .pill-grid label:hover{border-color:var(--navy);background:#e8edf5}
+    .pill-grid label:has(input:checked){background:var(--gold-lt);border-color:var(--gold);color:#7a5c00;font-weight:600}
+    .pill-grid input[type=checkbox]{display:none}
 
     /* ── Buttons ── */
-    .btn {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      padding: 0.65rem 1.3rem;
-      border: none; border-radius: 8px;
-      font-size: 0.88rem; font-weight: 700;
-      cursor: pointer; transition: all 0.18s;
-    }
-    .btn-navy  { background: var(--navy); color: #fff; }
-    .btn-navy:hover  { background: var(--navy-dark); }
-    .btn-gold  { background: var(--gold); color: var(--navy); }
-    .btn-gold:hover  { background: #b89036; }
-    .btn-green { background: var(--green-lt); color: var(--green-dk); border: 1.5px solid #6ee7b7; }
-    .btn-green:hover { background: #a7f3d0; }
-    .btn-red   { background: var(--red-lt); color: var(--red-dk); border: 1.5px solid #fca5a5; }
-    .btn-red:hover   { background: #fecaca; }
-    .btn-amber { background: var(--amber-lt); color: var(--amber-dk); border: 1.5px solid #fcd34d; }
-    .btn-amber:hover { background: #fde68a; }
-    .btn-outline-muted {
-      background: transparent; color: var(--muted);
-      border: 1.5px solid var(--border);
-    }
-    .btn-outline-muted:hover { background: var(--bg); }
-    .btn-outline-red {
-      background: transparent; color: var(--red-dk);
-      border: 1.5px solid #fca5a5;
-      padding: 0.3rem 0.7rem; font-size: 0.75rem;
-    }
-    .btn-outline-red:hover { background: var(--red-lt); }
-    .btn-sm  { padding: 0.38rem 0.78rem; font-size: 0.78rem; }
-    .btn-xs  { padding: 0.25rem 0.6rem;  font-size: 0.72rem; }
+    .btn{display:inline-flex;align-items:center;gap:0.4rem;padding:0.62rem 1.25rem;border:none;border-radius:8px;font-size:0.86rem;font-weight:700;cursor:pointer;transition:all .18s}
+    .btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:var(--navy-dk)}
+    .btn-gold{background:var(--gold);color:var(--navy)}.btn-gold:hover{background:#b89036}
+    .btn-green{background:var(--grn-lt);color:var(--grn-dk);border:1.5px solid #6ee7b7}.btn-green:hover{background:#a7f3d0}
+    .btn-red{background:var(--red-lt);color:var(--red-dk);border:1.5px solid #fca5a5}.btn-red:hover{background:#fecaca}
+    .btn-amber{background:var(--amb-lt);color:var(--amb-dk);border:1.5px solid #fcd34d}.btn-amber:hover{background:#fde68a}
+    .btn-outline{background:transparent;color:var(--muted);border:1.5px solid var(--border)}.btn-outline:hover{background:var(--bg)}
+    .btn-sm{padding:0.38rem 0.78rem;font-size:0.78rem}
+    .btn-xs{padding:0.24rem 0.58rem;font-size:0.72rem}
+    .btn-full{width:100%;justify-content:center;margin-top:1.1rem}
 
-    /* ── Alert ── */
-    .alert {
-      padding: 0.8rem 1rem; border-radius: 8px;
-      font-size: 0.85rem; font-weight: 500;
-      margin-bottom: 1rem; display: none;
-    }
-    .alert-ok     { background: var(--green-lt); color: var(--green-dk); display: block; }
-    .alert-err    { background: var(--red-lt);   color: var(--red-dk);   display: block; }
-    .alert-info   { background: var(--amber-lt); color: var(--amber-dk); display: block; }
+    /* ── Alerts ── */
+    .alert{padding:0.78rem 1rem;border-radius:8px;font-size:0.83rem;font-weight:500;margin-bottom:1rem;display:none}
+    .alert-ok{background:var(--grn-lt);color:var(--grn-dk);display:block}
+    .alert-err{background:var(--red-lt);color:var(--red-dk);display:block}
+    .alert-info{background:var(--amb-lt);color:var(--amb-dk);display:block}
 
-    /* ── Person list (public) ── */
-    .person-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    /* ── Person rows ── */
+    .person-list{display:flex;flex-direction:column;gap:0.7rem}
+    .person-row{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:0.9rem 1rem;background:var(--bg);border:1.5px solid var(--border);border-radius:10px}
+    .person-name{font-size:0.93rem;font-weight:700;color:var(--navy)}
+    .person-meta{font-size:0.76rem;color:var(--muted);margin-top:2px}
+    .p-actions{display:flex;gap:0.4rem;flex-shrink:0;flex-wrap:wrap;align-items:flex-start}
 
-    .person-row {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 1rem; padding: 0.9rem 1rem;
-      background: var(--bg); border: 1.5px solid var(--border);
-      border-radius: 10px;
-    }
-
-    .person-name { font-size: 0.95rem; font-weight: 700; color: var(--navy); }
-    .person-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
-
-    .tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
-
-    .tag {
-      font-size: 0.7rem; font-weight: 600;
-      padding: 0.18rem 0.55rem; border-radius: 12px;
-    }
-    .tag-sub    { background: var(--blue-lt);  color: var(--blue-dk); }
-    .tag-int    { background: var(--green-lt); color: var(--green-dk); }
-    .tag-shared { background: var(--gold-lt);  color: #7a5c00; }
+    /* ── Tags ── */
+    .tags{display:flex;flex-wrap:wrap;gap:0.28rem;margin-top:0.45rem}
+    .tag{font-size:0.68rem;font-weight:600;padding:0.16rem 0.52rem;border-radius:12px}
+    .tag-sub{background:var(--blue-lt);color:var(--blue-dk)}
+    .tag-int{background:var(--grn-lt);color:var(--grn-dk)}
+    .tag-shared{background:var(--gold-lt);color:#7a5c00}
 
     /* ── Empty state ── */
-    .empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
-    .empty .icon { font-size: 2.5rem; margin-bottom: 0.6rem; }
-    .empty h3 { color: var(--text); font-size: 0.95rem; margin-bottom: 0.4rem; }
-    .empty p  { font-size: 0.83rem; }
+    .empty{text-align:center;padding:2.5rem 1rem;color:var(--muted)}
+    .empty .eico{font-size:2.5rem;margin-bottom:0.55rem}
+    .empty h3{color:var(--text);font-size:0.93rem;margin-bottom:0.35rem}
+    .empty p{font-size:0.81rem}
 
-    /* ── Stats bar ── */
-    .stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-    .stat-chip {
-      background: var(--white); border: 1.5px solid var(--border);
-      border-radius: 10px; padding: 0.75rem 1.1rem;
-      box-shadow: var(--shadow); min-width: 110px;
-    }
-    .stat-chip strong { display: block; font-size: 1.6rem; color: var(--navy); line-height: 1; }
-    .stat-chip span   { font-size: 0.78rem; color: var(--muted); }
-    .stat-chip.amber  { border-color: #fcd34d; }
-    .stat-chip.amber strong { color: #92400e; }
-    .stat-chip.green  { border-color: #6ee7b7; }
-    .stat-chip.green strong { color: var(--green-dk); }
+    /* ── Stats row ── */
+    .stats-row{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+    .stat-chip{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:0.72rem 1rem;box-shadow:var(--shadow);min-width:105px}
+    .stat-chip strong{display:block;font-size:1.55rem;color:var(--navy);line-height:1}
+    .stat-chip span{font-size:0.76rem;color:var(--muted)}
+    .stat-chip.amb{border-color:#fcd34d}.stat-chip.amb strong{color:var(--amb-dk)}
+    .stat-chip.grn{border-color:#6ee7b7}.stat-chip.grn strong{color:var(--grn-dk)}
 
-    /* ── Match card ── */
-    .match-card {
-      background: var(--white); border: 1.5px solid var(--border);
-      border-radius: 12px; padding: 1.25rem;
-      margin-bottom: 1rem; box-shadow: var(--shadow);
-    }
-    .match-head {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 1rem;
-    }
-    .pair-num { font-size: 0.8rem; font-weight: 700; color: var(--muted); }
-    .score-pill {
-      background: var(--navy); color: #fff;
-      font-size: 0.78rem; font-weight: 700;
-      padding: 0.25rem 0.75rem; border-radius: 20px;
-    }
-    .match-pair {
-      display: grid; grid-template-columns: 1fr 48px 1fr;
-      gap: 0.75rem; align-items: center;
-    }
-    .match-person {
-      padding: 0.85rem 1rem; border-radius: 8px; border: 1.5px solid var(--border);
-    }
-    .match-person.student { border-color: #93c5fd; background: #eff6ff; }
-    .match-person.tutor   { border-color: #6ee7b7; background: #f0fdf4; }
-    .role-label {
-      font-size: 0.68rem; font-weight: 800;
-      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;
-    }
-    .match-person.student .role-label { color: var(--blue-dk); }
-    .match-person.tutor   .role-label { color: var(--green-dk); }
-    .match-name { font-size: 0.95rem; font-weight: 700; }
-    .match-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
-    .match-arrow { text-align: center; font-size: 1.4rem; color: var(--muted); }
-    .match-shared { margin-top: 0.85rem; }
-    .unmatched-group { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-    .chip-unmatched {
-      background: var(--red-lt); color: var(--red-dk);
-      border: 1px solid #fca5a5;
-      padding: 0.3rem 0.8rem; border-radius: 20px;
-      font-size: 0.8rem; font-weight: 500;
-    }
+    /* ── Match cards ── */
+    .match-card{background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+    .match-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+    .pair-num{font-size:0.78rem;font-weight:700;color:var(--muted)}
+    .score-pill{background:var(--navy);color:#fff;font-size:0.76rem;font-weight:700;padding:0.22rem 0.72rem;border-radius:20px}
+    .match-pair{display:grid;grid-template-columns:1fr 44px 1fr;gap:0.7rem;align-items:center}
+    .match-person{padding:0.8rem 0.9rem;border-radius:8px;border:1.5px solid var(--border)}
+    .match-person.student{border-color:#93c5fd;background:#eff6ff}
+    .match-person.tutor{border-color:#6ee7b7;background:#f0fdf4}
+    .role-lbl-inner{font-size:0.66rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.2rem}
+    .match-person.student .role-lbl-inner{color:var(--blue-dk)}
+    .match-person.tutor .role-lbl-inner{color:var(--grn-dk)}
+    .match-name{font-size:0.92rem;font-weight:700}
+    .match-meta{font-size:0.76rem;color:var(--muted);margin-top:2px}
+    .match-arrow{text-align:center;font-size:1.35rem;color:var(--muted)}
+    .match-tags{margin-top:0.8rem}
 
-    /* ── Slip form ── */
-    .slip-config { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    /* ── Request cards ── */
+    .req-card{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:0.9rem 1rem;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);margin-bottom:0.65rem}
+    .req-card.pending{border-left:4px solid #f59e0b;background:#fffbeb}
+    .req-card.approved{border-left:4px solid #10b981;background:#f0fdf4}
+    .req-card.rejected{border-left:4px solid #ef4444;background:#fef2f2}
+    .req-info{flex:1;min-width:0}
+    .req-name{font-size:0.91rem;font-weight:700;color:var(--navy)}
+    .req-meta{font-size:0.75rem;color:var(--muted);margin-top:2px}
+    .req-actions{display:flex;gap:0.4rem;flex-shrink:0;flex-wrap:wrap;align-items:flex-start}
+    .status-pill{display:inline-block;font-size:0.66rem;font-weight:800;padding:0.16rem 0.56rem;border-radius:12px;text-transform:uppercase;letter-spacing:0.4px;margin-left:0.45rem}
+    .sp-pending{background:var(--amb-lt);color:var(--amb-dk)}
+    .sp-approved{background:var(--grn-lt);color:var(--grn-dk)}
+    .sp-rejected{background:var(--red-lt);color:var(--red-dk)}
 
-    /* ── Admin ── */
-    .admin-login-wrap {
-      max-width: 400px; margin: 0 auto; text-align: center; padding: 1rem 0;
-    }
-    .admin-lock-icon { font-size: 3.5rem; margin-bottom: 0.75rem; }
-    .admin-login-row {
-      display: flex; gap: 0.75rem; margin-top: 1rem;
-    }
-    .admin-login-row input { flex: 1; }
+    /* Best-match highlight */
+    .tutor-card{background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:1.1rem 1.2rem;margin-bottom:0.85rem;box-shadow:var(--shadow);transition:border-color .2s}
+    .tutor-card.best-match{border-color:var(--gold);border-left:4px solid var(--gold);background:#fffbf0}
+    .best-match-badge{background:var(--gold);color:var(--navy);font-size:0.68rem;font-weight:800;padding:0.18rem 0.55rem;border-radius:12px;margin-left:0.5rem;text-transform:uppercase}
+    .compat-score{font-size:0.78rem;font-weight:700;color:var(--navy);background:var(--blue-lt);padding:0.22rem 0.6rem;border-radius:12px}
 
-    .admin-section { margin-bottom: 2rem; }
-    .admin-section-head {
-      display: flex; align-items: center; gap: 0.65rem;
-      font-size: 0.78rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.5px;
-      color: var(--muted); margin-bottom: 0.85rem;
-    }
-    .section-count {
-      background: var(--bg); border: 1px solid var(--border);
-      color: var(--text); font-size: 0.68rem; font-weight: 700;
-      padding: 0.1rem 0.5rem; border-radius: 10px;
-    }
+    /* ── Session form (inline teacher approval) ── */
+    .session-form{border-top:1.5px solid var(--border);margin-top:0.9rem;padding-top:0.9rem;overflow:hidden;max-height:0;transition:max-height .3s ease}
+    .session-form.open{max-height:500px}
+    .session-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem}
+    .session-actions{display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:0.5rem}
 
-    .req-card {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 1rem; padding: 0.9rem 1rem;
-      border-radius: 10px; border: 1.5px solid var(--border);
-      background: var(--bg); margin-bottom: 0.6rem;
-    }
-    .req-card.pending  { border-left: 4px solid #f59e0b; background: #fffbeb; }
-    .req-card.approved { border-left: 4px solid #10b981; background: #f0fdf4; }
-    .req-card.rejected { border-left: 4px solid #ef4444; background: #fef2f2; }
-
-    .req-info { flex: 1; min-width: 0; }
-    .req-name { font-size: 0.92rem; font-weight: 700; color: var(--navy); }
-    .req-meta { font-size: 0.77rem; color: var(--muted); margin-top: 2px; }
-    .req-actions { display: flex; gap: 0.4rem; flex-shrink: 0; flex-wrap: wrap; align-items: flex-start; }
-
-    .status-pill {
-      display: inline-block; font-size: 0.68rem; font-weight: 800;
-      padding: 0.18rem 0.6rem; border-radius: 12px;
-      text-transform: uppercase; letter-spacing: 0.5px;
-      margin-left: 0.5rem;
-    }
-    .status-pending  { background: var(--amber-lt); color: var(--amber-dk); }
-    .status-approved { background: var(--green-lt);  color: var(--green-dk); }
-    .status-rejected { background: var(--red-lt);    color: var(--red-dk); }
-
-    .divider { border: none; border-top: 1.5px solid var(--border); margin: 1.5rem 0; }
-
-    .pending-notice {
-      background: var(--amber-lt); border: 1.5px solid #fcd34d;
-      color: var(--amber-dk); border-radius: 10px;
-      padding: 0.75rem 1rem; font-size: 0.85rem; font-weight: 500;
-      margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.6rem;
-    }
-
-    /* ── Printable slip ── */
-    .slip-page {
-      background: var(--white); border: 2px solid #333;
-      padding: 2.25rem 2.5rem; margin-bottom: 2rem;
-      font-family: 'Times New Roman', Georgia, serif; color: #111;
-    }
-    .slip-school-head {
-      text-align: center; border-bottom: 3px double #333;
-      padding-bottom: 1rem; margin-bottom: 1.5rem;
-    }
-    .slip-school-head h1 { font-size: 1.3rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; }
-    .slip-school-head h2 { font-size: 0.95rem; font-weight: 600; margin-top: 0.3rem; }
-    .slip-school-head p  { font-size: 0.8rem; color: #555; margin-top: 0.25rem; }
-    .slip-doc-title {
-      text-align: center; font-size: 1.05rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 1px; text-decoration: underline;
-      margin: 1.2rem 0 1rem;
-    }
-    .slip-body-text { font-size: 0.88rem; line-height: 1.75; margin-bottom: 0.75rem; }
-    .slip-details { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 2.5rem; margin: 1.1rem 0; }
-    .detail-row { display: flex; gap: 0.5rem; align-items: baseline; font-size: 0.86rem; }
-    .detail-key { font-weight: 700; white-space: nowrap; font-size: 0.8rem; }
-    .detail-val { border-bottom: 1px solid #333; flex: 1; padding-bottom: 1px; min-width: 60px; }
-    .slip-table { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: 0.84rem; }
-    .slip-table th, .slip-table td { border: 1px solid #333; padding: 0.5rem 0.7rem; text-align: left; }
-    .slip-table th { background: #efefef; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.3px; }
-    .slip-checks { margin: 0.85rem 0; }
-    .check-row { display: flex; align-items: flex-start; gap: 0.65rem; font-size: 0.86rem; line-height: 1.5; margin-bottom: 0.45rem; }
-    .check-box { width: 13px; height: 13px; min-width: 13px; border: 1.5px solid #333; display: inline-block; margin-top: 2px; }
-    .slip-sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 2rem; }
-    .sig-line { border-top: 1px solid #333; padding-top: 0.35rem; font-size: 0.76rem; color: #333; }
-    .sig-spacer { height: 2rem; }
-    .slip-footer { font-size: 0.7rem; text-align: center; color: #777; margin-top: 1.5rem; border-top: 1px solid #ccc; padding-top: 0.5rem; }
+    /* ── Permission slip ── */
+    .slip-page{background:var(--white);border:2px solid #333;padding:2.25rem 2.5rem;margin-bottom:2rem;font-family:'Times New Roman',Georgia,serif;color:#111}
+    .slip-hd{text-align:center;border-bottom:3px double #333;padding-bottom:1rem;margin-bottom:1.5rem}
+    .slip-hd h1{font-size:1.3rem;font-weight:900;text-transform:uppercase;letter-spacing:1.5px}
+    .slip-hd h2{font-size:0.95rem;font-weight:600;margin-top:0.3rem}
+    .slip-hd p{font-size:0.8rem;color:#555;margin-top:0.25rem}
+    .slip-doc-title{text-align:center;font-size:1.05rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;text-decoration:underline;margin:1.2rem 0 1rem}
+    .slip-body-txt{font-size:0.88rem;line-height:1.75;margin-bottom:0.75rem}
+    .slip-details{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem 2.5rem;margin:1.1rem 0}
+    .detail-row{display:flex;gap:0.5rem;align-items:baseline;font-size:0.86rem}
+    .detail-key{font-weight:700;white-space:nowrap;font-size:0.8rem}
+    .detail-val{border-bottom:1px solid #333;flex:1;padding-bottom:1px;min-width:60px}
+    .slip-tbl{width:100%;border-collapse:collapse;margin:1.1rem 0;font-size:0.84rem}
+    .slip-tbl th,.slip-tbl td{border:1px solid #333;padding:0.5rem 0.7rem;text-align:left}
+    .slip-tbl th{background:#efefef;font-weight:800;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.3px}
+    .slip-checks{margin:0.85rem 0}
+    .chk-row{display:flex;align-items:flex-start;gap:0.6rem;font-size:0.86rem;line-height:1.5;margin-bottom:0.42rem}
+    .chk-box{width:13px;height:13px;min-width:13px;border:1.5px solid #333;display:inline-block;margin-top:2px}
+    .slip-sigs{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:2rem}
+    .sig-line{border-top:1px solid #333;padding-top:0.35rem;font-size:0.75rem;color:#333}
+    .sig-spc{height:2rem}
+    .slip-footer{font-size:0.7rem;text-align:center;color:#777;margin-top:1.5rem;border-top:1px solid #ccc;padding-top:0.5rem}
 
     /* ── Print ── */
-    @media print {
-      body { background: white; }
-      header, nav, .no-print { display: none !important; }
-      main { margin: 0; padding: 0; max-width: none; }
-      .tab-panel { display: none !important; }
-      #tab-slips  { display: block !important; }
-      .slip-config, .card.no-print { display: none !important; }
-      .slip-page { page-break-after: always; border: none; padding: 1.5cm; margin: 0; }
-      .slip-page:last-child { page-break-after: avoid; }
+    @media print{
+      body>*:not(#slip-print-area){display:none!important}
+      #slip-print-area{display:block!important}
+      .slip-page{page-break-after:always;border:none;padding:1.5cm;margin:0}
+      .slip-page:last-child{page-break-after:avoid}
     }
 
     /* ── Responsive ── */
-    @media (max-width: 640px) {
-      .form-grid, .slip-config, .slip-details, .slip-sigs { grid-template-columns: 1fr; }
-      .fg.span2 { grid-column: 1; }
-      .match-pair { grid-template-columns: 1fr; }
-      .match-arrow { transform: rotate(90deg); }
-      .req-card { flex-direction: column; }
-      .req-actions { flex-direction: row; }
+    @media(max-width:640px){
+      .form-grid,.session-grid,.slip-details,.slip-sigs{grid-template-columns:1fr}
+      .fg.span2{grid-column:1}
+      .match-pair{grid-template-columns:1fr}
+      .match-arrow{transform:rotate(90deg)}
+      .role-grid{grid-template-columns:1fr 1fr}
+      .req-card{flex-direction:column}
     }
   </style>
 </head>
@@ -433,780 +238,988 @@
 
 <header>
   <div class="logo">PT</div>
-  <div class="header-text">
+  <div class="hdr-text">
     <h1>MICDS Peer Tutoring Club</h1>
-    <p>Connecting Middle School Students &amp; Upper School Tutors</p>
+    <p id="header-sub">Connecting Middle School Students &amp; Upper School Tutors</p>
   </div>
+  <div id="user-info"></div>
 </header>
 
-<nav id="main-nav">
-  <button class="tab-btn active" onclick="showTab('students', this)">
-    Students <span class="tab-badge" id="badge-students">0</span>
-  </button>
-  <button class="tab-btn" onclick="showTab('tutors', this)">
-    Tutors <span class="tab-badge" id="badge-tutors">0</span>
-  </button>
-  <button class="tab-btn" onclick="showTab('matches', this)">
-    Matches <span class="tab-badge" id="badge-matches">0</span>
-  </button>
-  <button class="tab-btn" onclick="showTab('slips', this)">
-    Permission Slips
-  </button>
-  <button class="tab-btn" onclick="showTab('admin', this)" id="tab-btn-admin">
-    Admin <span class="tab-badge" id="badge-admin">0</span>
-  </button>
-</nav>
-
-<main>
-
-  <!-- ═══ STUDENTS ═══ -->
-  <div id="tab-students" class="tab-panel active">
-    <div class="card">
-      <div class="card-title">Submit a Student Request <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">Grades 6–8</span></div>
-      <div class="pending-notice">
-        &#9432; Submissions are held for admin review before being included in matching.
-      </div>
-      <div id="s-alert" class="alert"></div>
-      <form id="s-form" onsubmit="addPerson(event,'student')">
-        <div class="form-grid">
-          <div class="fg">
-            <label class="lbl">First Name</label>
-            <input type="text" id="s-first" required placeholder="e.g. Alex">
-          </div>
-          <div class="fg">
-            <label class="lbl">Last Name</label>
-            <input type="text" id="s-last" required placeholder="e.g. Johnson">
-          </div>
-          <div class="fg">
-            <label class="lbl">Grade</label>
-            <select id="s-grade" required>
-              <option value="">Select grade…</option>
-              <option value="6">6th Grade</option>
-              <option value="7">7th Grade</option>
-              <option value="8">8th Grade</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label class="lbl">School Email</label>
-            <input type="email" id="s-email" required placeholder="student@micds.org">
-          </div>
-          <div class="fg span2">
-            <label class="lbl">Subjects Needed <span style="font-weight:400;text-transform:none;font-size:0.75rem;">(select at least one)</span></label>
-            <div class="pill-grid" id="s-subjects"></div>
-          </div>
-          <div class="fg span2">
-            <label class="lbl">Interests <span style="font-weight:400;text-transform:none;font-size:0.75rem;">(optional — improves matching)</span></label>
-            <div class="pill-grid" id="s-interests"></div>
-          </div>
-          <div class="fg span2">
-            <button type="submit" class="btn btn-navy">Submit Request</button>
-          </div>
-        </div>
-      </form>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Approved Students</div>
-      <div class="person-list" id="s-list">
-        <div class="empty"><div class="icon">🎓</div><h3>No approved students yet</h3><p>Requests appear here after admin approval.</p></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ TUTORS ═══ -->
-  <div id="tab-tutors" class="tab-panel">
-    <div class="card">
-      <div class="card-title">Submit a Tutor Request <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">Grades 9–12</span></div>
-      <div class="pending-notice">
-        &#9432; Submissions are held for admin review before being included in matching.
-      </div>
-      <div id="t-alert" class="alert"></div>
-      <form id="t-form" onsubmit="addPerson(event,'tutor')">
-        <div class="form-grid">
-          <div class="fg">
-            <label class="lbl">First Name</label>
-            <input type="text" id="t-first" required placeholder="e.g. Jordan">
-          </div>
-          <div class="fg">
-            <label class="lbl">Last Name</label>
-            <input type="text" id="t-last" required placeholder="e.g. Smith">
-          </div>
-          <div class="fg">
-            <label class="lbl">Grade</label>
-            <select id="t-grade" required>
-              <option value="">Select grade…</option>
-              <option value="9">9th Grade</option>
-              <option value="10">10th Grade</option>
-              <option value="11">11th Grade</option>
-              <option value="12">12th Grade</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label class="lbl">School Email</label>
-            <input type="email" id="t-email" required placeholder="tutor@micds.org">
-          </div>
-          <div class="fg span2">
-            <label class="lbl">Subjects Offered <span style="font-weight:400;text-transform:none;font-size:0.75rem;">(select at least one)</span></label>
-            <div class="pill-grid" id="t-subjects"></div>
-          </div>
-          <div class="fg span2">
-            <label class="lbl">Interests <span style="font-weight:400;text-transform:none;font-size:0.75rem;">(optional — improves matching)</span></label>
-            <div class="pill-grid" id="t-interests"></div>
-          </div>
-          <div class="fg span2">
-            <button type="submit" class="btn btn-navy">Submit Request</button>
-          </div>
-        </div>
-      </form>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Approved Tutors</div>
-      <div class="person-list" id="t-list">
-        <div class="empty"><div class="icon">📚</div><h3>No approved tutors yet</h3><p>Requests appear here after admin approval.</p></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ MATCHES ═══ -->
-  <div id="tab-matches" class="tab-panel">
-    <div class="card no-print">
-      <div class="card-title">Run Matching Algorithm</div>
-      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.1rem;">
-        Pairs each <strong>approved</strong> student with the best-fit approved tutor based on shared subjects (required) plus shared interests. Each person is matched at most once.
-      </p>
-      <button class="btn btn-gold" onclick="runMatching()">&#9889; Run Matching</button>
-    </div>
-    <div id="match-results"></div>
-  </div>
-
-  <!-- ═══ PERMISSION SLIPS ═══ -->
-  <div id="tab-slips" class="tab-panel">
-    <div class="card no-print">
-      <div class="card-title">Session Details</div>
-      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.25rem;">
-        Fill in the tutoring session information. One permission slip will be generated per matched pair, pre-populated with all student, tutor, and subject data.
-      </p>
-      <div id="slip-alert" class="alert"></div>
-      <div class="slip-config">
-        <div class="fg">
-          <label class="lbl">Tutoring Location</label>
-          <input type="text" id="slip-loc" placeholder="e.g. MICDS Library, Room 204" value="MICDS — Middle School Library">
-        </div>
-        <div class="fg">
-          <label class="lbl">Date of Session</label>
-          <input type="date" id="slip-date">
-        </div>
-        <div class="fg">
-          <label class="lbl">Start Time</label>
-          <input type="time" id="slip-start" value="15:30">
-        </div>
-        <div class="fg">
-          <label class="lbl">End Time</label>
-          <input type="time" id="slip-end" value="17:00">
-        </div>
-        <div class="fg">
-          <label class="lbl">Supervising Teacher</label>
-          <input type="text" id="slip-teacher" placeholder="e.g. Ms. Williams">
-        </div>
-        <div class="fg">
-          <label class="lbl">Academic Year</label>
-          <input type="text" id="slip-year" value="2025–2026">
-        </div>
-        <div class="fg span2" style="margin-top:0.5rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
-          <button class="btn btn-gold" onclick="generateSlips()">Generate Permission Slips</button>
-          <button class="btn btn-navy" onclick="window.print()">&#128424; Print All</button>
-        </div>
-      </div>
-    </div>
-    <div id="slips-output"></div>
-  </div>
-
-  <!-- ═══ ADMIN ═══ -->
-  <div id="tab-admin" class="tab-panel">
-
-    <!-- Login gate -->
-    <div id="admin-login-section" class="card">
-      <div class="admin-login-wrap">
-        <div class="admin-lock-icon">&#128274;</div>
-        <div class="card-title" style="justify-content:center;border:none;padding:0;margin-bottom:0.5rem;">Admin Access</div>
-        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.5rem;">
-          Enter the administrator password to review and process incoming student and tutor requests.
-        </p>
-        <div id="admin-login-alert" class="alert"></div>
-        <div class="admin-login-row">
-          <input type="password" id="admin-pw" placeholder="Password"
-            onkeydown="if(event.key==='Enter') adminLogin()">
-          <button class="btn btn-navy" onclick="adminLogin()">Sign In</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Dashboard (hidden until login) -->
-    <div id="admin-dashboard" style="display:none">
-
-      <!-- Header bar -->
-      <div class="card" style="margin-bottom:1.5rem;">
-        <div class="card-title" style="margin-bottom:0;border:none;padding:0;justify-content:space-between;">
-          <span>&#128274; Admin Dashboard</span>
-          <button class="btn btn-outline-muted btn-sm" onclick="adminLogout()">Sign Out</button>
-        </div>
-      </div>
-
-      <!-- Stats -->
-      <div class="stats-row" id="admin-stats"></div>
-
-      <!-- Pending Students -->
-      <div class="card">
-        <div class="card-title">Pending Student Requests</div>
-        <div id="admin-pending-students"></div>
-      </div>
-
-      <!-- Pending Tutors -->
-      <div class="card">
-        <div class="card-title">Pending Tutor Requests</div>
-        <div id="admin-pending-tutors"></div>
-      </div>
-
-      <hr class="divider">
-
-      <!-- Approved Students -->
-      <div class="card">
-        <div class="card-title">Approved Students</div>
-        <div id="admin-approved-students"></div>
-      </div>
-
-      <!-- Approved Tutors -->
-      <div class="card">
-        <div class="card-title">Approved Tutors</div>
-        <div id="admin-approved-tutors"></div>
-      </div>
-
-      <!-- Rejected (compact, collapsible) -->
-      <div class="card">
-        <div class="card-title" style="cursor:pointer" onclick="toggleRejected()">
-          Rejected Requests
-          <span style="font-size:0.8rem;font-weight:400;color:var(--muted);margin-left:auto" id="rejected-toggle-label">Show</span>
-        </div>
-        <div id="admin-rejected" style="display:none"></div>
-      </div>
-
-    </div>
-  </div>
-
-</main>
+<nav id="main-nav"></nav>
+<main id="app"></main>
+<div id="slip-print-area" style="display:none"></div>
 
 <script>
-// ── Constants ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
 const SUBJECTS  = ['Math','Science','English','History','Spanish','French','Biology','Chemistry','Physics','Computer Science','Art','Music'];
 const INTERESTS = ['Reading','Gaming','Soccer','Basketball','Art','Music','Coding','Cooking','Film','Nature','Debate','Theater','Chess','Photography'];
-const ADMIN_PASSWORD = 'MICDS@2026';
+const ACCESS_CODES = { teacher: 'MICDS-TEACH-2026', admin: 'MICDS-ADMIN-2026' };
+const K_USERS = 'ptc_users', K_REQS = 'ptc_requests', K_SESSION = 'ptc_session';
 
-// ── Storage ────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════════════════════════════════════════
 const db = {
-  get: k   => JSON.parse(localStorage.getItem(k) || '[]'),
+  get: k => JSON.parse(localStorage.getItem(k) || '[]'),
   set: (k,v) => localStorage.setItem(k, JSON.stringify(v)),
+  users: ()   => db.get(K_USERS),
+  reqs:  ()   => db.get(K_REQS),
+  saveU: arr  => db.set(K_USERS, arr),
+  saveR: arr  => db.set(K_REQS, arr),
+};
+const sess = {
+  get:   () => JSON.parse(localStorage.getItem(K_SESSION) || 'null'),
+  set:   u  => localStorage.setItem(K_SESSION, JSON.stringify(u)),
+  clear: () => localStorage.removeItem(K_SESSION),
+  refresh: () => {
+    const s = sess.get();
+    if (!s) return null;
+    const fresh = db.users().find(u => u.id === s.id) || null;
+    if (fresh) sess.set(fresh);
+    return fresh;
+  },
 };
 
-// Backfill status for any existing data from before admin system
-let students = db.get('ptc_students').map(p => ({ status: 'approved', ...p }));
-let tutors   = db.get('ptc_tutors').map(p   => ({ status: 'approved', ...p }));
-let matches  = db.get('ptc_matches');
-
-let adminLoggedIn     = false;
-let rejectedVisible   = false;
-
-// ── Boot ───────────────────────────────────────────────────────────────────────
-(function init() {
-  buildPills('s-subjects', SUBJECTS);
-  buildPills('s-interests', INTERESTS);
-  buildPills('t-subjects', SUBJECTS);
-  buildPills('t-interests', INTERESTS);
-  renderList('student');
-  renderList('tutor');
-  updateAdminBadge();
-  if (matches.length) renderMatches(matches);
-})();
-
-// ── Tabs ───────────────────────────────────────────────────────────────────────
-function showTab(id, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + id).classList.add('active');
-  btn.classList.add('active');
-  if (id === 'admin' && adminLoggedIn) renderAdminDashboard();
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEED DEFAULT ACCOUNTS
+// ═══════════════════════════════════════════════════════════════════════════════
+function seedIfNeeded() {
+  const users = db.users();
+  if (users.find(u => u.email === 'admin@micds.org')) return;
+  users.push(
+    { id: uid(), role:'admin',   first:'Club',   last:'Admin',   grade:'', email:'admin@micds.org',   password:'admin',   subjects:[], interests:[], status:'approved', createdAt:new Date().toISOString() },
+    { id: uid(), role:'teacher', first:'Demo',   last:'Teacher', grade:'', email:'teacher@micds.org', password:'teacher', subjects:[], interests:[], status:'approved', createdAt:new Date().toISOString() }
+  );
+  db.saveU(users);
 }
 
-// ── Pill checkboxes ────────────────────────────────────────────────────────────
-function buildPills(containerId, items) {
-  document.getElementById(containerId).innerHTML = items.map(item =>
-    `<label><input type="checkbox" value="${item}"><span>${item}</span></label>`
-  ).join('');
-}
-
-function getChecked(containerId) {
-  return [...document.querySelectorAll(`#${containerId} input:checked`)].map(i => i.value);
-}
-
-// ── Utilities ──────────────────────────────────────────────────────────────────
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-function flash(alertId, msg, type) {
-  const el = document.getElementById(alertId);
-  if (!el) return;
-  el.textContent = msg;
-  el.className = 'alert alert-' + type;
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.className = 'alert'; }, 4000);
-}
-
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
+function uid()  { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtTime(t) {
   if (!t) return '—';
-  const [h, m] = t.split(':').map(Number);
-  return `${h > 12 ? h - 12 : h || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  const [h,m] = t.split(':').map(Number);
+  return `${h>12?h-12:h||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;
 }
-
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-US',
-    { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 }
-
-function ordinal(n) {
-  const s = ['th','st','nd','rd'], v = n % 100;
-  return n + (s[(v-20)%10] || s[v] || s[0]);
-}
-
-function esc(str) {
-  return String(str)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Badge helpers ──────────────────────────────────────────────────────────────
-function updateBadge(type, count) {
-  const id = type === 'student' ? 'badge-students'
-           : type === 'tutor'   ? 'badge-tutors'
-           :                      'badge-matches';
+function ordinal(n) { const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+function tagsH(arr, cls) { return arr.map(x=>`<span class="tag ${cls}">${esc(x)}</span>`).join(''); }
+function flash(id, msg, type) {
   const el = document.getElementById(id);
-  if (el) el.textContent = count;
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'alert alert-'+type;
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>{ el.className='alert'; }, 4200);
+}
+function compat(a, b) {
+  const sharedSubjects  = a.subjects.filter(s => b.subjects.includes(s));
+  const sharedInterests = a.interests.filter(i => b.interests.includes(i));
+  return { sharedSubjects, sharedInterests, score: sharedSubjects.length*2 + sharedInterests.length };
+}
+function buildPills(id, items) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = items.map(item=>`<label><input type="checkbox" value="${esc(item)}"><span>${esc(item)}</span></label>`).join('');
+}
+function getChecked(id) {
+  return [...document.querySelectorAll(`#${id} input:checked`)].map(i=>i.value);
 }
 
-function updateAdminBadge() {
-  const pending = [...students, ...tutors].filter(p => p.status === 'pending').length;
-  const el = document.getElementById('badge-admin');
-  if (!el) return;
-  el.textContent = pending;
-  if (pending > 0) {
-    el.classList.add('pending-alert');
-  } else {
-    el.classList.remove('pending-alert');
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROUTER
+// ═══════════════════════════════════════════════════════════════════════════════
+function boot() {
+  seedIfNeeded();
+  const user = sess.get();
+  if (!user) { renderLanding(); return; }
+  const fresh = sess.refresh();
+  if (!fresh) { renderLanding(); return; }
+  if ((fresh.role==='student'||fresh.role==='tutor') && fresh.status!=='approved') {
+    renderPending(fresh); return;
+  }
+  renderDashboard(fresh);
+}
+
+function setApp(html) { document.getElementById('app').innerHTML = html; }
+function setNav(tabs) {
+  const nav = document.getElementById('main-nav');
+  if (!tabs || !tabs.length) { nav.innerHTML=''; nav.style.display='none'; return; }
+  nav.style.display='flex';
+  nav.innerHTML = tabs.map(t=>`<button class="tab-btn" data-tab="${t.id}" onclick="switchTab('${t.id}')">${esc(t.label)}${t.badge!==undefined?` <span class="tab-badge${t.badge>0?' hot':''}" id="badge-${t.id}">${t.badge}</span>`:''}</button>`).join('');
+}
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  const panel = document.getElementById('panel-'+id);
+  const btn   = document.querySelector(`[data-tab="${id}"]`);
+  if (panel) panel.classList.add('active');
+  if (btn)   btn.classList.add('active');
+  // lazy-render
+  const fn = TAB_RENDERS[id];
+  if (fn) fn();
+}
+const TAB_RENDERS = {};
+
+function setUserInfo(user) {
+  const roleLabels = { student:'Student', tutor:'Tutor', teacher:'Teacher', admin:'Admin' };
+  document.getElementById('user-info').innerHTML = `
+    <span class="user-name">${esc(user.first)} ${esc(user.last)}</span>
+    <span class="role-badge-hdr">${roleLabels[user.role]||user.role}</span>
+    <button class="btn-outline-white" onclick="doSignOut()">Sign Out</button>`;
+}
+function clearUserInfo() { document.getElementById('user-info').innerHTML=''; }
+function renderDashboard(user) {
+  setUserInfo(user);
+  switch(user.role) {
+    case 'student': return buildStudentShell(user);
+    case 'tutor':   return buildTutorShell(user);
+    case 'teacher': return buildTeacherShell(user);
+    case 'admin':   return buildAdminShell(user);
   }
 }
 
-// ── Add person ─────────────────────────────────────────────────────────────────
-function addPerson(e, type) {
-  e.preventDefault();
-  const p      = type === 'student' ? 's' : 't';
-  const alertId = p + '-alert';
-  const subs   = getChecked(p + '-subjects');
-  const ints   = getChecked(p + '-interests');
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTH — Landing
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderLanding() {
+  clearUserInfo(); setNav([]);
+  setApp(`
+    <div class="auth-outer">
+      <div class="auth-card">
+        <div class="auth-logo-row">
+          <div class="logo">PT</div>
+          <div><div class="auth-brand">MICDS Peer Tutoring Club</div><div class="auth-sub-txt">Connecting Students &amp; Tutors</div></div>
+        </div>
+        <div class="auth-form-title">Welcome</div>
+        <p class="auth-hint">Sign in to your account or create a new one to get started.</p>
+        <button class="btn btn-navy btn-full" onclick="renderSignIn()">Sign In</button>
+        <button class="btn btn-gold btn-full" style="margin-top:0.6rem" onclick="renderSignUpRoles()">Create Account</button>
+        <p style="font-size:0.74rem;color:var(--muted);text-align:center;margin-top:1.25rem;line-height:1.5">
+          Demo accounts: <strong>admin@micds.org / admin</strong> &nbsp;|&nbsp; <strong>teacher@micds.org / teacher</strong>
+        </p>
+      </div>
+    </div>`);
+}
 
-  if (!subs.length) { flash(alertId, 'Please select at least one subject.', 'err'); return; }
+// ── Sign In ──────────────────────────────────────────────────────────────────
+function renderSignIn() {
+  setApp(`
+    <div class="auth-outer">
+      <div class="auth-card">
+        <div class="auth-logo-row">
+          <div class="logo">PT</div>
+          <div><div class="auth-brand">MICDS Peer Tutoring Club</div></div>
+        </div>
+        <a href="#" class="back-link" onclick="renderLanding();return false">&#8592; Back</a>
+        <div class="auth-form-title" style="margin-top:0.85rem">Sign In</div>
+        <div id="login-alert" class="alert"></div>
+        <div class="fg"><label class="lbl">Email</label><input type="email" id="login-email" placeholder="you@micds.org" onkeydown="if(event.key==='Enter')doSignIn()"></div>
+        <div class="fg" style="margin-top:0.8rem"><label class="lbl">Password</label><input type="password" id="login-pw" placeholder="Password" onkeydown="if(event.key==='Enter')doSignIn()"></div>
+        <button class="btn btn-navy btn-full" onclick="doSignIn()">Sign In</button>
+        <div class="auth-switch">New here? <a href="#" onclick="renderSignUpRoles();return false">Create an account</a></div>
+      </div>
+    </div>`);
+}
 
-  const person = {
+function doSignIn() {
+  const email = (document.getElementById('login-email').value||'').trim().toLowerCase();
+  const pw    = document.getElementById('login-pw').value;
+  if (!email||!pw) { flash('login-alert','Please fill in both fields.','err'); return; }
+  const user = db.users().find(u => u.email.toLowerCase()===email && u.password===pw);
+  if (!user) { flash('login-alert','Email or password is incorrect.','err'); return; }
+  sess.set(user);
+  if ((user.role==='student'||user.role==='tutor') && user.status!=='approved') {
+    renderPending(user); return;
+  }
+  renderDashboard(user);
+}
+
+function doSignOut() { sess.clear(); renderLanding(); }
+
+// ── Sign Up — Step 1: Role picker ─────────────────────────────────────────────
+let signupDraft = {};
+function renderSignUpRoles() {
+  signupDraft = {};
+  setApp(`
+    <div class="auth-outer">
+      <div class="auth-card">
+        <div class="auth-logo-row"><div class="logo">PT</div><div><div class="auth-brand">Create Account</div></div></div>
+        <a href="#" class="back-link" onclick="renderLanding();return false">&#8592; Back</a>
+        <div class="auth-form-title" style="margin-top:0.85rem">I am a…</div>
+        <div class="role-grid">
+          <div class="role-card" id="rc-student"  onclick="pickRole('student')"><div class="role-icon">&#127891;</div><div class="role-lbl">Student</div><div class="role-sublbl">Grades 6–8</div></div>
+          <div class="role-card" id="rc-tutor"    onclick="pickRole('tutor')"><div class="role-icon">&#128218;</div><div class="role-lbl">Tutor</div><div class="role-sublbl">Grades 9–12</div></div>
+          <div class="role-card" id="rc-teacher"  onclick="pickRole('teacher')"><div class="role-icon">&#127979;</div><div class="role-lbl">Teacher</div><div class="role-sublbl">Faculty</div></div>
+          <div class="role-card" id="rc-admin"    onclick="pickRole('admin')"><div class="role-icon">&#128274;</div><div class="role-lbl">Admin</div><div class="role-sublbl">Club Admin</div></div>
+        </div>
+        <button class="btn btn-navy btn-full" id="role-next" disabled onclick="renderSignUpDetails()">Continue</button>
+        <div class="auth-switch">Already have an account? <a href="#" onclick="renderSignIn();return false">Sign in</a></div>
+      </div>
+    </div>`);
+}
+
+function pickRole(role) {
+  signupDraft.role = role;
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('rc-'+role).classList.add('selected');
+  document.getElementById('role-next').disabled = false;
+}
+
+// ── Sign Up — Step 2: Basic info ──────────────────────────────────────────────
+function renderSignUpDetails() {
+  const role = signupDraft.role;
+  if (!role) return;
+  const isStudTutor = role==='student'||role==='tutor';
+  const gradeOpts = role==='student'
+    ? '<option value="">Select…</option><option value="6">6th</option><option value="7">7th</option><option value="8">8th</option>'
+    : '<option value="">Select…</option><option value="9">9th</option><option value="10">10th</option><option value="11">11th</option><option value="12">12th</option>';
+
+  setApp(`
+    <div class="auth-outer">
+      <div class="auth-card">
+        <div class="auth-logo-row"><div class="logo">PT</div><div><div class="auth-brand">Create Account</div><div class="auth-sub-txt">Step 2 of ${isStudTutor?'3':'3'}</div></div></div>
+        <a href="#" class="back-link" onclick="renderSignUpRoles();return false">&#8592; Back</a>
+        <div class="auth-form-title" style="margin-top:0.85rem">Basic Info</div>
+        <div id="su-alert" class="alert"></div>
+        <div class="form-grid">
+          <div class="fg"><label class="lbl">First Name</label><input type="text" id="su-first" value="${esc(signupDraft.first||'')}"></div>
+          <div class="fg"><label class="lbl">Last Name</label><input type="text" id="su-last" value="${esc(signupDraft.last||'')}"></div>
+          <div class="fg"><label class="lbl">Email</label><input type="email" id="su-email" placeholder="you@micds.org" value="${esc(signupDraft.email||'')}"></div>
+          <div class="fg"><label class="lbl">Password</label><input type="password" id="su-pw" placeholder="Choose a password"></div>
+          ${isStudTutor ? `<div class="fg span2"><label class="lbl">Grade</label><select id="su-grade">${gradeOpts}</select></div>` : ''}
+        </div>
+        <button class="btn btn-navy btn-full" onclick="nextFromDetails()">Continue</button>
+      </div>
+    </div>`);
+  if (signupDraft.grade) {
+    const sel = document.getElementById('su-grade');
+    if (sel) sel.value = signupDraft.grade;
+  }
+}
+
+function nextFromDetails() {
+  const first = (document.getElementById('su-first').value||'').trim();
+  const last  = (document.getElementById('su-last').value||'').trim();
+  const email = (document.getElementById('su-email').value||'').trim().toLowerCase();
+  const pw    = document.getElementById('su-pw').value;
+  const grade = document.getElementById('su-grade') ? document.getElementById('su-grade').value : '';
+  if (!first||!last||!email||!pw) { flash('su-alert','Please fill in all fields.','err'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { flash('su-alert','Please enter a valid email.','err'); return; }
+  if (db.users().find(u=>u.email.toLowerCase()===email)) { flash('su-alert','That email is already registered.','err'); return; }
+  const isStudTutor = signupDraft.role==='student'||signupDraft.role==='tutor';
+  if (isStudTutor && !grade) { flash('su-alert','Please select your grade.','err'); return; }
+  Object.assign(signupDraft, { first, last, email, pw, grade });
+  if (isStudTutor) renderSignUpSubjects();
+  else             renderSignUpCode();
+}
+
+// ── Sign Up — Step 3a: Subjects & Interests (student/tutor) ───────────────────
+function renderSignUpSubjects() {
+  const subLabel = signupDraft.role==='student' ? 'Subjects I Need Help With' : 'Subjects I Can Teach';
+  setApp(`
+    <div class="auth-outer">
+      <div class="auth-card">
+        <div class="auth-logo-row"><div class="logo">PT</div><div><div class="auth-brand">Create Account</div><div class="auth-sub-txt">Step 3 of 3</div></div></div>
+        <a href="#" class="back-link" onclick="renderSignUpDetails();return false">&#8592; Back</a>
+        <div class="auth-form-title" style="margin-top:0.85rem">Subjects &amp; Interests</div>
+        <div id="su-alert2" class="alert"></div>
+        <div class="fg"><label class="lbl">${esc(subLabel)} <span style="font-weight:400;text-transform:none;font-size:0.73rem">(select at least one)</span></label>
+          <div class="pill-grid" id="su-subs"></div></div>
+        <div class="fg" style="margin-top:1rem"><label class="lbl">Hobbies &amp; Interests <span style="font-weight:400;text-transform:none;font-size:0.73rem">(optional)</span></label>
+          <div class="pill-grid" id="su-ints"></div></div>
+        <button class="btn btn-navy btn-full" style="margin-top:1.25rem" onclick="submitSignup()">Create Account</button>
+      </div>
+    </div>`);
+  buildPills('su-subs', SUBJECTS);
+  buildPills('su-ints', INTERESTS);
+  // restore previous selections
+  if (signupDraft.subjects) signupDraft.subjects.forEach(s => { const cb = document.querySelector(`#su-subs input[value="${esc(s)}"]`); if(cb) cb.checked=true; });
+  if (signupDraft.interests) signupDraft.interests.forEach(i => { const cb = document.querySelector(`#su-ints input[value="${esc(i)}"]`); if(cb) cb.checked=true; });
+}
+
+// ── Sign Up — Step 3b: Access code (teacher/admin) ────────────────────────────
+function renderSignUpCode() {
+  const roleLabel = signupDraft.role==='teacher' ? 'Teacher' : 'Admin';
+  setApp(`
+    <div class="auth-outer">
+      <div class="auth-card">
+        <div class="auth-logo-row"><div class="logo">PT</div><div><div class="auth-brand">Create Account</div><div class="auth-sub-txt">Step 3 of 3</div></div></div>
+        <a href="#" class="back-link" onclick="renderSignUpDetails();return false">&#8592; Back</a>
+        <div class="auth-form-title" style="margin-top:0.85rem">${roleLabel} Access Code</div>
+        <p class="auth-hint">Enter the access code provided by your club administrator.</p>
+        <div id="su-alert3" class="alert"></div>
+        <div class="fg"><label class="lbl">Access Code</label><input type="password" id="su-code" placeholder="Enter code" onkeydown="if(event.key==='Enter')submitSignup()"></div>
+        <button class="btn btn-navy btn-full" onclick="submitSignup()">Create Account</button>
+      </div>
+    </div>`);
+}
+
+function submitSignup() {
+  const role = signupDraft.role;
+  const isStudTutor = role==='student'||role==='tutor';
+  let subjects = [], interests = [], alertId;
+
+  if (isStudTutor) {
+    subjects  = getChecked('su-subs');
+    interests = getChecked('su-ints');
+    alertId   = 'su-alert2';
+    if (!subjects.length) { flash(alertId,'Please select at least one subject.','err'); return; }
+  } else {
+    alertId = 'su-alert3';
+    const code = (document.getElementById('su-code').value||'').trim();
+    if (code !== ACCESS_CODES[role]) { flash(alertId,'Incorrect access code. Please check with your administrator.','err'); return; }
+  }
+
+  const user = {
     id:        uid(),
-    first:     document.getElementById(p + '-first').value.trim(),
-    last:      document.getElementById(p + '-last').value.trim(),
-    grade:     document.getElementById(p + '-grade').value,
-    email:     document.getElementById(p + '-email').value.trim(),
-    subjects:  subs,
-    interests: ints,
-    status:    'pending',
-    submittedAt: new Date().toISOString(),
+    role,
+    first:     signupDraft.first,
+    last:      signupDraft.last,
+    grade:     signupDraft.grade || '',
+    email:     signupDraft.email,
+    password:  signupDraft.pw,
+    subjects,
+    interests,
+    status:    isStudTutor ? 'pending' : 'approved',
+    createdAt: new Date().toISOString(),
   };
 
-  if (type === 'student') { students.push(person); db.set('ptc_students', students); }
-  else                    { tutors.push(person);   db.set('ptc_tutors',   tutors);   }
+  const users = db.users();
+  users.push(user);
+  db.saveU(users);
+  sess.set(user);
 
-  renderList(type);
-  updateAdminBadge();
-  document.getElementById(p + '-form').reset();
-  buildPills(p + '-subjects', SUBJECTS);
-  buildPills(p + '-interests', INTERESTS);
-  flash(alertId, `Request submitted! ${person.first} ${person.last} is pending admin approval.`, 'info');
+  if (user.status === 'pending') { renderPending(user); return; }
+  renderDashboard(user);
 }
 
-// ── Render public approved list ────────────────────────────────────────────────
-function renderList(type) {
-  const approved = (type === 'student' ? students : tutors).filter(p => p.status === 'approved');
-  const el       = document.getElementById(type === 'student' ? 's-list' : 't-list');
-  const icon     = type === 'student' ? '🎓' : '📚';
-  const noun     = type === 'student' ? 'approved students' : 'approved tutors';
-
-  updateBadge(type, approved.length);
-
-  if (!approved.length) {
-    el.innerHTML = `<div class="empty"><div class="icon">${icon}</div><h3>No ${noun} yet</h3><p>Requests appear here after admin approval.</p></div>`;
-    return;
-  }
-
-  el.innerHTML = approved.map(p => `
-    <div class="person-row">
-      <div>
-        <div class="person-name">${esc(p.first)} ${esc(p.last)}</div>
-        <div class="person-meta">Grade ${p.grade} &nbsp;&middot;&nbsp; ${esc(p.email)}</div>
-        <div class="tags">
-          ${p.subjects.map(s  => `<span class="tag tag-sub">${esc(s)}</span>`).join('')}
-          ${p.interests.map(i => `<span class="tag tag-int">${esc(i)}</span>`).join('')}
+// ═══════════════════════════════════════════════════════════════════════════════
+// PENDING SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderPending(user) {
+  clearUserInfo(); setNav([]);
+  setApp(`
+    <div class="pending-outer">
+      <div class="pending-card">
+        <div class="pending-icon">&#9203;</div>
+        <h2>Account Pending Review</h2>
+        <p>Your account is awaiting administrator approval. You'll gain full access once an admin reviews your request.</p>
+        <p><strong>${esc(user.first)} ${esc(user.last)}</strong> &nbsp;·&nbsp; ${esc(user.email)}</p>
+        <div style="display:flex;gap:0.75rem;justify-content:center;margin-top:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-gold" onclick="checkApprovalStatus()">Check Again</button>
+          <button class="btn btn-outline" onclick="doSignOut()">Sign Out</button>
         </div>
       </div>
-    </div>
-  `).join('');
+    </div>`);
 }
 
-// ── Matching (approved only) ───────────────────────────────────────────────────
-function runMatching() {
-  const resultsEl = document.getElementById('match-results');
-  const apS = students.filter(p => p.status === 'approved');
-  const apT = tutors.filter(p   => p.status === 'approved');
+function checkApprovalStatus() {
+  const fresh = sess.refresh();
+  if (!fresh) { renderLanding(); return; }
+  if (fresh.status === 'approved') { renderDashboard(fresh); return; }
+  if (fresh.status === 'rejected') {
+    setApp(`<div class="pending-outer"><div class="pending-card">
+      <div class="pending-icon" style="animation:none">&#10060;</div>
+      <h2>Request Not Approved</h2>
+      <p>Your account request was not approved. Please contact a club advisor for more information.</p>
+      <button class="btn btn-outline" onclick="doSignOut()" style="margin-top:1.25rem">Sign Out</button>
+    </div></div>`);
+    return;
+  }
+  flash('','',''); // still pending — show no-op flash (panel doesn't have an alert div; rely on UI)
+  // just pulse the icon
+  const icon = document.querySelector('.pending-icon');
+  if (icon) { icon.textContent='🔄'; setTimeout(()=>icon.textContent='⏳',1000); }
+}
 
-  if (!apS.length || !apT.length) {
-    resultsEl.innerHTML = `<div class="card"><p style="color:var(--red-dk);font-size:0.88rem;">
-      Need at least one approved student <em>and</em> one approved tutor. Visit the Admin tab to approve requests.</p></div>`;
+// ═══════════════════════════════════════════════════════════════════════════════
+// STUDENT DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function buildStudentShell(user) {
+  const pendingReq = db.reqs().find(r=>r.studentId===user.id && r.status!=='rejected');
+  const tabs = [
+    { id:'find',    label:'Find Tutors' },
+    { id:'mymatch', label:'My Match' },
+    { id:'slip',    label:'Permission Slip' },
+  ];
+  setNav(tabs);
+  setApp(`
+    <div id="panel-find"    class="tab-panel"></div>
+    <div id="panel-mymatch" class="tab-panel"></div>
+    <div id="panel-slip"    class="tab-panel"></div>`);
+
+  TAB_RENDERS['find']    = () => renderFindTutors(user);
+  TAB_RENDERS['mymatch'] = () => renderMyMatch(user);
+  TAB_RENDERS['slip']    = () => renderStudentSlip(user);
+
+  switchTab('find');
+}
+
+function renderFindTutors(user) {
+  const el = document.getElementById('panel-find');
+  const tutors = db.users().filter(u=>u.role==='tutor'&&u.status==='approved');
+  const existingReq = db.reqs().find(r=>r.studentId===user.id && r.status!=='rejected');
+
+  if (!tutors.length) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#128218;</div><h3>No tutors available yet</h3><p>Check back after tutors have registered and been approved.</p></div></div>`;
     return;
   }
 
-  const candidates = [];
-  for (const s of apS) {
-    for (const t of apT) {
-      const sharedSubjects  = s.subjects.filter(sub => t.subjects.includes(sub));
-      if (!sharedSubjects.length) continue;
-      const sharedInterests = s.interests.filter(i => t.interests.includes(i));
-      candidates.push({ student: s, tutor: t,
-        score: sharedSubjects.length + sharedInterests.length,
-        sharedSubjects, sharedInterests });
-    }
-  }
+  // Score and sort tutors
+  const scored = tutors.map(t=>({ tutor:t, ...compat(user,t) })).filter(x=>x.sharedSubjects.length>0);
+  scored.sort((a,b)=>b.score-a.score);
 
-  candidates.sort((a, b) => b.score - a.score);
-  const usedS = new Set(), usedT = new Set();
-  matches = [];
-  for (const c of candidates) {
-    if (usedS.has(c.student.id) || usedT.has(c.tutor.id)) continue;
-    matches.push(c);
-    usedS.add(c.student.id);
-    usedT.add(c.tutor.id);
-  }
+  const disabled = existingReq ? 'disabled title="You already have an active request"' : '';
 
-  db.set('ptc_matches', matches);
-  updateBadge('matches', matches.length);
-  renderMatches(matches);
-}
+  let html = `<div class="card no-print">
+    <div class="card-title">Find a Tutor</div>
+    ${existingReq ? `<div class="alert alert-info" style="display:block">You have an active match request. <a href="#" onclick="switchTab('mymatch');return false">View it here</a>.</div>` : ''}
+    <p style="font-size:0.84rem;color:var(--muted);margin-bottom:1.1rem">Tutors are sorted by compatibility. <strong>Find My Best Match</strong> will automatically request your top match.</p>
+    <button class="btn btn-gold" ${existingReq?'disabled':''} onclick="autoMatchStudent('${user.id}')">&#9889; Find My Best Match</button>
+  </div>`;
 
-function renderMatches(matches) {
-  const el = document.getElementById('match-results');
-  const apS = students.filter(p => p.status === 'approved');
-  const apT = tutors.filter(p   => p.status === 'approved');
-  const unmatchedS = apS.filter(s => !matches.find(m => m.student.id === s.id));
-  const unmatchedT = apT.filter(t => !matches.find(m => m.tutor.id   === t.id));
-
-  let html = `
-    <div class="stats-row">
-      <div class="stat-chip"><strong>${matches.length}</strong><span>Pairs Made</span></div>
-      <div class="stat-chip"><strong>${unmatchedS.length}</strong><span>Students Unmatched</span></div>
-      <div class="stat-chip"><strong>${unmatchedT.length}</strong><span>Tutors Unmatched</span></div>
-    </div>`;
-
-  if (!matches.length) {
-    html += `<div class="card"><div class="empty"><div class="icon">&#128533;</div>
-      <h3>No matches found</h3>
-      <p>No approved student-tutor pairs share a subject. Update subject selections and try again.</p>
-    </div></div>`;
+  if (!scored.length) {
+    html += `<div class="card"><div class="empty"><div class="eico">&#128533;</div><h3>No compatible tutors found</h3><p>No approved tutors offer the subjects you need. Check your profile or wait for more tutors to join.</p></div></div>`;
   } else {
-    html += matches.map((m, i) => `
-      <div class="match-card">
-        <div class="match-head">
-          <span class="pair-num">PAIR #${i + 1}</span>
-          <span class="score-pill">Match Score: ${m.score}</span>
-        </div>
-        <div class="match-pair">
-          <div class="match-person student">
-            <div class="role-label">Student (Grade ${m.student.grade})</div>
-            <div class="match-name">${esc(m.student.first)} ${esc(m.student.last)}</div>
-            <div class="match-meta">${esc(m.student.email)}</div>
+    html += scored.map((x,i) => `
+      <div class="tutor-card" id="tc-${x.tutor.id}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+          <div>
+            <span class="match-name">${esc(x.tutor.first)} ${esc(x.tutor.last)}</span>
+            ${i===0 ? '<span class="best-match-badge">Best Match</span>' : ''}
+            <div class="match-meta" style="margin-top:3px">Grade ${x.tutor.grade} &nbsp;&middot;&nbsp; Upper School</div>
           </div>
-          <div class="match-arrow">&#8644;</div>
-          <div class="match-person tutor">
-            <div class="role-label">Tutor (Grade ${m.tutor.grade})</div>
-            <div class="match-name">${esc(m.tutor.first)} ${esc(m.tutor.last)}</div>
-            <div class="match-meta">${esc(m.tutor.email)}</div>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <span class="compat-score">Score ${x.score}</span>
+            <button class="btn btn-navy btn-sm" ${disabled} onclick="requestTutor('${user.id}','${x.tutor.id}')">Request Tutor</button>
           </div>
         </div>
-        <div class="match-shared tags">
-          <strong style="font-size:0.75rem;color:var(--muted);margin-right:0.3rem;">Shared Subjects:</strong>
-          ${m.sharedSubjects.map(s => `<span class="tag tag-shared">${esc(s)}</span>`).join('')}
-          ${m.sharedInterests.length ? `
-            <strong style="font-size:0.75rem;color:var(--muted);margin-left:0.6rem;margin-right:0.3rem;">Shared Interests:</strong>
-            ${m.sharedInterests.map(i => `<span class="tag tag-int">${esc(i)}</span>`).join('')}` : ''}
+        <div class="tags">
+          <strong style="font-size:0.72rem;color:var(--muted);margin-right:0.3rem">Shared subjects:</strong>
+          ${tagsH(x.sharedSubjects,'tag-shared')}
+          ${x.sharedInterests.length ? `<strong style="font-size:0.72rem;color:var(--muted);margin-left:0.5rem;margin-right:0.3rem">Interests:</strong>${tagsH(x.sharedInterests,'tag-int')}` : ''}
+        </div>
+        <div class="tags" style="margin-top:0.4rem">
+          <strong style="font-size:0.72rem;color:var(--muted);margin-right:0.3rem">All subjects:</strong>
+          ${tagsH(x.tutor.subjects,'tag-sub')}
         </div>
       </div>`).join('');
   }
-
-  if (unmatchedS.length) html += `<div class="card"><div class="card-title">Unmatched Students</div>
-    <div class="unmatched-group">${unmatchedS.map(s => `<span class="chip-unmatched">${esc(s.first)} ${esc(s.last)} &middot; Gr. ${s.grade}</span>`).join('')}</div></div>`;
-  if (unmatchedT.length) html += `<div class="card"><div class="card-title">Unmatched Tutors</div>
-    <div class="unmatched-group">${unmatchedT.map(t => `<span class="chip-unmatched">${esc(t.first)} ${esc(t.last)} &middot; Gr. ${t.grade}</span>`).join('')}</div></div>`;
-
   el.innerHTML = html;
 }
 
-// ── Admin auth ─────────────────────────────────────────────────────────────────
-function adminLogin() {
-  const pw = document.getElementById('admin-pw').value;
-  if (pw !== ADMIN_PASSWORD) {
-    flash('admin-login-alert', 'Incorrect password. Please try again.', 'err');
-    document.getElementById('admin-pw').value = '';
+function autoMatchStudent(studentId) {
+  const user   = db.users().find(u=>u.id===studentId);
+  const tutors = db.users().filter(u=>u.role==='tutor'&&u.status==='approved');
+  const scored = tutors.map(t=>({ tutor:t, ...compat(user,t) })).filter(x=>x.sharedSubjects.length>0);
+  scored.sort((a,b)=>b.score-a.score);
+  if (!scored.length) { alert('No compatible tutors found.'); return; }
+  requestTutor(studentId, scored[0].tutor.id);
+}
+
+function requestTutor(studentId, tutorId) {
+  const existing = db.reqs().find(r=>r.studentId===studentId && r.status!=='rejected');
+  if (existing) { switchTab('mymatch'); return; }
+  const student = db.users().find(u=>u.id===studentId);
+  const tutor   = db.users().find(u=>u.id===tutorId);
+  const c = compat(student, tutor);
+  const req = {
+    id: uid(), studentId, tutorId,
+    score: c.score, sharedSubjects: c.sharedSubjects, sharedInterests: c.sharedInterests,
+    status: 'pending', submittedAt: new Date().toISOString(),
+    sessionDate:'', sessionStart:'', sessionEnd:'', sessionLocation:'', supervisingTeacher:'', processedAt:'', processedBy:'',
+  };
+  const reqs = db.reqs(); reqs.push(req); db.saveR(reqs);
+  switchTab('mymatch');
+}
+
+function renderMyMatch(user) {
+  const el  = document.getElementById('panel-mymatch');
+  const req = db.reqs().find(r=>r.studentId===user.id && r.status!=='rejected')
+           || db.reqs().filter(r=>r.studentId===user.id).sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt))[0];
+
+  if (!req) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#129309;</div><h3>No match yet</h3><p>Go to <a href="#" onclick="switchTab('find');return false">Find Tutors</a> to request a tutor.</p></div></div>`;
     return;
   }
-  adminLoggedIn = true;
-  document.getElementById('admin-login-section').style.display = 'none';
-  document.getElementById('admin-dashboard').style.display = 'block';
-  renderAdminDashboard();
-}
 
-function adminLogout() {
-  adminLoggedIn = false;
-  document.getElementById('admin-dashboard').style.display = 'none';
-  document.getElementById('admin-login-section').style.display = 'block';
-  document.getElementById('admin-pw').value = '';
-}
+  const tutor   = db.users().find(u=>u.id===req.tutorId);
+  const tutorName = tutor ? `${esc(tutor.first)} ${esc(tutor.last)}` : 'Unknown Tutor';
+  const tutorGrade = tutor ? tutor.grade : '—';
 
-// ── Admin dashboard render ─────────────────────────────────────────────────────
-function renderAdminDashboard() {
-  const pendingS   = students.filter(p => p.status === 'pending');
-  const pendingT   = tutors.filter(p   => p.status === 'pending');
-  const approvedS  = students.filter(p => p.status === 'approved');
-  const approvedT  = tutors.filter(p   => p.status === 'approved');
-  const rejectedS  = students.filter(p => p.status === 'rejected');
-  const rejectedT  = tutors.filter(p   => p.status === 'rejected');
-  const totalPend  = pendingS.length + pendingT.length;
-
-  // Stats
-  document.getElementById('admin-stats').innerHTML = `
-    <div class="stat-chip amber"><strong>${totalPend}</strong><span>Pending Review</span></div>
-    <div class="stat-chip green"><strong>${approvedS.length + approvedT.length}</strong><span>Approved</span></div>
-    <div class="stat-chip"><strong>${approvedS.length}</strong><span>Students &#10003;</span></div>
-    <div class="stat-chip"><strong>${approvedT.length}</strong><span>Tutors &#10003;</span></div>
-    <div class="stat-chip"><strong>${rejectedS.length + rejectedT.length}</strong><span>Rejected</span></div>
-  `;
-
-  // Pending queues
-  renderAdminQueue('admin-pending-students', pendingS, 'student', 'pending');
-  renderAdminQueue('admin-pending-tutors',   pendingT, 'tutor',   'pending');
-
-  // Approved lists
-  renderAdminQueue('admin-approved-students', approvedS, 'student', 'approved');
-  renderAdminQueue('admin-approved-tutors',   approvedT, 'tutor',   'approved');
-
-  // Rejected (combined)
-  const rejectedEl = document.getElementById('admin-rejected');
-  if (rejectedS.length + rejectedT.length === 0) {
-    rejectedEl.innerHTML = '<div class="empty" style="padding:1.25rem"><p>No rejected requests.</p></div>';
-  } else {
-    const allRejected = [
-      ...rejectedS.map(p => ({ ...p, _type: 'student' })),
-      ...rejectedT.map(p => ({ ...p, _type: 'tutor' })),
-    ];
-    rejectedEl.innerHTML = allRejected.map(p => reqCardHTML(p, p._type, 'rejected')).join('');
-  }
-}
-
-function renderAdminQueue(containerId, arr, type, status) {
-  const el = document.getElementById(containerId);
-  const noun = type === 'student' ? 'students' : 'tutors';
-  if (!arr.length) {
-    const emptyMsg = status === 'pending'
-      ? `No pending ${noun} requests.`
-      : `No approved ${noun} yet.`;
-    el.innerHTML = `<div class="empty" style="padding:1.25rem"><p>${emptyMsg}</p></div>`;
-    return;
-  }
-  el.innerHTML = arr.map(p => reqCardHTML(p, type, status)).join('');
-}
-
-function reqCardHTML(p, type, status) {
-  const submitted = p.submittedAt
-    ? ` &middot; Submitted ${new Date(p.submittedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
-    : '';
-
-  let actions = '';
-  if (status === 'pending') {
-    actions = `
-      <button class="btn btn-green btn-sm" onclick="setStatus('${p.id}','${type}','approved')">&#10003; Approve</button>
-      <button class="btn btn-red   btn-sm" onclick="setStatus('${p.id}','${type}','rejected')">&#10007; Reject</button>
-      <button class="btn btn-outline-muted btn-xs" onclick="deletePerson('${p.id}','${type}')">Delete</button>`;
-  } else if (status === 'approved') {
-    actions = `
-      <button class="btn btn-amber btn-sm" onclick="setStatus('${p.id}','${type}','pending')">&#8635; Revoke</button>
-      <button class="btn btn-outline-muted btn-xs" onclick="deletePerson('${p.id}','${type}')">Remove</button>`;
-  } else {
-    actions = `
-      <button class="btn btn-amber btn-sm" onclick="setStatus('${p.id}','${type}','pending')">&#8635; Reconsider</button>
-      <button class="btn btn-outline-muted btn-xs" onclick="deletePerson('${p.id}','${type}')">Remove</button>`;
-  }
-
-  const divLabel = type === 'student' ? 'Middle School' : 'Upper School';
-
-  return `
-    <div class="req-card ${status}">
-      <div class="req-info">
-        <div class="req-name">
-          ${esc(p.first)} ${esc(p.last)}
-          <span class="status-pill status-${status}">${status}</span>
+  let html = `<div class="card"><div class="card-title">My Match Request</div>`;
+  if (req.status==='pending') {
+    html += `
+      <div class="alert alert-info" style="display:block;margin-bottom:1.25rem">&#9203; Awaiting teacher approval — your request has been submitted to the teacher queue.</div>
+      <div class="match-card">
+        <div class="match-head"><span class="pair-num">YOUR MATCH</span><span class="score-pill">Score: ${req.score}</span></div>
+        <div class="match-pair">
+          <div class="match-person student"><div class="role-lbl-inner">You (Student)</div><div class="match-name">${esc(user.first)} ${esc(user.last)}</div><div class="match-meta">Grade ${user.grade} &middot; Middle School</div></div>
+          <div class="match-arrow">&#8644;</div>
+          <div class="match-person tutor"><div class="role-lbl-inner">Tutor</div><div class="match-name">${tutorName}</div><div class="match-meta">Grade ${tutorGrade} &middot; Upper School</div></div>
         </div>
-        <div class="req-meta">Grade ${p.grade} &middot; ${divLabel} &middot; ${esc(p.email)}${submitted}</div>
-        <div class="tags" style="margin-top:0.45rem">
-          ${p.subjects.map(s  => `<span class="tag tag-sub">${esc(s)}</span>`).join('')}
-          ${p.interests.map(i => `<span class="tag tag-int">${esc(i)}</span>`).join('')}
+        <div class="match-tags tags"><strong style="font-size:0.74rem;color:var(--muted);margin-right:0.3rem">Shared Subjects:</strong>${tagsH(req.sharedSubjects,'tag-shared')}${req.sharedInterests.length?`<strong style="font-size:0.74rem;color:var(--muted);margin-left:0.5rem;margin-right:0.3rem">Interests:</strong>${tagsH(req.sharedInterests,'tag-int')}`:''}
         </div>
       </div>
-      <div class="req-actions">${actions}</div>
+      <p style="font-size:0.82rem;color:var(--muted)">Submitted ${fmtDate(req.submittedAt.split('T')[0])}</p>`;
+  } else if (req.status==='approved') {
+    html += `
+      <div class="alert alert-ok" style="display:block;margin-bottom:1.25rem">&#10003; Match approved! Your tutoring session has been confirmed.</div>
+      <div class="match-card">
+        <div class="match-head"><span class="pair-num">CONFIRMED MATCH</span><span class="score-pill">Score: ${req.score}</span></div>
+        <div class="match-pair">
+          <div class="match-person student"><div class="role-lbl-inner">You (Student)</div><div class="match-name">${esc(user.first)} ${esc(user.last)}</div><div class="match-meta">Grade ${user.grade} &middot; Middle School</div></div>
+          <div class="match-arrow">&#8644;</div>
+          <div class="match-person tutor"><div class="role-lbl-inner">Tutor</div><div class="match-name">${tutorName}</div><div class="match-meta">Grade ${tutorGrade} &middot; Upper School</div></div>
+        </div>
+        <div class="match-tags tags">${tagsH(req.sharedSubjects,'tag-shared')}</div>
+      </div>
+      <p style="font-size:0.83rem;margin-bottom:0.35rem"><strong>Session:</strong> ${fmtDate(req.sessionDate)}</p>
+      <p style="font-size:0.83rem;margin-bottom:0.35rem"><strong>Time:</strong> ${fmtTime(req.sessionStart)} – ${fmtTime(req.sessionEnd)}</p>
+      <p style="font-size:0.83rem;margin-bottom:1.25rem"><strong>Location:</strong> ${esc(req.sessionLocation)}</p>
+      <button class="btn btn-gold" onclick="switchTab('slip')">View Permission Slip &#8594;</button>`;
+  } else {
+    html += `
+      <div class="alert alert-err" style="display:block;margin-bottom:1.25rem">&#10007; This match request was not approved by the teacher.</div>
+      <button class="btn btn-navy" onclick="switchTab('find')">Find a Different Tutor</button>`;
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function renderStudentSlip(user) {
+  const el  = document.getElementById('panel-slip');
+  const req = db.reqs().find(r=>r.studentId===user.id && r.status==='approved');
+  if (!req) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#128196;</div><h3>No permission slip yet</h3><p>A slip will appear here once your match request has been approved by a teacher.</p></div></div>`;
+    return;
+  }
+  const student = user;
+  const tutor   = db.users().find(u=>u.id===req.tutorId);
+  el.innerHTML = `
+    <div class="card no-print" style="margin-bottom:1rem">
+      <div class="card-title">Permission Slip</div>
+      <p style="font-size:0.84rem;color:var(--muted);margin-bottom:1rem">Your tutoring session has been approved. Print this slip and return it to ${esc(req.supervisingTeacher)||'your supervising teacher'} before the session date.</p>
+      <button class="btn btn-navy" onclick="printSlip('${req.id}')">&#128424; Print Permission Slip</button>
+    </div>
+    ${slipHTML(req, student, tutor)}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TUTOR DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function buildTutorShell(user) {
+  setNav([
+    { id:'tstudents', label:'Students' },
+    { id:'trequests', label:'My Requests' },
+  ]);
+  setApp(`
+    <div id="panel-tstudents" class="tab-panel"></div>
+    <div id="panel-trequests" class="tab-panel"></div>`);
+  TAB_RENDERS['tstudents'] = () => renderTutorStudents(user);
+  TAB_RENDERS['trequests'] = () => renderTutorRequests(user);
+  switchTab('tstudents');
+}
+
+function renderTutorStudents(user) {
+  const el = document.getElementById('panel-tstudents');
+  const students = db.users().filter(u=>u.role==='student'&&u.status==='approved');
+  const scored = students.map(s=>({ student:s, ...compat(s,user) })).filter(x=>x.sharedSubjects.length>0);
+  scored.sort((a,b)=>b.score-a.score);
+  if (!scored.length) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#127891;</div><h3>No compatible students yet</h3><p>No approved students need help in subjects you offer.</p></div></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="card"><div class="card-title">Students Who Need Your Help</div>
+      ${scored.map(x=>`
+        <div class="person-row" style="margin-bottom:0.65rem">
+          <div>
+            <div class="person-name">${esc(x.student.first)} ${esc(x.student.last)} <span class="compat-score" style="margin-left:0.4rem;font-size:0.72rem">Score ${x.score}</span></div>
+            <div class="person-meta">Grade ${x.student.grade} &middot; Middle School</div>
+            <div class="tags">
+              <strong style="font-size:0.72rem;color:var(--muted);margin-right:0.3rem">Needs:</strong>${tagsH(x.sharedSubjects,'tag-shared')}
+              ${x.sharedInterests.length?`<strong style="font-size:0.72rem;color:var(--muted);margin-left:0.5rem;margin-right:0.3rem">Interests:</strong>${tagsH(x.sharedInterests,'tag-int')}`:''}
+            </div>
+          </div>
+        </div>`).join('')}
     </div>`;
 }
 
-// ── Status change & delete ─────────────────────────────────────────────────────
-function setStatus(id, type, newStatus) {
-  if (type === 'student') {
-    students = students.map(p => p.id === id ? { ...p, status: newStatus } : p);
-    db.set('ptc_students', students);
-  } else {
-    tutors = tutors.map(p => p.id === id ? { ...p, status: newStatus } : p);
-    db.set('ptc_tutors', tutors);
+function renderTutorRequests(user) {
+  const el   = document.getElementById('panel-trequests');
+  const reqs = db.reqs().filter(r=>r.tutorId===user.id);
+  if (!reqs.length) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#128203;</div><h3>No match requests yet</h3><p>Students can request you from the Find Tutors tab.</p></div></div>`;
+    return;
   }
-  renderList(type);
-  updateAdminBadge();
-  renderAdminDashboard();
+  reqs.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+  el.innerHTML = `<div class="card"><div class="card-title">Match Requests Involving You</div>
+    ${reqs.map(r=>{
+      const student = db.users().find(u=>u.id===r.studentId);
+      const sName = student ? `${esc(student.first)} ${esc(student.last)} (Gr. ${student.grade})` : 'Unknown Student';
+      const pill = `<span class="status-pill sp-${r.status}">${r.status}</span>`;
+      let extra = '';
+      if (r.status==='approved') extra=`<div class="match-meta" style="margin-top:0.4rem">Session: ${fmtDate(r.sessionDate)} &middot; ${fmtTime(r.sessionStart)}–${fmtTime(r.sessionEnd)} &middot; ${esc(r.sessionLocation)}</div>`;
+      return `<div class="req-card ${r.status}">
+        <div class="req-info">
+          <div class="req-name">${sName}${pill}</div>
+          <div class="req-meta">Subjects: ${r.sharedSubjects.join(', ')} &middot; Submitted ${fmtDate(r.submittedAt.split('T')[0])}</div>
+          ${extra}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
-function deletePerson(id, type) {
-  if (type === 'student') {
-    students = students.filter(p => p.id !== id);
-    db.set('ptc_students', students);
-  } else {
-    tutors = tutors.filter(p => p.id !== id);
-    db.set('ptc_tutors', tutors);
-  }
-  renderList(type);
-  updateAdminBadge();
-  renderAdminDashboard();
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEACHER DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function buildTeacherShell(user) {
+  const pendingCount = db.reqs().filter(r=>r.status==='pending').length;
+  setNav([
+    { id:'tqueue',    label:'Match Requests', badge: pendingCount },
+    { id:'tapproved', label:'Approved Sessions' },
+  ]);
+  setApp(`
+    <div id="panel-tqueue"    class="tab-panel"></div>
+    <div id="panel-tapproved" class="tab-panel"></div>`);
+  TAB_RENDERS['tqueue']    = () => renderTeacherQueue(user);
+  TAB_RENDERS['tapproved'] = () => renderTeacherApproved(user);
+  switchTab('tqueue');
 }
 
-function toggleRejected() {
-  rejectedVisible = !rejectedVisible;
-  document.getElementById('admin-rejected').style.display = rejectedVisible ? 'block' : 'none';
-  document.getElementById('rejected-toggle-label').textContent = rejectedVisible ? 'Hide' : 'Show';
-}
+function renderTeacherQueue(user) {
+  const el   = document.getElementById('panel-tqueue');
+  const reqs = db.reqs().filter(r=>r.status==='pending');
+  reqs.sort((a,b)=>new Date(a.submittedAt)-new Date(b.submittedAt));
 
-// ── Permission Slips ───────────────────────────────────────────────────────────
-function generateSlips() {
-  if (!matches.length) {
-    flash('slip-alert', 'No matches found. Run matching first (Matches tab).', 'err');
+  const badge = document.getElementById('badge-tqueue');
+  if (badge) { badge.textContent = reqs.length; badge.className = 'tab-badge'+(reqs.length>0?' hot':''); }
+
+  if (!reqs.length) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#9989;</div><h3>No pending requests</h3><p>All match requests have been processed.</p></div></div>`;
     return;
   }
 
-  const loc     = document.getElementById('slip-loc').value.trim()     || 'MICDS Library';
-  const date    = document.getElementById('slip-date').value;
-  const start   = document.getElementById('slip-start').value;
-  const end     = document.getElementById('slip-end').value;
-  const teacher = document.getElementById('slip-teacher').value.trim() || '______________________';
-  const year    = document.getElementById('slip-year').value.trim()    || '2025–2026';
-
-  const html = matches.map((m, i) => `
-    <div class="slip-page">
-      <div class="slip-school-head">
-        <h1>Mary Institute and Saint Louis Country Day School</h1>
-        <h2>Peer Tutoring Club &mdash; In-Person Tutoring Session Authorization</h2>
-        <p>Academic Year ${year} &nbsp;|&nbsp; Middle School &amp; Upper School Partnership</p>
-      </div>
-      <div class="slip-doc-title">Parent / Guardian Permission Slip</div>
-      <p class="slip-body-text">Dear Parent or Guardian,</p>
-      <p class="slip-body-text">
-        Your child has been matched with an Upper School peer tutor through the MICDS Peer Tutoring Club.
-        This form authorizes the in-person meeting described below. Please review the details, complete
-        the information at the bottom, and return the signed form to the supervising teacher
-        <strong>before the session date</strong>.
-      </p>
-      <div class="slip-details">
-        <div class="detail-row"><span class="detail-key">Pair #:</span><span class="detail-val">${i + 1}</span></div>
-        <div class="detail-row"><span class="detail-key">Date:</span><span class="detail-val">${fmtDate(date)}</span></div>
-        <div class="detail-row"><span class="detail-key">Location:</span><span class="detail-val">${esc(loc)}</span></div>
-        <div class="detail-row"><span class="detail-key">Time:</span><span class="detail-val">${fmtTime(start)} &ndash; ${fmtTime(end)}</span></div>
-        <div class="detail-row"><span class="detail-key">Supervising Teacher:</span><span class="detail-val">${esc(teacher)}</span></div>
-        <div class="detail-row"><span class="detail-key">Subject(s):</span><span class="detail-val">${m.sharedSubjects.map(esc).join(', ')}</span></div>
-      </div>
-      <table class="slip-table">
-        <thead>
-          <tr><th>Role</th><th>Full Name</th><th>Grade</th><th>Division</th><th>School Email</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Student (Tutee)</strong></td>
-            <td>${esc(m.student.first)} ${esc(m.student.last)}</td>
-            <td>${ordinal(Number(m.student.grade))} Grade</td>
-            <td>Middle School</td>
-            <td>${esc(m.student.email)}</td>
-          </tr>
-          <tr>
-            <td><strong>Peer Tutor</strong></td>
-            <td>${esc(m.tutor.first)} ${esc(m.tutor.last)}</td>
-            <td>${ordinal(Number(m.tutor.grade))} Grade</td>
-            <td>Upper School</td>
-            <td>${esc(m.tutor.email)}</td>
-          </tr>
-        </tbody>
-      </table>
-      ${m.sharedInterests.length ? `
-        <p class="slip-body-text" style="font-style:italic;font-size:0.82rem;margin-top:0.5rem;">
-          <strong>Shared interests:</strong> ${m.sharedInterests.map(esc).join(', ')} &mdash;
-          considered during pairing to foster a positive mentoring relationship.
-        </p>` : ''}
-      <p class="slip-body-text" style="margin-top:1rem;">
-        <strong>By signing below, you confirm that you have read and understood the information on this form
-        and authorize your child to attend this supervised, on-campus tutoring session.</strong>
-      </p>
-      <div class="slip-checks">
-        <div class="check-row"><span class="check-box"></span><span>I understand this is a faculty-supervised, on-campus session within MICDS facilities.</span></div>
-        <div class="check-row"><span class="check-box"></span><span>I grant permission for my child's name, grade, and email to be shared with the assigned tutor.</span></div>
-        <div class="check-row"><span class="check-box"></span><span>I understand my child must be picked up by the end time stated above.</span></div>
-      </div>
-      <div class="slip-sigs">
-        <div>
-          <div class="sig-spacer"></div>
-          <div class="sig-line">Parent / Guardian &mdash; Printed Name</div>
-          <div class="sig-spacer"></div>
-          <div class="sig-line">Parent / Guardian &mdash; Signature &amp; Date</div>
-        </div>
-        <div>
-          <div class="sig-spacer"></div>
-          <div class="sig-line">Student &mdash; Signature &amp; Date</div>
-          <div class="sig-spacer"></div>
-          <div class="sig-line">Supervising Teacher &mdash; Signature &amp; Date</div>
-        </div>
-      </div>
-      <div class="slip-footer">
-        MICDS Peer Tutoring Club &nbsp;&bull;&nbsp;
-        Please return this signed form to ${teacher !== '______________________' ? esc(teacher) : 'the supervising teacher'} &nbsp;&bull;&nbsp;
-        Questions? Contact the club advisor or visit the MS main office.
-      </div>
-    </div>`).join('');
-
-  document.getElementById('slips-output').innerHTML = html;
-  flash('slip-alert', `${matches.length} permission slip${matches.length !== 1 ? 's' : ''} generated. Click "Print All" to print.`, 'ok');
-  document.getElementById('slips-output').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.innerHTML = `<div class="card"><div class="card-title">Pending Match Requests (${reqs.length})</div>
+    <div id="teacher-req-list"></div></div>`;
+  renderTeacherReqList(user, reqs);
 }
+
+function renderTeacherReqList(user, reqs) {
+  const el = document.getElementById('teacher-req-list');
+  if (!el) return;
+  el.innerHTML = reqs.map(r=>{
+    const student = db.users().find(u=>u.id===r.studentId);
+    const tutor   = db.users().find(u=>u.id===r.tutorId);
+    const sn = student ? `${esc(student.first)} ${esc(student.last)} (Gr. ${student.grade})` : 'Unknown';
+    const tn = tutor   ? `${esc(tutor.first)} ${esc(tutor.last)} (Gr. ${tutor.grade})`   : 'Unknown';
+    const today3 = new Date(Date.now()+3*86400000).toISOString().split('T')[0];
+    return `
+      <div class="req-card pending" id="rcard-${r.id}">
+        <div class="req-info" style="width:100%">
+          <div class="req-name">${sn} &#8644; ${tn}</div>
+          <div class="req-meta">Subjects: ${r.sharedSubjects.join(', ')} &middot; Submitted ${fmtDate(r.submittedAt.split('T')[0])}</div>
+          <div class="tags" style="margin-top:0.4rem">${tagsH(r.sharedSubjects,'tag-shared')}${tagsH(r.sharedInterests,'tag-int')}</div>
+          <div class="req-actions" style="margin-top:0.65rem">
+            <button class="btn btn-green btn-sm" onclick="showSessionForm('${r.id}','${user.id}')">&#10003; Approve</button>
+            <button class="btn btn-red btn-sm"   onclick="rejectMatchReq('${r.id}','${user.id}')">&#10007; Reject</button>
+          </div>
+          <div class="session-form" id="sf-${r.id}">
+            <div style="font-size:0.82rem;font-weight:700;color:var(--navy);margin-bottom:0.65rem">Session Details</div>
+            <div class="session-grid">
+              <div class="fg"><label class="lbl">Date</label><input type="date" id="sf-date-${r.id}" value="${today3}"></div>
+              <div class="fg"><label class="lbl">Location</label><input type="text" id="sf-loc-${r.id}" value="MICDS Library"></div>
+              <div class="fg"><label class="lbl">Start Time</label><input type="time" id="sf-start-${r.id}" value="15:30"></div>
+              <div class="fg"><label class="lbl">End Time</label><input type="time" id="sf-end-${r.id}" value="17:00"></div>
+              <div class="fg span2"><label class="lbl">Supervising Teacher</label><input type="text" id="sf-teacher-${r.id}" value="${esc(user.first+' '+user.last)}"></div>
+            </div>
+            <div class="session-actions">
+              <button class="btn btn-green btn-sm" onclick="confirmApproval('${r.id}','${user.id}')">Confirm &amp; Approve</button>
+              <button class="btn btn-outline btn-sm" onclick="closeSessionForm('${r.id}')">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function showSessionForm(reqId, userId) {
+  const sf = document.getElementById('sf-'+reqId);
+  if (sf) { sf.classList.add('open'); }
+}
+function closeSessionForm(reqId) {
+  const sf = document.getElementById('sf-'+reqId);
+  if (sf) sf.classList.remove('open');
+}
+
+function confirmApproval(reqId, userId) {
+  const date    = (document.getElementById('sf-date-'+reqId)||{}).value || '';
+  const loc     = (document.getElementById('sf-loc-'+reqId)||{}).value || '';
+  const start   = (document.getElementById('sf-start-'+reqId)||{}).value || '';
+  const end     = (document.getElementById('sf-end-'+reqId)||{}).value || '';
+  const teacher = (document.getElementById('sf-teacher-'+reqId)||{}).value || '';
+  if (!date||!loc||!start||!end||!teacher) { alert('Please fill in all session details.'); return; }
+
+  const reqs = db.reqs();
+  const idx  = reqs.findIndex(r=>r.id===reqId);
+  if (idx<0) return;
+  Object.assign(reqs[idx], { status:'approved', sessionDate:date, sessionLocation:loc, sessionStart:start, sessionEnd:end, supervisingTeacher:teacher, processedAt:new Date().toISOString(), processedBy:userId });
+  db.saveR(reqs);
+  const user = db.users().find(u=>u.id===userId);
+  renderTeacherQueue(user);
+}
+
+function rejectMatchReq(reqId, userId) {
+  const reqs = db.reqs();
+  const idx  = reqs.findIndex(r=>r.id===reqId);
+  if (idx<0) return;
+  Object.assign(reqs[idx], { status:'rejected', processedAt:new Date().toISOString(), processedBy:userId });
+  db.saveR(reqs);
+  const user = db.users().find(u=>u.id===userId);
+  renderTeacherQueue(user);
+}
+
+function renderTeacherApproved(user) {
+  const el   = document.getElementById('panel-tapproved');
+  const reqs = db.reqs().filter(r=>r.status==='approved');
+  reqs.sort((a,b)=>new Date(b.processedAt)-new Date(a.processedAt));
+  if (!reqs.length) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#128196;</div><h3>No approved sessions yet</h3><p>Approved sessions and permission slips will appear here.</p></div></div>`;
+    return;
+  }
+  el.innerHTML = reqs.map(r=>{
+    const student = db.users().find(u=>u.id===r.studentId);
+    const tutor   = db.users().find(u=>u.id===r.tutorId);
+    const sn = student ? `${esc(student.first)} ${esc(student.last)} (Gr. ${student.grade})` : 'Unknown';
+    const tn = tutor   ? `${esc(tutor.first)} ${esc(tutor.last)} (Gr. ${tutor.grade})`   : 'Unknown';
+    return `<div class="card" style="margin-bottom:1rem">
+      <div class="card-title" style="margin-bottom:0.85rem">${sn} &#8644; ${tn}</div>
+      <p style="font-size:0.83rem;margin-bottom:0.3rem"><strong>Date:</strong> ${fmtDate(r.sessionDate)}</p>
+      <p style="font-size:0.83rem;margin-bottom:0.3rem"><strong>Time:</strong> ${fmtTime(r.sessionStart)} – ${fmtTime(r.sessionEnd)}</p>
+      <p style="font-size:0.83rem;margin-bottom:1rem"><strong>Location:</strong> ${esc(r.sessionLocation)}</p>
+      <button class="btn btn-navy btn-sm" onclick="printSlip('${r.id}')">&#128424; Print Permission Slip</button>
+      <div style="margin-top:1.25rem">${slipHTML(r,student,tutor)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function buildAdminShell(user) {
+  const pendingUsers = db.users().filter(u=>(u.role==='student'||u.role==='tutor')&&u.status==='pending').length;
+  setNav([
+    { id:'apending', label:'Pending Users', badge: pendingUsers },
+    { id:'ausers',   label:'All Users' },
+    { id:'areqs',    label:'Match Requests' },
+  ]);
+  setApp(`
+    <div id="panel-apending" class="tab-panel"></div>
+    <div id="panel-ausers"   class="tab-panel"></div>
+    <div id="panel-areqs"    class="tab-panel"></div>`);
+
+  const users = db.users();
+  const aps = users.filter(u=>u.role==='student'&&u.status==='approved').length;
+  const apt = users.filter(u=>u.role==='tutor'  &&u.status==='approved').length;
+  const totalReqs = db.reqs().length;
+
+  // stats injected above the tabs
+  const statsHTML = `<div class="stats-row" style="margin-bottom:0">
+    <div class="stat-chip amb"><strong>${pendingUsers}</strong><span>Pending Review</span></div>
+    <div class="stat-chip grn"><strong>${aps}</strong><span>Approved Students</span></div>
+    <div class="stat-chip grn"><strong>${apt}</strong><span>Approved Tutors</span></div>
+    <div class="stat-chip"><strong>${totalReqs}</strong><span>Total Match Reqs</span></div>
+  </div>`;
+  document.getElementById('app').insertAdjacentHTML('afterbegin', statsHTML);
+
+  TAB_RENDERS['apending'] = () => renderAdminPending(user);
+  TAB_RENDERS['ausers']   = () => renderAdminUsers(user);
+  TAB_RENDERS['areqs']    = () => renderAdminReqs(user);
+  switchTab('apending');
+}
+
+function renderAdminPending(user) {
+  const el      = document.getElementById('panel-apending');
+  const pending = db.users().filter(u=>(u.role==='student'||u.role==='tutor')&&u.status==='pending');
+  const badge   = document.getElementById('badge-apending');
+  if (badge) { badge.textContent=pending.length; badge.className='tab-badge'+(pending.length>0?' hot':''); }
+  if (!pending.length) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#9989;</div><h3>No pending users</h3><p>All requests have been reviewed.</p></div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card"><div class="card-title">Pending User Requests (${pending.length})</div>
+    ${pending.map(p=>adminUserCard(p,'pending')).join('')}</div>`;
+}
+
+function renderAdminUsers(user) {
+  const el    = document.getElementById('panel-ausers');
+  const users = db.users().filter(u=>u.id!==user.id);
+  users.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  if (!users.length) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#128100;</div><h3>No other users yet</h3></div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card"><div class="card-title">All Users (${users.length})</div>
+    ${users.map(u=>adminUserCard(u,'all')).join('')}</div>`;
+}
+
+function adminUserCard(u, context) {
+  const roleLabels = { student:'Student', tutor:'Tutor', teacher:'Teacher', admin:'Admin' };
+  const spClass    = { pending:'sp-pending', approved:'sp-approved', rejected:'sp-rejected' };
+  const isStudTutor = u.role==='student'||u.role==='tutor';
+  const gradeStr   = u.grade ? ` &middot; Grade ${u.grade}` : '';
+
+  let actions = '';
+  if (context==='pending') {
+    actions = `<button class="btn btn-green btn-xs" onclick="adminSetStatus('${u.id}','approved')">Approve</button>
+               <button class="btn btn-red btn-xs"   onclick="adminSetStatus('${u.id}','rejected')">Reject</button>
+               <button class="btn btn-outline btn-xs" onclick="adminDelete('${u.id}')">Delete</button>`;
+  } else if (isStudTutor) {
+    actions = `${u.status!=='approved' ? `<button class="btn btn-green btn-xs" onclick="adminSetStatus('${u.id}','approved')">Approve</button>` : ''}
+               ${u.status!=='rejected' ? `<button class="btn btn-red btn-xs" onclick="adminSetStatus('${u.id}','rejected')">Reject</button>` : ''}
+               <button class="btn btn-outline btn-xs" onclick="adminDelete('${u.id}')">Delete</button>`;
+  } else {
+    actions = `<button class="btn btn-outline btn-xs" onclick="adminDelete('${u.id}')">Delete</button>`;
+  }
+
+  const submitted = u.createdAt ? fmtDate(u.createdAt.split('T')[0]) : '';
+
+  return `<div class="req-card ${isStudTutor?u.status:'approved'}" style="margin-bottom:0.6rem">
+    <div class="req-info">
+      <div class="req-name">${esc(u.first)} ${esc(u.last)} <span class="role-badge-hdr" style="font-size:0.62rem">${roleLabels[u.role]||u.role}</span>${isStudTutor?`<span class="status-pill ${spClass[u.status]||'sp-pending'}">${u.status}</span>`:''}
+      </div>
+      <div class="req-meta">${esc(u.email)}${gradeStr}${submitted?' &middot; '+submitted:''}</div>
+      ${u.subjects&&u.subjects.length ? `<div class="tags" style="margin-top:0.4rem">${tagsH(u.subjects,'tag-sub')}${tagsH(u.interests||[],'tag-int')}</div>` : ''}
+    </div>
+    <div class="req-actions" style="flex-direction:column">${actions}</div>
+  </div>`;
+}
+
+function adminSetStatus(userId, status) {
+  const users = db.users();
+  const idx   = users.findIndex(u=>u.id===userId);
+  if (idx<0) return;
+  users[idx].status = status;
+  db.saveU(users);
+  const admin = sess.get();
+  // Rebuild the panel that's currently active
+  const activePanel = document.querySelector('.tab-panel.active');
+  if (activePanel && activePanel.id==='panel-apending') renderAdminPending(admin);
+  else if (activePanel && activePanel.id==='panel-ausers') renderAdminUsers(admin);
+}
+
+function adminDelete(userId) {
+  if (!confirm('Permanently delete this user?')) return;
+  const users = db.users().filter(u=>u.id!==userId);
+  db.saveU(users);
+  const admin = sess.get();
+  const activePanel = document.querySelector('.tab-panel.active');
+  if (activePanel && activePanel.id==='panel-apending') renderAdminPending(admin);
+  else renderAdminUsers(admin);
+}
+
+function renderAdminReqs(user) {
+  const el   = document.getElementById('panel-areqs');
+  const reqs = db.reqs();
+  reqs.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+  if (!reqs.length) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="eico">&#128203;</div><h3>No match requests yet</h3></div></div>`;
+    return;
+  }
+  const spClass = { pending:'sp-pending', approved:'sp-approved', rejected:'sp-rejected' };
+  el.innerHTML = `<div class="card"><div class="card-title">All Match Requests (${reqs.length})</div>
+    ${reqs.map(r=>{
+      const student = db.users().find(u=>u.id===r.studentId);
+      const tutor   = db.users().find(u=>u.id===r.tutorId);
+      const sn = student ? `${esc(student.first)} ${esc(student.last)} (Gr. ${student.grade})` : 'Unknown';
+      const tn = tutor   ? `${esc(tutor.first)} ${esc(tutor.last)} (Gr. ${tutor.grade})`   : 'Unknown';
+      return `<div class="req-card ${r.status}" style="margin-bottom:0.6rem">
+        <div class="req-info">
+          <div class="req-name">${sn} &#8644; ${tn} <span class="status-pill ${spClass[r.status]}">${r.status}</span></div>
+          <div class="req-meta">Score ${r.score} &middot; ${r.sharedSubjects.join(', ')} &middot; ${fmtDate(r.submittedAt.split('T')[0])}</div>
+          ${r.status==='approved'?`<div class="req-meta">Session: ${fmtDate(r.sessionDate)} &middot; ${esc(r.sessionLocation)}</div>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERMISSION SLIP
+// ═══════════════════════════════════════════════════════════════════════════════
+function slipHTML(req, student, tutor) {
+  const sFirst = student ? esc(student.first) : '—';
+  const sLast  = student ? esc(student.last)  : '—';
+  const sGrade = student ? student.grade : '—';
+  const sEmail = student ? esc(student.email) : '—';
+  const tFirst = tutor   ? esc(tutor.first) : '—';
+  const tLast  = tutor   ? esc(tutor.last)  : '—';
+  const tGrade = tutor   ? tutor.grade : '—';
+  const tEmail = tutor   ? esc(tutor.email) : '—';
+  const teacher = req.supervisingTeacher ? esc(req.supervisingTeacher) : '______________________';
+
+  return `<div class="slip-page">
+    <div class="slip-hd">
+      <h1>Mary Institute and Saint Louis Country Day School</h1>
+      <h2>Peer Tutoring Club &mdash; In-Person Tutoring Session Authorization</h2>
+      <p>Academic Year 2025&ndash;2026 &nbsp;|&nbsp; Middle School &amp; Upper School Partnership</p>
+    </div>
+    <div class="slip-doc-title">Parent / Guardian Permission Slip</div>
+    <p class="slip-body-txt">Dear Parent or Guardian,</p>
+    <p class="slip-body-txt">Your child has been matched with an Upper School peer tutor through the MICDS Peer Tutoring Club. Please review the details below, complete the signature section, and return the signed form to the supervising teacher <strong>before the session date</strong>.</p>
+    <div class="slip-details">
+      <div class="detail-row"><span class="detail-key">Date:</span><span class="detail-val">${fmtDate(req.sessionDate)}</span></div>
+      <div class="detail-row"><span class="detail-key">Location:</span><span class="detail-val">${esc(req.sessionLocation||'')}</span></div>
+      <div class="detail-row"><span class="detail-key">Time:</span><span class="detail-val">${fmtTime(req.sessionStart)} &ndash; ${fmtTime(req.sessionEnd)}</span></div>
+      <div class="detail-row"><span class="detail-key">Supervising Teacher:</span><span class="detail-val">${teacher}</span></div>
+      <div class="detail-row"><span class="detail-key">Subject(s):</span><span class="detail-val">${req.sharedSubjects.map(esc).join(', ')}</span></div>
+    </div>
+    <table class="slip-tbl">
+      <thead><tr><th>Role</th><th>Full Name</th><th>Grade</th><th>Division</th><th>Email</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Student (Tutee)</strong></td><td>${sFirst} ${sLast}</td><td>${ordinal(Number(sGrade))} Grade</td><td>Middle School</td><td>${sEmail}</td></tr>
+        <tr><td><strong>Peer Tutor</strong></td><td>${tFirst} ${tLast}</td><td>${ordinal(Number(tGrade))} Grade</td><td>Upper School</td><td>${tEmail}</td></tr>
+      </tbody>
+    </table>
+    ${req.sharedInterests&&req.sharedInterests.length ? `<p class="slip-body-txt" style="font-style:italic;font-size:0.82rem"><strong>Shared interests:</strong> ${req.sharedInterests.map(esc).join(', ')} &mdash; considered during pairing to foster a positive mentoring relationship.</p>` : ''}
+    <p class="slip-body-txt" style="margin-top:1rem"><strong>By signing below, you authorize your child to attend this supervised, on-campus tutoring session.</strong></p>
+    <div class="slip-checks">
+      <div class="chk-row"><span class="chk-box"></span><span>I understand this is a faculty-supervised, on-campus session within MICDS facilities.</span></div>
+      <div class="chk-row"><span class="chk-box"></span><span>I grant permission for my child's name, grade, and email to be shared with the assigned tutor.</span></div>
+      <div class="chk-row"><span class="chk-box"></span><span>I understand my child must be picked up by the end time stated above.</span></div>
+    </div>
+    <div class="slip-sigs">
+      <div><div class="sig-spc"></div><div class="sig-line">Parent / Guardian &mdash; Printed Name</div><div class="sig-spc"></div><div class="sig-line">Parent / Guardian &mdash; Signature &amp; Date</div></div>
+      <div><div class="sig-spc"></div><div class="sig-line">Student &mdash; Signature &amp; Date</div><div class="sig-spc"></div><div class="sig-line">Supervising Teacher &mdash; Signature &amp; Date</div></div>
+    </div>
+    <div class="slip-footer">MICDS Peer Tutoring Club &nbsp;&bull;&nbsp; Return signed form to ${teacher!=='______________________'?teacher:'the supervising teacher'} &nbsp;&bull;&nbsp; Questions? Contact the club advisor.</div>
+  </div>`;
+}
+
+function printSlip(reqId) {
+  const req     = db.reqs().find(r=>r.id===reqId);
+  if (!req) return;
+  const student = db.users().find(u=>u.id===req.studentId);
+  const tutor   = db.users().find(u=>u.id===req.tutorId);
+  const area    = document.getElementById('slip-print-area');
+  area.innerHTML = slipHTML(req, student, tutor);
+  window.print();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+boot();
 </script>
 </body>
 </html>
