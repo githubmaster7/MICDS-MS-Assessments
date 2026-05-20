@@ -21,6 +21,8 @@
       --green-dk:  #065f46;
       --red-lt:    #fee2e2;
       --red-dk:    #991b1b;
+      --amber-lt:  #fef3c7;
+      --amber-dk:  #92400e;
       --shadow:    0 2px 10px rgba(0,0,0,0.08);
     }
 
@@ -91,14 +93,13 @@
     .tab-badge {
       background: var(--navy);
       color: #fff;
-      font-size: 0.68rem;
-      font-weight: 700;
+      font-size: 0.68rem; font-weight: 700;
       padding: 0.15rem 0.5rem;
       border-radius: 20px;
-      min-width: 20px;
-      text-align: center;
+      min-width: 20px; text-align: center;
     }
     .tab-btn.active .tab-badge { background: var(--gold); color: var(--navy); }
+    .tab-badge.pending-alert { background: #f59e0b; color: #fff; }
 
     /* ── Main ── */
     main {
@@ -120,15 +121,12 @@
     }
 
     .card-title {
-      font-size: 1.05rem;
-      font-weight: 700;
+      font-size: 1.05rem; font-weight: 700;
       color: var(--navy);
       margin-bottom: 1.25rem;
       padding-bottom: 0.85rem;
       border-bottom: 2px solid var(--gold-lt);
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
+      display: flex; align-items: center; gap: 0.6rem;
     }
 
     /* ── Form grid ── */
@@ -142,24 +140,22 @@
     .fg.span2 { grid-column: 1 / -1; }
 
     label.lbl {
-      font-size: 0.78rem;
-      font-weight: 700;
+      font-size: 0.78rem; font-weight: 700;
       color: var(--text);
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
+      text-transform: uppercase; letter-spacing: 0.4px;
     }
 
     input[type="text"],
     input[type="email"],
     input[type="date"],
     input[type="time"],
+    input[type="password"],
     select {
       padding: 0.6rem 0.9rem;
       border: 1.5px solid var(--border);
       border-radius: 8px;
       font-size: 0.9rem;
-      color: var(--text);
-      background: var(--white);
+      color: var(--text); background: var(--white);
       outline: none;
       transition: border-color 0.18s, box-shadow 0.18s;
       width: 100%;
@@ -170,29 +166,21 @@
     }
 
     /* ── Pill checkboxes ── */
-    .pill-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.45rem;
-    }
+    .pill-grid { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 
     .pill-grid label {
       display: flex; align-items: center; gap: 0.35rem;
       font-size: 0.8rem; font-weight: 500;
       background: var(--bg);
       padding: 0.38rem 0.78rem;
-      border-radius: 20px;
-      cursor: pointer;
+      border-radius: 20px; cursor: pointer;
       border: 1.5px solid var(--border);
-      transition: all 0.15s;
-      user-select: none;
+      transition: all 0.15s; user-select: none;
     }
     .pill-grid label:hover { border-color: var(--navy); background: #e8edf5; }
     .pill-grid label:has(input:checked) {
-      background: var(--gold-lt);
-      border-color: var(--gold);
-      color: #7a5c00;
-      font-weight: 600;
+      background: var(--gold-lt); border-color: var(--gold);
+      color: #7a5c00; font-weight: 600;
     }
     .pill-grid input[type="checkbox"] { display: none; }
 
@@ -204,39 +192,47 @@
       font-size: 0.88rem; font-weight: 700;
       cursor: pointer; transition: all 0.18s;
     }
-    .btn-navy { background: var(--navy); color: #fff; }
-    .btn-navy:hover { background: var(--navy-dark); }
-    .btn-gold { background: var(--gold); color: var(--navy); }
-    .btn-gold:hover { background: #b89036; }
+    .btn-navy  { background: var(--navy); color: #fff; }
+    .btn-navy:hover  { background: var(--navy-dark); }
+    .btn-gold  { background: var(--gold); color: var(--navy); }
+    .btn-gold:hover  { background: #b89036; }
+    .btn-green { background: var(--green-lt); color: var(--green-dk); border: 1.5px solid #6ee7b7; }
+    .btn-green:hover { background: #a7f3d0; }
+    .btn-red   { background: var(--red-lt); color: var(--red-dk); border: 1.5px solid #fca5a5; }
+    .btn-red:hover   { background: #fecaca; }
+    .btn-amber { background: var(--amber-lt); color: var(--amber-dk); border: 1.5px solid #fcd34d; }
+    .btn-amber:hover { background: #fde68a; }
+    .btn-outline-muted {
+      background: transparent; color: var(--muted);
+      border: 1.5px solid var(--border);
+    }
+    .btn-outline-muted:hover { background: var(--bg); }
     .btn-outline-red {
       background: transparent; color: var(--red-dk);
       border: 1.5px solid #fca5a5;
       padding: 0.3rem 0.7rem; font-size: 0.75rem;
     }
     .btn-outline-red:hover { background: var(--red-lt); }
-    .btn-sm { padding: 0.4rem 0.85rem; font-size: 0.8rem; }
+    .btn-sm  { padding: 0.38rem 0.78rem; font-size: 0.78rem; }
+    .btn-xs  { padding: 0.25rem 0.6rem;  font-size: 0.72rem; }
 
     /* ── Alert ── */
     .alert {
-      padding: 0.8rem 1rem;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      margin-bottom: 1rem;
-      display: none;
+      padding: 0.8rem 1rem; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 500;
+      margin-bottom: 1rem; display: none;
     }
-    .alert-ok  { background: var(--green-lt); color: var(--green-dk); display: block; }
-    .alert-err { background: var(--red-lt);   color: var(--red-dk);   display: block; }
+    .alert-ok     { background: var(--green-lt); color: var(--green-dk); display: block; }
+    .alert-err    { background: var(--red-lt);   color: var(--red-dk);   display: block; }
+    .alert-info   { background: var(--amber-lt); color: var(--amber-dk); display: block; }
 
-    /* ── Person list ── */
+    /* ── Person list (public) ── */
     .person-list { display: flex; flex-direction: column; gap: 0.75rem; }
 
     .person-row {
       display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 1rem;
-      padding: 0.9rem 1rem;
-      background: var(--bg);
-      border: 1.5px solid var(--border);
+      gap: 1rem; padding: 0.9rem 1rem;
+      background: var(--bg); border: 1.5px solid var(--border);
       border-radius: 10px;
     }
 
@@ -247,236 +243,178 @@
 
     .tag {
       font-size: 0.7rem; font-weight: 600;
-      padding: 0.18rem 0.55rem;
-      border-radius: 12px;
+      padding: 0.18rem 0.55rem; border-radius: 12px;
     }
-    .tag-sub  { background: var(--blue-lt);  color: var(--blue-dk); }
-    .tag-int  { background: var(--green-lt); color: var(--green-dk); }
-    .tag-shared { background: var(--gold-lt); color: #7a5c00; }
+    .tag-sub    { background: var(--blue-lt);  color: var(--blue-dk); }
+    .tag-int    { background: var(--green-lt); color: var(--green-dk); }
+    .tag-shared { background: var(--gold-lt);  color: #7a5c00; }
 
     /* ── Empty state ── */
-    .empty {
-      text-align: center; padding: 2.5rem 1rem;
-      color: var(--muted);
-    }
+    .empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
     .empty .icon { font-size: 2.5rem; margin-bottom: 0.6rem; }
     .empty h3 { color: var(--text); font-size: 0.95rem; margin-bottom: 0.4rem; }
     .empty p  { font-size: 0.83rem; }
 
     /* ── Stats bar ── */
-    .stats-row {
-      display: flex; gap: 1rem;
-      margin-bottom: 1.5rem;
-      flex-wrap: wrap;
-    }
+    .stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .stat-chip {
-      background: var(--white);
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      padding: 0.75rem 1.1rem;
-      box-shadow: var(--shadow);
-      min-width: 110px;
+      background: var(--white); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 1.1rem;
+      box-shadow: var(--shadow); min-width: 110px;
     }
-    .stat-chip strong {
-      display: block; font-size: 1.6rem;
-      color: var(--navy); line-height: 1;
-    }
-    .stat-chip span { font-size: 0.78rem; color: var(--muted); }
+    .stat-chip strong { display: block; font-size: 1.6rem; color: var(--navy); line-height: 1; }
+    .stat-chip span   { font-size: 0.78rem; color: var(--muted); }
+    .stat-chip.amber  { border-color: #fcd34d; }
+    .stat-chip.amber strong { color: #92400e; }
+    .stat-chip.green  { border-color: #6ee7b7; }
+    .stat-chip.green strong { color: var(--green-dk); }
 
     /* ── Match card ── */
     .match-card {
-      background: var(--white);
-      border: 1.5px solid var(--border);
-      border-radius: 12px;
-      padding: 1.25rem;
-      margin-bottom: 1rem;
-      box-shadow: var(--shadow);
+      background: var(--white); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 1.25rem;
+      margin-bottom: 1rem; box-shadow: var(--shadow);
     }
-
     .match-head {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 1rem;
     }
-
     .pair-num { font-size: 0.8rem; font-weight: 700; color: var(--muted); }
-
     .score-pill {
       background: var(--navy); color: #fff;
       font-size: 0.78rem; font-weight: 700;
       padding: 0.25rem 0.75rem; border-radius: 20px;
     }
-
     .match-pair {
       display: grid; grid-template-columns: 1fr 48px 1fr;
       gap: 0.75rem; align-items: center;
     }
-
     .match-person {
-      padding: 0.85rem 1rem;
-      border-radius: 8px;
-      border: 1.5px solid var(--border);
+      padding: 0.85rem 1rem; border-radius: 8px; border: 1.5px solid var(--border);
     }
     .match-person.student { border-color: #93c5fd; background: #eff6ff; }
     .match-person.tutor   { border-color: #6ee7b7; background: #f0fdf4; }
-
     .role-label {
       font-size: 0.68rem; font-weight: 800;
-      text-transform: uppercase; letter-spacing: 0.5px;
-      margin-bottom: 0.25rem;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;
     }
     .match-person.student .role-label { color: var(--blue-dk); }
     .match-person.tutor   .role-label { color: var(--green-dk); }
-
     .match-name { font-size: 0.95rem; font-weight: 700; }
     .match-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
-
-    .match-arrow {
-      text-align: center; font-size: 1.4rem; color: var(--muted);
-    }
-
+    .match-arrow { text-align: center; font-size: 1.4rem; color: var(--muted); }
     .match-shared { margin-top: 0.85rem; }
-
-    .unmatched-group {
-      display: flex; flex-wrap: wrap; gap: 0.45rem;
-    }
+    .unmatched-group { display: flex; flex-wrap: wrap; gap: 0.45rem; }
     .chip-unmatched {
-      background: var(--red-lt);
-      color: var(--red-dk);
+      background: var(--red-lt); color: var(--red-dk);
       border: 1px solid #fca5a5;
-      padding: 0.3rem 0.8rem;
-      border-radius: 20px;
+      padding: 0.3rem 0.8rem; border-radius: 20px;
       font-size: 0.8rem; font-weight: 500;
     }
 
     /* ── Slip form ── */
-    .slip-config {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
+    .slip-config { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    /* ── Admin ── */
+    .admin-login-wrap {
+      max-width: 400px; margin: 0 auto; text-align: center; padding: 1rem 0;
+    }
+    .admin-lock-icon { font-size: 3.5rem; margin-bottom: 0.75rem; }
+    .admin-login-row {
+      display: flex; gap: 0.75rem; margin-top: 1rem;
+    }
+    .admin-login-row input { flex: 1; }
+
+    .admin-section { margin-bottom: 2rem; }
+    .admin-section-head {
+      display: flex; align-items: center; gap: 0.65rem;
+      font-size: 0.78rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--muted); margin-bottom: 0.85rem;
+    }
+    .section-count {
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.68rem; font-weight: 700;
+      padding: 0.1rem 0.5rem; border-radius: 10px;
+    }
+
+    .req-card {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 1rem; padding: 0.9rem 1rem;
+      border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--bg); margin-bottom: 0.6rem;
+    }
+    .req-card.pending  { border-left: 4px solid #f59e0b; background: #fffbeb; }
+    .req-card.approved { border-left: 4px solid #10b981; background: #f0fdf4; }
+    .req-card.rejected { border-left: 4px solid #ef4444; background: #fef2f2; }
+
+    .req-info { flex: 1; min-width: 0; }
+    .req-name { font-size: 0.92rem; font-weight: 700; color: var(--navy); }
+    .req-meta { font-size: 0.77rem; color: var(--muted); margin-top: 2px; }
+    .req-actions { display: flex; gap: 0.4rem; flex-shrink: 0; flex-wrap: wrap; align-items: flex-start; }
+
+    .status-pill {
+      display: inline-block; font-size: 0.68rem; font-weight: 800;
+      padding: 0.18rem 0.6rem; border-radius: 12px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-left: 0.5rem;
+    }
+    .status-pending  { background: var(--amber-lt); color: var(--amber-dk); }
+    .status-approved { background: var(--green-lt);  color: var(--green-dk); }
+    .status-rejected { background: var(--red-lt);    color: var(--red-dk); }
+
+    .divider { border: none; border-top: 1.5px solid var(--border); margin: 1.5rem 0; }
+
+    .pending-notice {
+      background: var(--amber-lt); border: 1.5px solid #fcd34d;
+      color: var(--amber-dk); border-radius: 10px;
+      padding: 0.75rem 1rem; font-size: 0.85rem; font-weight: 500;
+      margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.6rem;
     }
 
     /* ── Printable slip ── */
     .slip-page {
-      background: var(--white);
-      border: 2px solid #333;
-      padding: 2.25rem 2.5rem;
-      margin-bottom: 2rem;
-      font-family: 'Times New Roman', Georgia, serif;
-      color: #111;
+      background: var(--white); border: 2px solid #333;
+      padding: 2.25rem 2.5rem; margin-bottom: 2rem;
+      font-family: 'Times New Roman', Georgia, serif; color: #111;
     }
-
     .slip-school-head {
-      text-align: center;
-      border-bottom: 3px double #333;
-      padding-bottom: 1rem;
-      margin-bottom: 1.5rem;
+      text-align: center; border-bottom: 3px double #333;
+      padding-bottom: 1rem; margin-bottom: 1.5rem;
     }
-    .slip-school-head h1 {
-      font-size: 1.3rem; font-weight: 900;
-      text-transform: uppercase; letter-spacing: 1.5px;
-    }
-    .slip-school-head h2 {
-      font-size: 0.95rem; font-weight: 600; margin-top: 0.3rem;
-    }
-    .slip-school-head p {
-      font-size: 0.8rem; color: #555; margin-top: 0.25rem;
-    }
-
+    .slip-school-head h1 { font-size: 1.3rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; }
+    .slip-school-head h2 { font-size: 0.95rem; font-weight: 600; margin-top: 0.3rem; }
+    .slip-school-head p  { font-size: 0.8rem; color: #555; margin-top: 0.25rem; }
     .slip-doc-title {
-      text-align: center;
-      font-size: 1.05rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 1px;
-      text-decoration: underline;
+      text-align: center; font-size: 1.05rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px; text-decoration: underline;
       margin: 1.2rem 0 1rem;
     }
-
-    .slip-body-text {
-      font-size: 0.88rem; line-height: 1.75;
-      margin-bottom: 0.75rem;
-    }
-
-    .slip-details {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 0.5rem 2.5rem;
-      margin: 1.1rem 0;
-    }
-
-    .detail-row {
-      display: flex; gap: 0.5rem; align-items: baseline;
-      font-size: 0.86rem;
-    }
-    .detail-key {
-      font-weight: 700; white-space: nowrap;
-      font-size: 0.8rem;
-    }
-    .detail-val {
-      border-bottom: 1px solid #333;
-      flex: 1; padding-bottom: 1px;
-      min-width: 60px;
-    }
-
-    .slip-table {
-      width: 100%; border-collapse: collapse;
-      margin: 1.1rem 0;
-      font-size: 0.84rem;
-    }
-    .slip-table th, .slip-table td {
-      border: 1px solid #333;
-      padding: 0.5rem 0.7rem;
-      text-align: left;
-    }
-    .slip-table th {
-      background: #efefef;
-      font-weight: 800;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-
+    .slip-body-text { font-size: 0.88rem; line-height: 1.75; margin-bottom: 0.75rem; }
+    .slip-details { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 2.5rem; margin: 1.1rem 0; }
+    .detail-row { display: flex; gap: 0.5rem; align-items: baseline; font-size: 0.86rem; }
+    .detail-key { font-weight: 700; white-space: nowrap; font-size: 0.8rem; }
+    .detail-val { border-bottom: 1px solid #333; flex: 1; padding-bottom: 1px; min-width: 60px; }
+    .slip-table { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: 0.84rem; }
+    .slip-table th, .slip-table td { border: 1px solid #333; padding: 0.5rem 0.7rem; text-align: left; }
+    .slip-table th { background: #efefef; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.3px; }
     .slip-checks { margin: 0.85rem 0; }
-    .check-row {
-      display: flex; align-items: flex-start; gap: 0.65rem;
-      font-size: 0.86rem; line-height: 1.5;
-      margin-bottom: 0.45rem;
-    }
-    .check-box {
-      width: 13px; height: 13px; min-width: 13px;
-      border: 1.5px solid #333; display: inline-block;
-      margin-top: 2px;
-    }
-
-    .slip-sigs {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 1.25rem; margin-top: 2rem;
-    }
-    .sig-line {
-      border-top: 1px solid #333;
-      padding-top: 0.35rem;
-      font-size: 0.76rem; color: #333;
-    }
+    .check-row { display: flex; align-items: flex-start; gap: 0.65rem; font-size: 0.86rem; line-height: 1.5; margin-bottom: 0.45rem; }
+    .check-box { width: 13px; height: 13px; min-width: 13px; border: 1.5px solid #333; display: inline-block; margin-top: 2px; }
+    .slip-sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 2rem; }
+    .sig-line { border-top: 1px solid #333; padding-top: 0.35rem; font-size: 0.76rem; color: #333; }
     .sig-spacer { height: 2rem; }
+    .slip-footer { font-size: 0.7rem; text-align: center; color: #777; margin-top: 1.5rem; border-top: 1px solid #ccc; padding-top: 0.5rem; }
 
-    .slip-footer {
-      font-size: 0.7rem; text-align: center;
-      color: #777; margin-top: 1.5rem;
-      border-top: 1px solid #ccc; padding-top: 0.5rem;
-    }
-
-    /* ── Print media ── */
+    /* ── Print ── */
     @media print {
       body { background: white; }
       header, nav, .no-print { display: none !important; }
       main { margin: 0; padding: 0; max-width: none; }
       .tab-panel { display: none !important; }
       #tab-slips  { display: block !important; }
-      .slip-config { display: none !important; }
-      .card.no-print { display: none !important; }
-      .slip-page {
-        page-break-after: always;
-        border: none;
-        padding: 1.5cm;
-        margin: 0;
-      }
+      .slip-config, .card.no-print { display: none !important; }
+      .slip-page { page-break-after: always; border: none; padding: 1.5cm; margin: 0; }
       .slip-page:last-child { page-break-after: avoid; }
     }
 
@@ -486,6 +424,8 @@
       .fg.span2 { grid-column: 1; }
       .match-pair { grid-template-columns: 1fr; }
       .match-arrow { transform: rotate(90deg); }
+      .req-card { flex-direction: column; }
+      .req-actions { flex-direction: row; }
     }
   </style>
 </head>
@@ -512,6 +452,9 @@
   <button class="tab-btn" onclick="showTab('slips', this)">
     Permission Slips
   </button>
+  <button class="tab-btn" onclick="showTab('admin', this)" id="tab-btn-admin">
+    Admin <span class="tab-badge" id="badge-admin">0</span>
+  </button>
 </nav>
 
 <main>
@@ -519,7 +462,10 @@
   <!-- ═══ STUDENTS ═══ -->
   <div id="tab-students" class="tab-panel active">
     <div class="card">
-      <div class="card-title">Register a Student <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">Grades 6–8</span></div>
+      <div class="card-title">Submit a Student Request <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">Grades 6–8</span></div>
+      <div class="pending-notice">
+        &#9432; Submissions are held for admin review before being included in matching.
+      </div>
       <div id="s-alert" class="alert"></div>
       <form id="s-form" onsubmit="addPerson(event,'student')">
         <div class="form-grid">
@@ -553,16 +499,16 @@
             <div class="pill-grid" id="s-interests"></div>
           </div>
           <div class="fg span2">
-            <button type="submit" class="btn btn-navy">Add Student</button>
+            <button type="submit" class="btn btn-navy">Submit Request</button>
           </div>
         </div>
       </form>
     </div>
 
     <div class="card">
-      <div class="card-title">Registered Students</div>
+      <div class="card-title">Approved Students</div>
       <div class="person-list" id="s-list">
-        <div class="empty"><div class="icon">🎓</div><h3>No students yet</h3><p>Register the first student above.</p></div>
+        <div class="empty"><div class="icon">🎓</div><h3>No approved students yet</h3><p>Requests appear here after admin approval.</p></div>
       </div>
     </div>
   </div>
@@ -570,7 +516,10 @@
   <!-- ═══ TUTORS ═══ -->
   <div id="tab-tutors" class="tab-panel">
     <div class="card">
-      <div class="card-title">Register a Tutor <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">Grades 9–12</span></div>
+      <div class="card-title">Submit a Tutor Request <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">Grades 9–12</span></div>
+      <div class="pending-notice">
+        &#9432; Submissions are held for admin review before being included in matching.
+      </div>
       <div id="t-alert" class="alert"></div>
       <form id="t-form" onsubmit="addPerson(event,'tutor')">
         <div class="form-grid">
@@ -605,16 +554,16 @@
             <div class="pill-grid" id="t-interests"></div>
           </div>
           <div class="fg span2">
-            <button type="submit" class="btn btn-navy">Add Tutor</button>
+            <button type="submit" class="btn btn-navy">Submit Request</button>
           </div>
         </div>
       </form>
     </div>
 
     <div class="card">
-      <div class="card-title">Registered Tutors</div>
+      <div class="card-title">Approved Tutors</div>
       <div class="person-list" id="t-list">
-        <div class="empty"><div class="icon">📚</div><h3>No tutors yet</h3><p>Register the first tutor above.</p></div>
+        <div class="empty"><div class="icon">📚</div><h3>No approved tutors yet</h3><p>Requests appear here after admin approval.</p></div>
       </div>
     </div>
   </div>
@@ -624,9 +573,9 @@
     <div class="card no-print">
       <div class="card-title">Run Matching Algorithm</div>
       <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.1rem;">
-        Pairs each student with the best-fit tutor based on <strong>shared subjects</strong> (required) plus shared interests. Each person is matched at most once (greedy, highest-score-first).
+        Pairs each <strong>approved</strong> student with the best-fit approved tutor based on shared subjects (required) plus shared interests. Each person is matched at most once.
       </p>
-      <button class="btn btn-gold" onclick="runMatching()">⚡ Run Matching</button>
+      <button class="btn btn-gold" onclick="runMatching()">&#9889; Run Matching</button>
     </div>
     <div id="match-results"></div>
   </div>
@@ -666,11 +615,83 @@
         </div>
         <div class="fg span2" style="margin-top:0.5rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
           <button class="btn btn-gold" onclick="generateSlips()">Generate Permission Slips</button>
-          <button class="btn btn-navy" onclick="window.print()">🖨 Print All</button>
+          <button class="btn btn-navy" onclick="window.print()">&#128424; Print All</button>
         </div>
       </div>
     </div>
     <div id="slips-output"></div>
+  </div>
+
+  <!-- ═══ ADMIN ═══ -->
+  <div id="tab-admin" class="tab-panel">
+
+    <!-- Login gate -->
+    <div id="admin-login-section" class="card">
+      <div class="admin-login-wrap">
+        <div class="admin-lock-icon">&#128274;</div>
+        <div class="card-title" style="justify-content:center;border:none;padding:0;margin-bottom:0.5rem;">Admin Access</div>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.5rem;">
+          Enter the administrator password to review and process incoming student and tutor requests.
+        </p>
+        <div id="admin-login-alert" class="alert"></div>
+        <div class="admin-login-row">
+          <input type="password" id="admin-pw" placeholder="Password"
+            onkeydown="if(event.key==='Enter') adminLogin()">
+          <button class="btn btn-navy" onclick="adminLogin()">Sign In</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard (hidden until login) -->
+    <div id="admin-dashboard" style="display:none">
+
+      <!-- Header bar -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title" style="margin-bottom:0;border:none;padding:0;justify-content:space-between;">
+          <span>&#128274; Admin Dashboard</span>
+          <button class="btn btn-outline-muted btn-sm" onclick="adminLogout()">Sign Out</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row" id="admin-stats"></div>
+
+      <!-- Pending Students -->
+      <div class="card">
+        <div class="card-title">Pending Student Requests</div>
+        <div id="admin-pending-students"></div>
+      </div>
+
+      <!-- Pending Tutors -->
+      <div class="card">
+        <div class="card-title">Pending Tutor Requests</div>
+        <div id="admin-pending-tutors"></div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Approved Students -->
+      <div class="card">
+        <div class="card-title">Approved Students</div>
+        <div id="admin-approved-students"></div>
+      </div>
+
+      <!-- Approved Tutors -->
+      <div class="card">
+        <div class="card-title">Approved Tutors</div>
+        <div id="admin-approved-tutors"></div>
+      </div>
+
+      <!-- Rejected (compact, collapsible) -->
+      <div class="card">
+        <div class="card-title" style="cursor:pointer" onclick="toggleRejected()">
+          Rejected Requests
+          <span style="font-size:0.8rem;font-weight:400;color:var(--muted);margin-left:auto" id="rejected-toggle-label">Show</span>
+        </div>
+        <div id="admin-rejected" style="display:none"></div>
+      </div>
+
+    </div>
   </div>
 
 </main>
@@ -679,16 +700,21 @@
 // ── Constants ──────────────────────────────────────────────────────────────────
 const SUBJECTS  = ['Math','Science','English','History','Spanish','French','Biology','Chemistry','Physics','Computer Science','Art','Music'];
 const INTERESTS = ['Reading','Gaming','Soccer','Basketball','Art','Music','Coding','Cooking','Film','Nature','Debate','Theater','Chess','Photography'];
+const ADMIN_PASSWORD = 'MICDS@2026';
 
 // ── Storage ────────────────────────────────────────────────────────────────────
 const db = {
-  get: k  => JSON.parse(localStorage.getItem(k) || '[]'),
+  get: k   => JSON.parse(localStorage.getItem(k) || '[]'),
   set: (k,v) => localStorage.setItem(k, JSON.stringify(v)),
 };
 
-let students = db.get('ptc_students');
-let tutors   = db.get('ptc_tutors');
+// Backfill status for any existing data from before admin system
+let students = db.get('ptc_students').map(p => ({ status: 'approved', ...p }));
+let tutors   = db.get('ptc_tutors').map(p   => ({ status: 'approved', ...p }));
 let matches  = db.get('ptc_matches');
+
+let adminLoggedIn     = false;
+let rejectedVisible   = false;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (function init() {
@@ -698,6 +724,7 @@ let matches  = db.get('ptc_matches');
   buildPills('t-interests', INTERESTS);
   renderList('student');
   renderList('tutor');
+  updateAdminBadge();
   if (matches.length) renderMatches(matches);
 })();
 
@@ -707,6 +734,7 @@ function showTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
   btn.classList.add('active');
+  if (id === 'admin' && adminLoggedIn) renderAdminDashboard();
 }
 
 // ── Pill checkboxes ────────────────────────────────────────────────────────────
@@ -727,10 +755,11 @@ function uid() {
 
 function flash(alertId, msg, type) {
   const el = document.getElementById(alertId);
+  if (!el) return;
   el.textContent = msg;
-  el.className = 'alert alert-' + (type === 'ok' ? 'ok' : 'err');
+  el.className = 'alert alert-' + type;
   clearTimeout(el._t);
-  el._t = setTimeout(() => { el.className = 'alert'; }, 3800);
+  el._t = setTimeout(() => { el.className = 'alert'; }, 4000);
 }
 
 function fmtTime(t) {
@@ -746,11 +775,17 @@ function fmtDate(d) {
 }
 
 function ordinal(n) {
-  const s = ['th','st','nd','rd'];
-  const v = n % 100;
+  const s = ['th','st','nd','rd'], v = n % 100;
   return n + (s[(v-20)%10] || s[v] || s[0]);
 }
 
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Badge helpers ──────────────────────────────────────────────────────────────
 function updateBadge(type, count) {
   const id = type === 'student' ? 'badge-students'
            : type === 'tutor'   ? 'badge-tutors'
@@ -759,111 +794,103 @@ function updateBadge(type, count) {
   if (el) el.textContent = count;
 }
 
-// ── Add person (shared for students & tutors) ──────────────────────────────────
+function updateAdminBadge() {
+  const pending = [...students, ...tutors].filter(p => p.status === 'pending').length;
+  const el = document.getElementById('badge-admin');
+  if (!el) return;
+  el.textContent = pending;
+  if (pending > 0) {
+    el.classList.add('pending-alert');
+  } else {
+    el.classList.remove('pending-alert');
+  }
+}
+
+// ── Add person ─────────────────────────────────────────────────────────────────
 function addPerson(e, type) {
   e.preventDefault();
-  const prefix   = type === 'student' ? 's' : 't';
-  const alertId  = prefix + '-alert';
-  const subs     = getChecked(prefix + '-subjects');
-  const ints     = getChecked(prefix + '-interests');
+  const p      = type === 'student' ? 's' : 't';
+  const alertId = p + '-alert';
+  const subs   = getChecked(p + '-subjects');
+  const ints   = getChecked(p + '-interests');
 
-  if (!subs.length) {
-    flash(alertId, 'Please select at least one subject.', 'err');
-    return;
-  }
+  if (!subs.length) { flash(alertId, 'Please select at least one subject.', 'err'); return; }
 
   const person = {
-    id:       uid(),
-    first:    document.getElementById(prefix + '-first').value.trim(),
-    last:     document.getElementById(prefix + '-last').value.trim(),
-    grade:    document.getElementById(prefix + '-grade').value,
-    email:    document.getElementById(prefix + '-email').value.trim(),
-    subjects: subs,
+    id:        uid(),
+    first:     document.getElementById(p + '-first').value.trim(),
+    last:      document.getElementById(p + '-last').value.trim(),
+    grade:     document.getElementById(p + '-grade').value,
+    email:     document.getElementById(p + '-email').value.trim(),
+    subjects:  subs,
     interests: ints,
+    status:    'pending',
+    submittedAt: new Date().toISOString(),
   };
 
-  if (type === 'student') {
-    students.push(person);
-    db.set('ptc_students', students);
-  } else {
-    tutors.push(person);
-    db.set('ptc_tutors', tutors);
-  }
+  if (type === 'student') { students.push(person); db.set('ptc_students', students); }
+  else                    { tutors.push(person);   db.set('ptc_tutors',   tutors);   }
 
   renderList(type);
-  document.getElementById(prefix + '-form').reset();
-  buildPills(prefix + '-subjects', SUBJECTS);
-  buildPills(prefix + '-interests', INTERESTS);
-  flash(alertId, `${person.first} ${person.last} registered successfully!`, 'ok');
+  updateAdminBadge();
+  document.getElementById(p + '-form').reset();
+  buildPills(p + '-subjects', SUBJECTS);
+  buildPills(p + '-interests', INTERESTS);
+  flash(alertId, `Request submitted! ${person.first} ${person.last} is pending admin approval.`, 'info');
 }
 
-// ── Remove person ──────────────────────────────────────────────────────────────
-function removePerson(id, type) {
-  if (type === 'student') {
-    students = students.filter(s => s.id !== id);
-    db.set('ptc_students', students);
-  } else {
-    tutors = tutors.filter(t => t.id !== id);
-    db.set('ptc_tutors', tutors);
-  }
-  renderList(type);
-}
-
-// ── Render list ────────────────────────────────────────────────────────────────
+// ── Render public approved list ────────────────────────────────────────────────
 function renderList(type) {
-  const arr  = type === 'student' ? students : tutors;
-  const el   = document.getElementById(type === 'student' ? 's-list' : 't-list');
-  const icon = type === 'student' ? '🎓' : '📚';
-  const noun = type === 'student' ? 'students' : 'tutors';
+  const approved = (type === 'student' ? students : tutors).filter(p => p.status === 'approved');
+  const el       = document.getElementById(type === 'student' ? 's-list' : 't-list');
+  const icon     = type === 'student' ? '🎓' : '📚';
+  const noun     = type === 'student' ? 'approved students' : 'approved tutors';
 
-  updateBadge(type, arr.length);
+  updateBadge(type, approved.length);
 
-  if (!arr.length) {
-    el.innerHTML = `<div class="empty"><div class="icon">${icon}</div><h3>No ${noun} yet</h3><p>Register one using the form above.</p></div>`;
+  if (!approved.length) {
+    el.innerHTML = `<div class="empty"><div class="icon">${icon}</div><h3>No ${noun} yet</h3><p>Requests appear here after admin approval.</p></div>`;
     return;
   }
 
-  el.innerHTML = arr.map(p => `
+  el.innerHTML = approved.map(p => `
     <div class="person-row">
       <div>
-        <div class="person-name">${p.first} ${p.last}</div>
-        <div class="person-meta">Grade ${p.grade} &nbsp;·&nbsp; ${p.email}</div>
+        <div class="person-name">${esc(p.first)} ${esc(p.last)}</div>
+        <div class="person-meta">Grade ${p.grade} &nbsp;&middot;&nbsp; ${esc(p.email)}</div>
         <div class="tags">
-          ${p.subjects.map(s  => `<span class="tag tag-sub">${s}</span>`).join('')}
-          ${p.interests.map(i => `<span class="tag tag-int">${i}</span>`).join('')}
+          ${p.subjects.map(s  => `<span class="tag tag-sub">${esc(s)}</span>`).join('')}
+          ${p.interests.map(i => `<span class="tag tag-int">${esc(i)}</span>`).join('')}
         </div>
       </div>
-      <button class="btn btn-outline-red" onclick="removePerson('${p.id}','${type}')">Remove</button>
     </div>
   `).join('');
 }
 
-// ── Matching algorithm ─────────────────────────────────────────────────────────
+// ── Matching (approved only) ───────────────────────────────────────────────────
 function runMatching() {
   const resultsEl = document.getElementById('match-results');
+  const apS = students.filter(p => p.status === 'approved');
+  const apT = tutors.filter(p   => p.status === 'approved');
 
-  if (!students.length || !tutors.length) {
+  if (!apS.length || !apT.length) {
     resultsEl.innerHTML = `<div class="card"><p style="color:var(--red-dk);font-size:0.88rem;">
-      Register at least one student <em>and</em> one tutor before running matching.</p></div>`;
+      Need at least one approved student <em>and</em> one approved tutor. Visit the Admin tab to approve requests.</p></div>`;
     return;
   }
 
-  // Build all valid candidate pairs (must share ≥1 subject)
   const candidates = [];
-  for (const s of students) {
-    for (const t of tutors) {
+  for (const s of apS) {
+    for (const t of apT) {
       const sharedSubjects  = s.subjects.filter(sub => t.subjects.includes(sub));
       if (!sharedSubjects.length) continue;
       const sharedInterests = s.interests.filter(i => t.interests.includes(i));
-      candidates.push({
-        student: s, tutor: t,
+      candidates.push({ student: s, tutor: t,
         score: sharedSubjects.length + sharedInterests.length,
-        sharedSubjects, sharedInterests,
-      });
+        sharedSubjects, sharedInterests });
     }
   }
 
-  // Greedy one-to-one assignment by score desc
   candidates.sort((a, b) => b.score - a.score);
   const usedS = new Set(), usedT = new Set();
   matches = [];
@@ -881,22 +908,22 @@ function runMatching() {
 
 function renderMatches(matches) {
   const el = document.getElementById('match-results');
-
-  const unmatchedS = students.filter(s => !matches.find(m => m.student.id === s.id));
-  const unmatchedT = tutors.filter(t   => !matches.find(m => m.tutor.id   === t.id));
+  const apS = students.filter(p => p.status === 'approved');
+  const apT = tutors.filter(p   => p.status === 'approved');
+  const unmatchedS = apS.filter(s => !matches.find(m => m.student.id === s.id));
+  const unmatchedT = apT.filter(t => !matches.find(m => m.tutor.id   === t.id));
 
   let html = `
     <div class="stats-row">
       <div class="stat-chip"><strong>${matches.length}</strong><span>Pairs Made</span></div>
       <div class="stat-chip"><strong>${unmatchedS.length}</strong><span>Students Unmatched</span></div>
       <div class="stat-chip"><strong>${unmatchedT.length}</strong><span>Tutors Unmatched</span></div>
-    </div>
-  `;
+    </div>`;
 
   if (!matches.length) {
-    html += `<div class="card"><div class="empty"><div class="icon">😕</div>
+    html += `<div class="card"><div class="empty"><div class="icon">&#128533;</div>
       <h3>No matches found</h3>
-      <p>No student-tutor pairs share a subject. Update subject selections and try again.</p>
+      <p>No approved student-tutor pairs share a subject. Update subject selections and try again.</p>
     </div></div>`;
   } else {
     html += matches.map((m, i) => `
@@ -908,42 +935,179 @@ function renderMatches(matches) {
         <div class="match-pair">
           <div class="match-person student">
             <div class="role-label">Student (Grade ${m.student.grade})</div>
-            <div class="match-name">${m.student.first} ${m.student.last}</div>
-            <div class="match-meta">${m.student.email}</div>
+            <div class="match-name">${esc(m.student.first)} ${esc(m.student.last)}</div>
+            <div class="match-meta">${esc(m.student.email)}</div>
           </div>
-          <div class="match-arrow">⇄</div>
+          <div class="match-arrow">&#8644;</div>
           <div class="match-person tutor">
             <div class="role-label">Tutor (Grade ${m.tutor.grade})</div>
-            <div class="match-name">${m.tutor.first} ${m.tutor.last}</div>
-            <div class="match-meta">${m.tutor.email}</div>
+            <div class="match-name">${esc(m.tutor.first)} ${esc(m.tutor.last)}</div>
+            <div class="match-meta">${esc(m.tutor.email)}</div>
           </div>
         </div>
         <div class="match-shared tags">
           <strong style="font-size:0.75rem;color:var(--muted);margin-right:0.3rem;">Shared Subjects:</strong>
-          ${m.sharedSubjects.map(s => `<span class="tag tag-shared">${s}</span>`).join('')}
+          ${m.sharedSubjects.map(s => `<span class="tag tag-shared">${esc(s)}</span>`).join('')}
           ${m.sharedInterests.length ? `
             <strong style="font-size:0.75rem;color:var(--muted);margin-left:0.6rem;margin-right:0.3rem;">Shared Interests:</strong>
-            ${m.sharedInterests.map(i => `<span class="tag tag-int">${i}</span>`).join('')}
-          ` : ''}
+            ${m.sharedInterests.map(i => `<span class="tag tag-int">${esc(i)}</span>`).join('')}` : ''}
         </div>
-      </div>
-    `).join('');
+      </div>`).join('');
   }
 
-  if (unmatchedS.length) {
-    html += `<div class="card"><div class="card-title">Unmatched Students</div>
-      <div class="unmatched-group">
-        ${unmatchedS.map(s => `<span class="chip-unmatched">${s.first} ${s.last} · Gr. ${s.grade}</span>`).join('')}
-      </div></div>`;
-  }
-  if (unmatchedT.length) {
-    html += `<div class="card"><div class="card-title">Unmatched Tutors</div>
-      <div class="unmatched-group">
-        ${unmatchedT.map(t => `<span class="chip-unmatched">${t.first} ${t.last} · Gr. ${t.grade}</span>`).join('')}
-      </div></div>`;
-  }
+  if (unmatchedS.length) html += `<div class="card"><div class="card-title">Unmatched Students</div>
+    <div class="unmatched-group">${unmatchedS.map(s => `<span class="chip-unmatched">${esc(s.first)} ${esc(s.last)} &middot; Gr. ${s.grade}</span>`).join('')}</div></div>`;
+  if (unmatchedT.length) html += `<div class="card"><div class="card-title">Unmatched Tutors</div>
+    <div class="unmatched-group">${unmatchedT.map(t => `<span class="chip-unmatched">${esc(t.first)} ${esc(t.last)} &middot; Gr. ${t.grade}</span>`).join('')}</div></div>`;
 
   el.innerHTML = html;
+}
+
+// ── Admin auth ─────────────────────────────────────────────────────────────────
+function adminLogin() {
+  const pw = document.getElementById('admin-pw').value;
+  if (pw !== ADMIN_PASSWORD) {
+    flash('admin-login-alert', 'Incorrect password. Please try again.', 'err');
+    document.getElementById('admin-pw').value = '';
+    return;
+  }
+  adminLoggedIn = true;
+  document.getElementById('admin-login-section').style.display = 'none';
+  document.getElementById('admin-dashboard').style.display = 'block';
+  renderAdminDashboard();
+}
+
+function adminLogout() {
+  adminLoggedIn = false;
+  document.getElementById('admin-dashboard').style.display = 'none';
+  document.getElementById('admin-login-section').style.display = 'block';
+  document.getElementById('admin-pw').value = '';
+}
+
+// ── Admin dashboard render ─────────────────────────────────────────────────────
+function renderAdminDashboard() {
+  const pendingS   = students.filter(p => p.status === 'pending');
+  const pendingT   = tutors.filter(p   => p.status === 'pending');
+  const approvedS  = students.filter(p => p.status === 'approved');
+  const approvedT  = tutors.filter(p   => p.status === 'approved');
+  const rejectedS  = students.filter(p => p.status === 'rejected');
+  const rejectedT  = tutors.filter(p   => p.status === 'rejected');
+  const totalPend  = pendingS.length + pendingT.length;
+
+  // Stats
+  document.getElementById('admin-stats').innerHTML = `
+    <div class="stat-chip amber"><strong>${totalPend}</strong><span>Pending Review</span></div>
+    <div class="stat-chip green"><strong>${approvedS.length + approvedT.length}</strong><span>Approved</span></div>
+    <div class="stat-chip"><strong>${approvedS.length}</strong><span>Students &#10003;</span></div>
+    <div class="stat-chip"><strong>${approvedT.length}</strong><span>Tutors &#10003;</span></div>
+    <div class="stat-chip"><strong>${rejectedS.length + rejectedT.length}</strong><span>Rejected</span></div>
+  `;
+
+  // Pending queues
+  renderAdminQueue('admin-pending-students', pendingS, 'student', 'pending');
+  renderAdminQueue('admin-pending-tutors',   pendingT, 'tutor',   'pending');
+
+  // Approved lists
+  renderAdminQueue('admin-approved-students', approvedS, 'student', 'approved');
+  renderAdminQueue('admin-approved-tutors',   approvedT, 'tutor',   'approved');
+
+  // Rejected (combined)
+  const rejectedEl = document.getElementById('admin-rejected');
+  if (rejectedS.length + rejectedT.length === 0) {
+    rejectedEl.innerHTML = '<div class="empty" style="padding:1.25rem"><p>No rejected requests.</p></div>';
+  } else {
+    const allRejected = [
+      ...rejectedS.map(p => ({ ...p, _type: 'student' })),
+      ...rejectedT.map(p => ({ ...p, _type: 'tutor' })),
+    ];
+    rejectedEl.innerHTML = allRejected.map(p => reqCardHTML(p, p._type, 'rejected')).join('');
+  }
+}
+
+function renderAdminQueue(containerId, arr, type, status) {
+  const el = document.getElementById(containerId);
+  const noun = type === 'student' ? 'students' : 'tutors';
+  if (!arr.length) {
+    const emptyMsg = status === 'pending'
+      ? `No pending ${noun} requests.`
+      : `No approved ${noun} yet.`;
+    el.innerHTML = `<div class="empty" style="padding:1.25rem"><p>${emptyMsg}</p></div>`;
+    return;
+  }
+  el.innerHTML = arr.map(p => reqCardHTML(p, type, status)).join('');
+}
+
+function reqCardHTML(p, type, status) {
+  const submitted = p.submittedAt
+    ? ` &middot; Submitted ${new Date(p.submittedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
+    : '';
+
+  let actions = '';
+  if (status === 'pending') {
+    actions = `
+      <button class="btn btn-green btn-sm" onclick="setStatus('${p.id}','${type}','approved')">&#10003; Approve</button>
+      <button class="btn btn-red   btn-sm" onclick="setStatus('${p.id}','${type}','rejected')">&#10007; Reject</button>
+      <button class="btn btn-outline-muted btn-xs" onclick="deletePerson('${p.id}','${type}')">Delete</button>`;
+  } else if (status === 'approved') {
+    actions = `
+      <button class="btn btn-amber btn-sm" onclick="setStatus('${p.id}','${type}','pending')">&#8635; Revoke</button>
+      <button class="btn btn-outline-muted btn-xs" onclick="deletePerson('${p.id}','${type}')">Remove</button>`;
+  } else {
+    actions = `
+      <button class="btn btn-amber btn-sm" onclick="setStatus('${p.id}','${type}','pending')">&#8635; Reconsider</button>
+      <button class="btn btn-outline-muted btn-xs" onclick="deletePerson('${p.id}','${type}')">Remove</button>`;
+  }
+
+  const divLabel = type === 'student' ? 'Middle School' : 'Upper School';
+
+  return `
+    <div class="req-card ${status}">
+      <div class="req-info">
+        <div class="req-name">
+          ${esc(p.first)} ${esc(p.last)}
+          <span class="status-pill status-${status}">${status}</span>
+        </div>
+        <div class="req-meta">Grade ${p.grade} &middot; ${divLabel} &middot; ${esc(p.email)}${submitted}</div>
+        <div class="tags" style="margin-top:0.45rem">
+          ${p.subjects.map(s  => `<span class="tag tag-sub">${esc(s)}</span>`).join('')}
+          ${p.interests.map(i => `<span class="tag tag-int">${esc(i)}</span>`).join('')}
+        </div>
+      </div>
+      <div class="req-actions">${actions}</div>
+    </div>`;
+}
+
+// ── Status change & delete ─────────────────────────────────────────────────────
+function setStatus(id, type, newStatus) {
+  if (type === 'student') {
+    students = students.map(p => p.id === id ? { ...p, status: newStatus } : p);
+    db.set('ptc_students', students);
+  } else {
+    tutors = tutors.map(p => p.id === id ? { ...p, status: newStatus } : p);
+    db.set('ptc_tutors', tutors);
+  }
+  renderList(type);
+  updateAdminBadge();
+  renderAdminDashboard();
+}
+
+function deletePerson(id, type) {
+  if (type === 'student') {
+    students = students.filter(p => p.id !== id);
+    db.set('ptc_students', students);
+  } else {
+    tutors = tutors.filter(p => p.id !== id);
+    db.set('ptc_tutors', tutors);
+  }
+  renderList(type);
+  updateAdminBadge();
+  renderAdminDashboard();
+}
+
+function toggleRejected() {
+  rejectedVisible = !rejectedVisible;
+  document.getElementById('admin-rejected').style.display = rejectedVisible ? 'block' : 'none';
+  document.getElementById('rejected-toggle-label').textContent = rejectedVisible ? 'Hide' : 'Show';
 }
 
 // ── Permission Slips ───────────────────────────────────────────────────────────
@@ -962,15 +1126,12 @@ function generateSlips() {
 
   const html = matches.map((m, i) => `
     <div class="slip-page">
-
       <div class="slip-school-head">
         <h1>Mary Institute and Saint Louis Country Day School</h1>
         <h2>Peer Tutoring Club &mdash; In-Person Tutoring Session Authorization</h2>
         <p>Academic Year ${year} &nbsp;|&nbsp; Middle School &amp; Upper School Partnership</p>
       </div>
-
       <div class="slip-doc-title">Parent / Guardian Permission Slip</div>
-
       <p class="slip-body-text">Dear Parent or Guardian,</p>
       <p class="slip-body-text">
         Your child has been matched with an Upper School peer tutor through the MICDS Peer Tutoring Club.
@@ -978,111 +1139,69 @@ function generateSlips() {
         the information at the bottom, and return the signed form to the supervising teacher
         <strong>before the session date</strong>.
       </p>
-
       <div class="slip-details">
-        <div class="detail-row">
-          <span class="detail-key">Pair #:</span>
-          <span class="detail-val">${i + 1}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-key">Date:</span>
-          <span class="detail-val">${fmtDate(date)}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-key">Location:</span>
-          <span class="detail-val">${loc}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-key">Time:</span>
-          <span class="detail-val">${fmtTime(start)} &ndash; ${fmtTime(end)}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-key">Supervising Teacher:</span>
-          <span class="detail-val">${teacher}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-key">Subject(s):</span>
-          <span class="detail-val">${m.sharedSubjects.join(', ')}</span>
-        </div>
+        <div class="detail-row"><span class="detail-key">Pair #:</span><span class="detail-val">${i + 1}</span></div>
+        <div class="detail-row"><span class="detail-key">Date:</span><span class="detail-val">${fmtDate(date)}</span></div>
+        <div class="detail-row"><span class="detail-key">Location:</span><span class="detail-val">${esc(loc)}</span></div>
+        <div class="detail-row"><span class="detail-key">Time:</span><span class="detail-val">${fmtTime(start)} &ndash; ${fmtTime(end)}</span></div>
+        <div class="detail-row"><span class="detail-key">Supervising Teacher:</span><span class="detail-val">${esc(teacher)}</span></div>
+        <div class="detail-row"><span class="detail-key">Subject(s):</span><span class="detail-val">${m.sharedSubjects.map(esc).join(', ')}</span></div>
       </div>
-
       <table class="slip-table">
         <thead>
-          <tr>
-            <th>Role</th>
-            <th>Full Name</th>
-            <th>Grade</th>
-            <th>Division</th>
-            <th>School Email</th>
-          </tr>
+          <tr><th>Role</th><th>Full Name</th><th>Grade</th><th>Division</th><th>School Email</th></tr>
         </thead>
         <tbody>
           <tr>
             <td><strong>Student (Tutee)</strong></td>
-            <td>${m.student.first} ${m.student.last}</td>
+            <td>${esc(m.student.first)} ${esc(m.student.last)}</td>
             <td>${ordinal(Number(m.student.grade))} Grade</td>
             <td>Middle School</td>
-            <td>${m.student.email}</td>
+            <td>${esc(m.student.email)}</td>
           </tr>
           <tr>
             <td><strong>Peer Tutor</strong></td>
-            <td>${m.tutor.first} ${m.tutor.last}</td>
+            <td>${esc(m.tutor.first)} ${esc(m.tutor.last)}</td>
             <td>${ordinal(Number(m.tutor.grade))} Grade</td>
             <td>Upper School</td>
-            <td>${m.tutor.email}</td>
+            <td>${esc(m.tutor.email)}</td>
           </tr>
         </tbody>
       </table>
-
       ${m.sharedInterests.length ? `
         <p class="slip-body-text" style="font-style:italic;font-size:0.82rem;margin-top:0.5rem;">
-          <strong>Shared interests:</strong> ${m.sharedInterests.join(', ')} &mdash;
+          <strong>Shared interests:</strong> ${m.sharedInterests.map(esc).join(', ')} &mdash;
           considered during pairing to foster a positive mentoring relationship.
         </p>` : ''}
-
       <p class="slip-body-text" style="margin-top:1rem;">
         <strong>By signing below, you confirm that you have read and understood the information on this form
         and authorize your child to attend this supervised, on-campus tutoring session.</strong>
       </p>
-
       <div class="slip-checks">
-        <div class="check-row">
-          <span class="check-box"></span>
-          <span>I understand this is a faculty-supervised, on-campus session within MICDS facilities.</span>
-        </div>
-        <div class="check-row">
-          <span class="check-box"></span>
-          <span>I grant permission for my child's name, grade, and email to be shared with the assigned tutor.</span>
-        </div>
-        <div class="check-row">
-          <span class="check-box"></span>
-          <span>I understand my child must be picked up by the end time stated above.</span>
-        </div>
+        <div class="check-row"><span class="check-box"></span><span>I understand this is a faculty-supervised, on-campus session within MICDS facilities.</span></div>
+        <div class="check-row"><span class="check-box"></span><span>I grant permission for my child's name, grade, and email to be shared with the assigned tutor.</span></div>
+        <div class="check-row"><span class="check-box"></span><span>I understand my child must be picked up by the end time stated above.</span></div>
       </div>
-
       <div class="slip-sigs">
         <div>
           <div class="sig-spacer"></div>
-          <div class="sig-line">Parent / Guardian — Printed Name</div>
+          <div class="sig-line">Parent / Guardian &mdash; Printed Name</div>
           <div class="sig-spacer"></div>
-          <div class="sig-line">Parent / Guardian — Signature &amp; Date</div>
+          <div class="sig-line">Parent / Guardian &mdash; Signature &amp; Date</div>
         </div>
         <div>
           <div class="sig-spacer"></div>
-          <div class="sig-line">Student — Signature &amp; Date</div>
+          <div class="sig-line">Student &mdash; Signature &amp; Date</div>
           <div class="sig-spacer"></div>
-          <div class="sig-line">Supervising Teacher — Signature &amp; Date</div>
+          <div class="sig-line">Supervising Teacher &mdash; Signature &amp; Date</div>
         </div>
       </div>
-
       <div class="slip-footer">
         MICDS Peer Tutoring Club &nbsp;&bull;&nbsp;
-        Please return this signed form to ${teacher !== '______________________' ? teacher : 'the supervising teacher'} &nbsp;&bull;&nbsp;
+        Please return this signed form to ${teacher !== '______________________' ? esc(teacher) : 'the supervising teacher'} &nbsp;&bull;&nbsp;
         Questions? Contact the club advisor or visit the MS main office.
       </div>
-
-    </div>
-  `).join('');
+    </div>`).join('');
 
   document.getElementById('slips-output').innerHTML = html;
   flash('slip-alert', `${matches.length} permission slip${matches.length !== 1 ? 's' : ''} generated. Click "Print All" to print.`, 'ok');
