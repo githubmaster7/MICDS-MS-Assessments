@@ -68,6 +68,47 @@ const CLASSES = {
 
 function $(id){ return document.getElementById(id); }
 
+function seedDemoData(){
+  // Teacher
+  try { addTeacher("prosen@micds.org"); } catch(e){}
+  setUserPassword("prosen@micds.org", "demo123");
+  setUserPassword("admin@micds.org", "demo123");
+
+  // Students
+  const demos = [
+    { email: "alex.johnson@micds.org",  name: "Alex Johnson",  grade: "7", gender: "male"   },
+    { email: "sarah.davis@micds.org",   name: "Sarah Davis",   grade: "7", gender: "female" },
+    { email: "mike.wilson@micds.org",   name: "Mike Wilson",   grade: "7", gender: "male"   },
+  ];
+  demos.forEach(s => {
+    try { addStudent(s.email, s.name, s.grade, s.gender); } catch(e){}
+    setUserPassword(s.email, "demo123");
+  });
+
+  // Class
+  try { addClass("PE 7A", "prosen@micds.org", null, "7"); } catch(e){}
+  demos.forEach(s => { try { addStudentToClass(s.email, "PE 7A"); } catch(e){} });
+
+  // Pre-filled scores
+  ensureStudent("alex.johnson@micds.org", "Alex Johnson", "7", "male");
+  updateStudent("alex.johnson@micds.org", r => {
+    r.student.scores = { s1_q1:3, s1_q2:2, s1_q3:3, s2_q1:3, s2_q2:4, s2_q3:2, s3_q1:2, s3_q2:3, s3_q3:3, s4_q1:4, s4_q2:3, s4_q3:3, atl_effort:3, atl_follow:4, atl_task:3, atl_late:1 };
+    r.teacher.scores = { s1_q2:3 };
+    r.honorCode = true;
+  });
+  ensureStudent("sarah.davis@micds.org", "Sarah Davis", "7", "female");
+  updateStudent("sarah.davis@micds.org", r => {
+    r.student.scores = { s1_q1:4, s1_q2:3, s1_q3:4, s2_q1:3, s2_q2:3, s2_q3:4, s3_q1:3, s3_q2:4, s3_q3:3, s4_q1:4, s4_q2:4, s4_q3:4, atl_effort:4, atl_follow:4, atl_task:4, atl_late:0 };
+    r.honorCode = true;
+  });
+  ensureStudent("mike.wilson@micds.org", "Mike Wilson", "7", "male");
+  updateStudent("mike.wilson@micds.org", r => {
+    r.student.scores = { s1_q1:2, s1_q2:1, s1_q3:2, s2_q1:2, s2_q2:2, s2_q3:1, s3_q1:2, s3_q2:1, s3_q3:2, s4_q1:2, s4_q2:2, s4_q3:2, atl_effort:2, atl_follow:2, atl_task:2, atl_late:5 };
+    r.teacher.scores = { s1_q2:2, s2_q3:2, s3_q2:2 };
+    r.honorCode = true;
+  });
+}
+
 function setStatus(msg){
   const statusEl = $("status");
   if (statusEl) statusEl.textContent = msg || "";
@@ -2050,6 +2091,18 @@ function initLogin(){
     });
   }
   
+  // Demo login buttons
+  const demoLogin = (email, role) => {
+    seedDemoData();
+    completeLogin(email, role);
+  };
+  const demoStudentBtn = $("demoStudentBtn");
+  if (demoStudentBtn) demoStudentBtn.addEventListener("click", () => demoLogin("alex.johnson@micds.org", "student"));
+  const demoTeacherBtn = $("demoTeacherBtn");
+  if (demoTeacherBtn) demoTeacherBtn.addEventListener("click", () => demoLogin("prosen@micds.org", "teacher"));
+  const demoAdminBtn = $("demoAdminBtn");
+  if (demoAdminBtn) demoAdminBtn.addEventListener("click", () => demoLogin("admin@micds.org", "admin"));
+
   console.log("Login form initialized successfully");
 }
 
@@ -2257,7 +2310,14 @@ function refreshRosterUI(){
 function buildTabs(){
   const tabs = $("tabs");
   tabs.innerHTML = "";
-  
+
+  const addFuturePlansTab = () => {
+    tabs.appendChild(makeEl("button", {
+      class: `tab ${state.activeTab === "futurePlans" ? "active" : ""}`,
+      onclick: () => { state.activeTab = "futurePlans"; render(); }
+    }, ["Future Plans"]));
+  };
+
   // If student or teacher is not assigned, don't show any tabs
   if (!isCurrentUserAssigned() && (state.userRole === "student" || state.userRole === "teacher")) {
     return;
@@ -2279,9 +2339,10 @@ function buildTabs(){
       }, [allStudentsTab.label]);
       tabs.appendChild(el);
     }
+    addFuturePlansTab();
     return;
   }
-  
+
   // Teacher view, only show "All Students" tab
   if (state.isTeacher || state.userRole === "teacher") {
     const allStudentsTab = TABS.find(t => t.id === "allStudents");
@@ -2292,21 +2353,23 @@ function buildTabs(){
       }, [allStudentsTab.label]);
       tabs.appendChild(el);
     }
+    addFuturePlansTab();
     return;
   }
-  
+
   // Parent view: show children selector and standard tabs
   if (state.userRole === "parent") {
     // Show tabs for standards (same as student view)
     for (const t of TABS){
       if (t.teacherOnly || t.id === "allStudents") continue;
-      
+
       const el = makeEl("button", {
         class: `tab ${state.activeTab === t.id ? "active" : ""}`,
         onclick: () => { state.activeTab = t.id; render(); }
       }, [t.label]);
       tabs.appendChild(el);
     }
+    addFuturePlansTab();
     return;
   }
   
@@ -5577,6 +5640,11 @@ function render(){
   const view = $("view");
   view.innerHTML = "";
 
+  if (state.activeTab === "futurePlans"){
+    view.appendChild(renderFuturePlans());
+    return;
+  }
+
   // Check if current user (student or teacher) is assigned to a class
   // If not assigned, show blocking message and prevent any interaction
   if (!isCurrentUserAssigned() && (state.userRole === "student" || state.userRole === "teacher")) {
@@ -5668,6 +5736,85 @@ function render(){
     makeEl("div", { class:"sectionTitle" }, ["Unknown tab"]),
     makeEl("div", { class:"muted" }, ["This tab wasn’t recognized."])
   ]));
+}
+
+function renderFuturePlans(){
+  const wrap = makeEl("div", { style:"max-width:760px; margin:0 auto; padding-bottom:40px;" });
+
+  // Header
+  wrap.appendChild(makeEl("div", { class:"card", style:"margin-bottom:20px; padding:28px 32px; background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%); color:white; border-radius:14px;" }, [
+    makeEl("div", { style:"font-size:22px; font-weight:800; margin-bottom:6px;" }, ["MICDS MS P.E. Assessment — Roadmap"]),
+    makeEl("div", { style:"font-size:14px; opacity:0.8; line-height:1.6;" }, ["This page outlines what the app does today and the features planned for future development."]),
+  ]));
+
+  const phases = [
+    {
+      label: "Current Demo", done: true, color: "#16a34a",
+      items: [
+        "Email/password login with @micds.org enforcement",
+        "Four PE standards: Movement Skills, Movement Concepts, Health & Fitness, Teamwork & Leadership",
+        "1–4 self-assessment scoring rubric (matched to MICDS assessment sheet)",
+        "Teacher override scores with reassessment unlocking at score 1–2",
+        "Approach to Learning (ATL): effort, focus, days late/unprepared",
+        "Class management — create classes, assign students, filter by grade/gender",
+        "All-students view with per-standard charts for teachers",
+        "Admin panel: manage students, teachers, classes, and users",
+        "Parent portal — view linked children's scores",
+        "Export/import JSON backups",
+      ],
+    },
+    {
+      label: "Phase 2 — Live Backend", done: false, color: "#1e40af",
+      items: [
+        "Firebase Authentication with Google Sign-in (@micds.org enforced)",
+        "Firestore real-time database — data syncs instantly across all devices",
+        "Teacher sees student updates the moment they are submitted",
+        "Secure Firestore rules so students cannot edit teacher scores",
+        "Deploy to Netlify/Vercel with automatic HTTPS",
+      ],
+    },
+    {
+      label: "Phase 3 — Reporting", done: false, color: "#7c3aed",
+      items: [
+        "One-click PDF report card export per student",
+        "Printable class rosters with full score summaries",
+        "Semester-to-semester progress tracking",
+        "Per-class analytics: score distributions, improvement trends",
+      ],
+    },
+    {
+      label: "Phase 4 — Integrations", done: false, color: "#b45309",
+      items: [
+        "Google Classroom integration for syncing assignments",
+        "Email/push notifications to parents when scores are published",
+        "MICDS Student Information System (SIS) roster import",
+        "Advanced parent portal with historical grade access",
+      ],
+    },
+  ];
+
+  phases.forEach(phase => {
+    const card = makeEl("div", { class:"card", style:"margin-bottom:16px; padding:20px 24px;" });
+
+    const header = makeEl("div", { style:"display:flex; align-items:center; gap:12px; margin-bottom:14px;" });
+    header.appendChild(makeEl("div", {
+      style:`width:10px; height:10px; border-radius:50%; background:${phase.color}; flex-shrink:0; margin-top:2px;`
+    }));
+    header.appendChild(makeEl("div", { style:`font-size:16px; font-weight:700; color:${phase.color};` }, [phase.label]));
+    if (phase.done) {
+      header.appendChild(makeEl("div", { style:"margin-left:auto; font-size:12px; font-weight:700; color:#16a34a; background:#dcfce7; border-radius:999px; padding:2px 10px;" }, ["Working now"]));
+    }
+    card.appendChild(header);
+
+    const list = makeEl("ul", { style:"margin:0; padding-left:20px; display:flex; flex-direction:column; gap:6px;" });
+    phase.items.forEach(item => {
+      list.appendChild(makeEl("li", { style:`font-size:14px; color:var(--ink); line-height:1.5; list-style-type:${phase.done ? '"✓  "' : '"○  "'};` }, [item]));
+    });
+    card.appendChild(list);
+    wrap.appendChild(card);
+  });
+
+  return wrap;
 }
 
 // Initialize default users in admin DB if they don't exist

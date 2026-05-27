@@ -8,6 +8,7 @@ export const TABS = [
   { id: "atl", label: "Approach to Learning" },
   { id: "allStudents", label: "All Students", teacherOnly: true },
   { id: "manageClasses", label: "Manage Classes", teacherOnly: true },
+  { id: "futurePlans", label: "Future Plans" },
 ];
 
 // Minimal but expandable structure.
