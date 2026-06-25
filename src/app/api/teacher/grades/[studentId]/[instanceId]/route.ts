@@ -246,7 +246,7 @@ async function recalculateSnapshot(opts: {
       select: { standardNumber: true, score: true },
     })
 
-    const byStd = new Map(assessments.map((a) => [a.standardNumber, a.score?.toNumber() ?? null]))
+    const byStd = new Map(assessments.map((a) => [a.standardNumber, a.score != null ? Number(a.score) : null]))
 
     const s1 = byStd.get(1) ?? null
     const s2 = byStd.get(2) ?? null

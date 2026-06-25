@@ -95,7 +95,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const result: Record<string, { groups: string[]; positionInfo: PositionInfo | null }> = {}
     for (const [posId, groupIds] of map.entries()) {
       result[posId] = {
-        groups: groupIds.map((gid: string) => groupMap.get(gid) ?? gid),
+        groups: (groupIds as string[]).map((gid: string) => groupMap.get(gid) ?? gid),
         positionInfo: positionMap.get(posId) ?? null,
       }
     }
