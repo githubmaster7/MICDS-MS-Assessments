@@ -2,8 +2,17 @@ import { Metadata } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import Link from 'next/link'
-import { notFound } from 'next/navigation'
+
+
+type ClassInst = {
+  id: string
+  status: string
+  gradeSnapshots: { letterGrade?: string | null }[]
+  teacherClassAssignment: {
+    activityTemplate: { name: string }
+    teacherProfile: { firstName: string; lastName: string }
+  }
+}
 
 export const metadata: Metadata = { title: 'My Dashboard' }
 
@@ -14,25 +23,9 @@ export default async function StudentDashboard() {
   const student = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
     include: {
-      gradeSnapshots: {
-        orderBy: { calculatedAt: 'desc' },
-        take: 1,
-        include: {
-          classInstance: {
-            include: {
-              rotationAssignment: {
-                include: {
-                  activityTemplate: true,
-                  teacher: { include: { teacherProfile: true } },
-                },
-              },
-            },
-          },
-        },
-      },
-      groups: {
+      groupMemberships: {
         where: { leftAt: null },
-        include: { group: true },
+        include: { studentGroup: true },
       },
     },
   })
@@ -42,47 +35,53 @@ export default async function StudentDashboard() {
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
           <h2 className="font-semibold text-yellow-800 mb-1">Profile Not Set Up</h2>
-          <p className="text-yellow-700 text-sm">Your student profile hasn't been created yet. Contact your PE teacher or administrator.</p>
+          <p className="text-yellow-700 text-sm">Your student profile hasn&apos;t been created yet. Contact your PE teacher or administrator.</p>
         </div>
       </div>
     )
   }
 
-  const currentSnapshot = student.gradeSnapshots[0]
-  const currentInstance = currentSnapshot?.classInstance
-  const currentRotation = currentInstance?.rotationAssignment
-  const currentTeacher = currentRotation?.teacher?.teacherProfile
-
-  // Get all class instances for this student
-  const allInstances = await db.historicalClassInstance.findMany({
-    where: {
-      rotationAssignment: {
-        studentGroup: {
-          memberships: {
-            some: { studentId: student.id, leftAt: null },
+  // Get most recent grade snapshot
+  const currentSnapshot = await db.gradeCalculationSnapshot.findFirst({
+    where: { studentProfileId: student.id },
+    orderBy: { calculatedAt: 'desc' },
+    include: {
+      historicalClassInstance: {
+        include: {
+          teacherClassAssignment: {
+            include: {
+              activityTemplate: true,
+              teacherProfile: true,
+            },
           },
         },
       },
     },
+  })
+
+  // Get all class instances for this student's group
+  const groupId = student.groupMemberships[0]?.studentGroup.id
+  const allInstances = groupId ? await db.historicalClassInstance.findMany({
+    where: { studentGroupId: groupId },
     include: {
-      rotationAssignment: {
+      teacherClassAssignment: {
         include: {
           activityTemplate: true,
-          teacher: { include: { teacherProfile: true } },
+          teacherProfile: true,
         },
       },
-      assessments: {
-        where: { studentId: student.id },
-        select: { standardNumber: true, writtenScore: true, notes: true, isStudentVisible: true },
-      },
       gradeSnapshots: {
-        where: { studentId: student.id },
+        where: { studentProfileId: student.id },
         orderBy: { calculatedAt: 'desc' },
         take: 1,
       },
+      teacherAssessments: {
+        where: { studentProfileId: student.id, isFeedbackStudentVisible: true },
+        select: { standardNumber: true, feedback: true, isFeedbackStudentVisible: true },
+      },
     },
-    orderBy: { rotationAssignment: { startDate: 'asc' } },
-  }).catch(() => [])
+    orderBy: { createdAt: 'asc' },
+  }).catch(() => []) : []
 
   const gradeColorClass: Record<string, string> = {
     A: 'bg-emerald-600', 'A-': 'bg-emerald-500',
@@ -93,6 +92,10 @@ export default async function StudentDashboard() {
 
   const grade = currentSnapshot?.letterGrade
   const gradeBg = grade ? (gradeColorClass[grade] ?? 'bg-gray-500') : 'bg-gray-300'
+  const currentActivity = currentSnapshot?.historicalClassInstance.teacherClassAssignment
+  const currentTeacher = currentActivity?.teacherProfile
+
+  const scoreVal = (d: unknown) => d != null ? Number(d) : null
 
   const scoreColor = (score: number | null) => {
     if (!score) return 'text-gray-400'
@@ -103,13 +106,18 @@ export default async function StudentDashboard() {
     return 'text-red-600'
   }
 
+  // Teacher feedback for current class
+  const currentInstanceId = currentSnapshot?.historicalClassInstanceId
+  const currentInstance = allInstances.find(i => i.id === currentInstanceId)
+  const visibleFeedback = currentInstance?.teacherAssessments.filter(a => a.isFeedbackStudentVisible && a.feedback) ?? []
+
   return (
     <div className="p-6 max-w-4xl">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">
         Welcome, {student.firstName}!
       </h1>
       <p className="text-gray-500 text-sm mb-6">
-        {student.groups[0]?.group.name ?? 'No group assigned'} · Grade {student.gradeLevel.replace('GRADE_', '')}
+        {student.groupMemberships[0]?.studentGroup.name ?? 'No group assigned'} · Grade {student.gradeLevel.replace('GRADE_', '')}
       </p>
 
       {/* Overall Grade hero */}
@@ -119,9 +127,9 @@ export default async function StudentDashboard() {
           <div className="text-sm text-white/80 mt-1">Overall Grade</div>
         </div>
         <div className="flex-1">
-          {currentRotation && (
+          {currentActivity && (
             <div>
-              <div className="font-semibold">{currentRotation.activityTemplate.name}</div>
+              <div className="font-semibold">{currentActivity.activityTemplate.name}</div>
               <div className="text-white/80 text-sm">
                 {currentTeacher ? `${currentTeacher.firstName} ${currentTeacher.lastName}` : 'No teacher assigned'}
               </div>
@@ -129,10 +137,10 @@ export default async function StudentDashboard() {
           )}
           <div className="mt-3 grid grid-cols-4 gap-2 text-center">
             {[
-              { label: 'Std 1', score: currentSnapshot?.standard1Score },
-              { label: 'Std 2', score: currentSnapshot?.standard2Score },
-              { label: 'Std 3', score: currentSnapshot?.standard3Score },
-              { label: 'Std 4', score: currentSnapshot?.standard4Score },
+              { label: 'Std 1', score: scoreVal(currentSnapshot?.standard1Score) },
+              { label: 'Std 2', score: scoreVal(currentSnapshot?.standard2Score) },
+              { label: 'Std 3', score: scoreVal(currentSnapshot?.standard3Score) },
+              { label: 'Std 4', score: scoreVal(currentSnapshot?.standard4Score) },
             ].map(({ label, score }) => (
               <div key={label} className="bg-white/20 rounded-lg p-2">
                 <div className="text-xs text-white/70">{label}</div>
@@ -146,15 +154,15 @@ export default async function StudentDashboard() {
       {/* Standard cards */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         {[
-          { num: 1, name: 'Movement Skills', score: currentSnapshot?.standard1Score },
-          { num: 2, name: 'Movement Concepts & Sport Strategies', score: currentSnapshot?.standard2Score },
-          { num: 3, name: 'Health, Fitness & Nutrition', score: currentSnapshot?.standard3Score },
-          { num: 4, name: 'Teamwork & Leadership', score: currentSnapshot?.standard4Score },
+          { num: 1, name: 'Movement Skills', score: scoreVal(currentSnapshot?.standard1Score) },
+          { num: 2, name: 'Movement Concepts & Sport Strategies', score: scoreVal(currentSnapshot?.standard2Score) },
+          { num: 3, name: 'Health, Fitness & Nutrition', score: scoreVal(currentSnapshot?.standard3Score) },
+          { num: 4, name: 'Teamwork & Leadership', score: scoreVal(currentSnapshot?.standard4Score) },
         ].map(({ num, name, score }) => (
           <div key={num} className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="text-xs font-medium text-gray-400 mb-1">Standard {num}</div>
             <div className="font-semibold text-gray-900 text-sm mb-2">{name}</div>
-            <div className={`text-3xl font-bold ${scoreColor(score ?? null)}`}>
+            <div className={`text-3xl font-bold ${scoreColor(score)}`}>
               {score?.toString() ?? '—'}
             </div>
             {score && (
@@ -167,47 +175,39 @@ export default async function StudentDashboard() {
       </div>
 
       {/* Teacher feedback */}
-      {currentInstance?.assessments.filter((a) => a.isStudentVisible && a.notes).length ? (
+      {visibleFeedback.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
           <h2 className="font-semibold text-gray-900 mb-3">Teacher Feedback</h2>
-          {currentInstance.assessments
-            .filter((a) => a.isStudentVisible && a.notes)
-            .map((a, i) => (
-              <div key={i} className="p-3 bg-blue-50 rounded-lg mb-2 text-sm text-gray-700">
-                <div className="text-xs text-blue-600 font-medium mb-1">
-                  Standard {a.standardNumber}
-                </div>
-                {a.notes}
-              </div>
-            ))}
+          {visibleFeedback.map((a, i) => (
+            <div key={i} className="p-3 bg-blue-50 rounded-lg mb-2 text-sm text-gray-700">
+              <div className="text-xs text-blue-600 font-medium mb-1">Standard {a.standardNumber}</div>
+              {a.feedback}
+            </div>
+          ))}
         </div>
-      ) : null}
+      )}
 
       {/* Class history */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-900 mb-3">My Classes This Year</h2>
         <div className="space-y-2">
-          {allInstances.map((inst) => {
+          {(allInstances as ClassInst[]).map((inst) => {
             const snap = inst.gradeSnapshots[0]
-            const isActive = inst.rotationAssignment.status === 'ACTIVE'
-            const isUpcoming = inst.rotationAssignment.status === 'UPCOMING'
+            const isActive = inst.status === 'ACTIVE'
+            const isUpcoming = inst.status === 'UPCOMING'
             return (
               <div key={inst.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 text-sm">
                 <div>
-                  <span className="font-medium">{inst.rotationAssignment.activityTemplate.name}</span>
+                  <span className="font-medium">{inst.teacherClassAssignment.activityTemplate.name}</span>
                   <span className="text-gray-500 ml-2">
-                    {inst.rotationAssignment.teacher?.teacherProfile
-                      ? `${inst.rotationAssignment.teacher.teacherProfile.firstName} ${inst.rotationAssignment.teacher.teacherProfile.lastName}`
-                      : ''}
+                    {`${inst.teacherClassAssignment.teacherProfile.firstName} ${inst.teacherClassAssignment.teacherProfile.lastName}`}
                   </span>
                 </div>
                 <div>
                   {isUpcoming ? (
                     <span className="text-gray-400 text-xs">Upcoming</span>
                   ) : snap?.letterGrade ? (
-                    <span className={`font-bold text-sm ${gradeColorClass[snap.letterGrade] ? 'text-' + gradeColorClass[snap.letterGrade].replace('bg-', '') : 'text-gray-700'}`}>
-                      {snap.letterGrade}
-                    </span>
+                    <span className="font-bold text-sm text-gray-700">{snap.letterGrade}</span>
                   ) : isActive ? (
                     <span className="text-blue-600 text-xs">In Progress</span>
                   ) : (

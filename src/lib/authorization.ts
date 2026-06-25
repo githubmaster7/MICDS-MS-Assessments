@@ -105,7 +105,7 @@ async function isTeacherCurrentlyAssigned(
 
   if (memberships.length === 0) return false
 
-  const studentGroupIds = memberships.map((m) => m.studentGroupId)
+  const studentGroupIds = memberships.map((m: { studentGroupId: string }) => m.studentGroupId)
 
   // Check if the teacher has an active rotation assignment to any of those groups
   const assignment = await db.groupRotationAssignment.findFirst({

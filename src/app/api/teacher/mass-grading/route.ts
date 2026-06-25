@@ -4,6 +4,16 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role, RotationStatus } from '@prisma/client'
 
+type ClassInstance = {
+  id: string
+  status: string
+  studentGroupId: string
+  studentGroup: { id: string; name: string; gradeLevel: string }
+  teacherClassAssignment: { activityTemplate: { name: string } }
+  groupRotationAssignment: { rotationNumber: number; startDate: Date; endDate: Date }
+  createdAt: Date
+}
+
 /**
  * Year-at-a-glance grid.
  * Returns a matrix of students × rotations with per-cell grade state.
@@ -49,7 +59,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   // Collect all student group IDs
-  const groupIds = [...new Set(classInstances.map((ci) => ci.studentGroupId))]
+  const groupIds = [...new Set((classInstances as ClassInstance[]).map((ci) => ci.studentGroupId))]
 
   // Get all students who were ever in these groups
   const memberships = await db.studentGroupMembership.findMany({
@@ -68,7 +78,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   })
 
   // Get all grade snapshots for this teacher's instances
-  const instanceIds = classInstances.map((ci) => ci.id)
+  const instanceIds = (classInstances as ClassInstance[]).map((ci) => ci.id)
   const snapshots = await db.gradeCalculationSnapshot.findMany({
     where: { historicalClassInstanceId: { in: instanceIds } },
     orderBy: { calculatedAt: 'desc' },
@@ -102,12 +112,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   // Determine current active instance id for editability
-  const activeInstance = classInstances.find(
+  const activeInstance = (classInstances as ClassInstance[]).find(
     (ci) => ci.status === RotationStatus.ACTIVE || ci.status === RotationStatus.UPCOMING,
   )
 
   // Build grid columns (one per instance)
-  const columns = classInstances.map((ci) => ({
+  const columns = (classInstances as ClassInstance[]).map((ci) => ({
     instanceId: ci.id,
     rotationNumber: ci.groupRotationAssignment.rotationNumber,
     startDate: ci.groupRotationAssignment.startDate,
@@ -132,7 +142,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   )
 
   const rows = students.map((student) => {
-    const cells = classInstances.map((ci) => {
+    const cells = (classInstances as ClassInstance[]).map((ci) => {
       const groupMembers = membershipByGroup.get(ci.studentGroupId)
       if (!groupMembers?.has(student.id)) {
         return { instanceId: ci.id, state: 'na' as const, snapshot: null }

@@ -175,7 +175,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   const ip = ipRateLimitKey(req)
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx: typeof db) => {
     // Update written responses
     if (writtenResponses && writtenResponses.length > 0) {
       await Promise.all(

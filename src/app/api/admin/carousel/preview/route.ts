@@ -5,6 +5,9 @@ import { db } from '@/lib/db'
 import { Role, RotationStatus } from '@prisma/client'
 import { previewNextRotation } from '@/lib/carousel/engine'
 
+type CarouselPosition = { id: string; carouselPlanId: string; positionOrder: number; teacherClassAssignmentId: string; teacherClassAssignment: { teacherProfile: { firstName: string; lastName: string }; activityTemplate: { name: string } } }
+type StudentGroup = { id: string; name: string; schoolYearId: string; gradeLevel: string; gender: string; isActive: boolean }
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -58,14 +61,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const engineState = {
     plan: { id: plan.id, schoolYearId: plan.schoolYearId, name: plan.name, isActive: plan.isActive },
-    positions: plan.positions.map((p) => ({
+    positions: (plan.positions as CarouselPosition[]).map((p) => ({
       id: p.id,
       carouselPlanId: p.carouselPlanId,
       positionOrder: p.positionOrder,
       teacherClassAssignmentId: p.teacherClassAssignmentId,
     })),
     currentAssignments,
-    studentGroups: plan.schoolYear.studentGroups.map((g) => ({
+    studentGroups: (plan.schoolYear.studentGroups as StudentGroup[]).map((g) => ({
       id: g.id,
       name: g.name,
       schoolYearId: g.schoolYearId,
@@ -78,10 +81,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const preview = previewNextRotation(engineState)
 
   // Enrich with human-readable names
-  const groupMap = new Map(plan.schoolYear.studentGroups.map((g) => [g.id, g.name]))
+  const groupMap = new Map((plan.schoolYear.studentGroups as StudentGroup[]).map((g) => [g.id, g.name]))
   interface PositionInfo { order: number; teacher: string; activity: string }
   const positionMap = new Map<string, PositionInfo>(
-    plan.positions.map((p) => [
+    (plan.positions as CarouselPosition[]).map((p) => [
       p.id,
       {
         order: p.positionOrder,

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const passwordHash = await bcrypt.hash(password, 12)
 
-  await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx: typeof db) => {
     await tx.passwordResetToken.update({
       where: { id: record.id },
       data: { usedAt: new Date() },

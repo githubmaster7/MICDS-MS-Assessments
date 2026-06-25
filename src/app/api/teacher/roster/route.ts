@@ -4,6 +4,16 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role, RotationStatus } from '@prisma/client'
 
+type Membership = {
+  studentGroupId: string
+  studentProfile: { id: string; firstName: string; lastName: string; gradeLevel: string; studentId: string }
+}
+type Snapshot = {
+  studentProfileId: string
+  standard1Score: unknown; standard2Score: unknown; standard3Score: unknown; standard4Score: unknown
+  overallAverage: unknown; letterGrade: string | null; calculatedAt: Date
+}
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -72,7 +82,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // If instanceId provided, attach per-student grade snapshot
   if (instanceId) {
-    const studentIds = memberships.map((m) => m.studentProfile.id)
+    const studentIds = (memberships as Membership[]).map((m) => m.studentProfile.id)
     const snapshots = await db.gradeCalculationSnapshot.findMany({
       where: {
         historicalClassInstanceId: instanceId,
@@ -90,10 +100,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     })
 
-    const snapshotMap = new Map(snapshots.map((s) => [s.studentProfileId, s]))
+    const snapshotMap = new Map((snapshots as Snapshot[]).map((s) => [s.studentProfileId, s]))
 
     return NextResponse.json({
-      data: memberships.map((m) => ({
+      data: (memberships as Membership[]).map((m) => ({
         ...m,
         snapshot: snapshotMap.get(m.studentProfile.id) ?? null,
       })),

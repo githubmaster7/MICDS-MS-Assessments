@@ -95,7 +95,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
 
   // De-dupe: latest per student
   const seenStudents = new Set<string>()
-  const latestSnapshots = allSnapshots.filter((s) => {
+  const latestSnapshots = allSnapshots.filter((s: { studentProfileId: string }) => {
     if (seenStudents.has(s.studentProfileId)) return false
     seenStudents.add(s.studentProfileId)
     return true

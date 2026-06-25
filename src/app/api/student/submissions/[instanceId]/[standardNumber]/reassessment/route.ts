@@ -101,7 +101,7 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   const ip = ipRateLimitKey(req)
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx: typeof db) => {
     // Upsert reassessment written responses (isReassessment=true)
     await Promise.all(
       writtenResponses.map((wr) =>

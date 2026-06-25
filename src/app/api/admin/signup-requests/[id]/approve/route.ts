@@ -99,7 +99,7 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
 
   void profileLinkData // Profile link info is available for extended use
 
-  await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx: typeof db) => {
     await tx.user.update({
       where: { id: signupRequest.userId },
       data: { status: AccountStatus.ACTIVE, role: role as Role },

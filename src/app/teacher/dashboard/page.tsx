@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import Link from 'next/link'
 
+type UpcomingAssignment = { id: string; startDate: Date; studentGroup: { name: string }; carouselPosition: { teacherClassAssignment: { activityTemplate: { name: string } } } }
+type PastInstance = { id: string; startDate?: Date; endDate?: Date; studentGroup: { name: string }; teacherClassAssignment: { activityTemplate: { name: string } } }
+
 export const metadata: Metadata = { title: 'Teacher Dashboard' }
 
 export default async function TeacherDashboard() {
@@ -125,7 +128,7 @@ export default async function TeacherDashboard() {
         <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
           <h3 className="font-semibold text-gray-900 mb-3">Upcoming Classes</h3>
           <div className="space-y-2">
-            {upcomingAssignments.map((a) => (
+            {(upcomingAssignments as UpcomingAssignment[]).map((a) => (
               <div key={a.id} className="flex items-center justify-between text-sm p-2 bg-blue-50 rounded-lg">
                 <span className="font-medium">{a.carouselPosition.teacherClassAssignment.activityTemplate.name}</span>
                 <span className="text-gray-500">{a.studentGroup.name}</span>
@@ -140,7 +143,7 @@ export default async function TeacherDashboard() {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="font-semibold text-gray-900 mb-3">Past Classes</h3>
           <div className="space-y-2">
-            {pastInstances.map((a) => (
+            {(pastInstances as PastInstance[]).map((a) => (
               <div key={a.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded-lg">
                 <span className="font-medium">{a.teacherClassAssignment.activityTemplate.name}</span>
                 <span className="text-gray-500">{a.studentGroup.name}</span>

@@ -51,7 +51,7 @@ export default async function GradeStudentsPage() {
     )
   }
 
-  const students = activeInstance.studentGroup.memberships.map((m) => ({
+  const students = activeInstance.studentGroup.memberships.map((m: { student: { id: string; firstName: string; lastName: string; gradeSnapshots: { letterGrade: string | null; standard1Score: unknown; standard2Score: unknown; standard3Score: unknown; standard4Score: unknown }[] } }) => ({
     id: m.student.id,
     firstName: m.student.firstName,
     lastName: m.student.lastName,

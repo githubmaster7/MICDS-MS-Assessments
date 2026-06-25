@@ -35,6 +35,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   })
 
   return NextResponse.json({
-    data: links.map((l) => l.studentProfile),
+    data: links.map((l: { studentProfile: unknown }) => l.studentProfile),
   })
 }

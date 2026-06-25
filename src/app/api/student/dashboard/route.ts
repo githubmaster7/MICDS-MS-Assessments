@@ -86,7 +86,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   })
 
   // Grade snapshots (latest per instance)
-  const instanceIds = [...new Set(submissions.map((s) => s.historicalClassInstanceId))]
+  const instanceIds = [...new Set(submissions.map((s: { historicalClassInstanceId: string }) => s.historicalClassInstanceId))]
   const snapshots = await db.gradeCalculationSnapshot.findMany({
     where: {
       studentProfileId: studentProfile.id,
@@ -137,7 +137,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             activeRotation: currentMembership.studentGroup.groupRotationAssignments[0] ?? null,
           }
         : null,
-      submissions: submissions.map((s) => ({
+      submissions: submissions.map((s: { historicalClassInstanceId: string; [key: string]: unknown }) => ({
         ...s,
         snapshot: latestSnapshots.get(s.historicalClassInstanceId) ?? null,
       })),

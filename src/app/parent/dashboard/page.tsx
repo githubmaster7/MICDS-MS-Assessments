@@ -8,37 +8,23 @@ export const metadata: Metadata = { title: 'Parent Dashboard' }
 export default async function ParentDashboard({
   searchParams,
 }: {
-  searchParams: { studentId?: string }
+  searchParams: Promise<{ studentId?: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) return null
+
+  const { studentId: qStudentId } = await searchParams
 
   const parent = await db.parentProfile.findUnique({
     where: { userId: session.user.id },
     include: {
       studentLinks: {
         include: {
-          student: {
+          studentProfile: {
             include: {
-              gradeSnapshots: {
-                orderBy: { calculatedAt: 'desc' },
-                take: 1,
-                include: {
-                  classInstance: {
-                    include: {
-                      rotationAssignment: {
-                        include: {
-                          activityTemplate: true,
-                          teacher: { include: { teacherProfile: true } },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-              groups: {
+              groupMemberships: {
                 where: { leftAt: null },
-                include: { group: true },
+                include: { studentGroup: true },
               },
             },
           },
@@ -58,15 +44,29 @@ export default async function ParentDashboard({
     )
   }
 
-  const students = parent.studentLinks.map((l) => l.student)
-  const activeStudentId = searchParams.studentId ?? students[0]?.id
+  const students = parent.studentLinks.map((l) => l.studentProfile)
+  const activeStudentId = qStudentId ?? students[0]?.id
   const student = students.find((s) => s.id === activeStudentId) ?? students[0]
 
   if (!student) return null
 
-  const currentSnapshot = student.gradeSnapshots[0]
-  const currentRotation = currentSnapshot?.classInstance?.rotationAssignment
-  const currentTeacher = currentRotation?.teacher?.teacherProfile
+  // Get most recent grade snapshot for this student
+  const currentSnapshot = await db.gradeCalculationSnapshot.findFirst({
+    where: { studentProfileId: student.id },
+    orderBy: { calculatedAt: 'desc' },
+    include: {
+      historicalClassInstance: {
+        include: {
+          teacherClassAssignment: {
+            include: {
+              activityTemplate: true,
+              teacherProfile: true,
+            },
+          },
+        },
+      },
+    },
+  })
 
   const gradeColorClass: Record<string, string> = {
     A: 'bg-emerald-600', 'A-': 'bg-emerald-500',
@@ -77,6 +77,9 @@ export default async function ParentDashboard({
 
   const grade = currentSnapshot?.letterGrade
   const gradeBg = grade ? (gradeColorClass[grade] ?? 'bg-gray-500') : 'bg-gray-300'
+  const currentActivity = currentSnapshot?.historicalClassInstance.teacherClassAssignment
+  const currentTeacher = currentActivity?.teacherProfile
+  const scoreVal = (d: unknown) => d != null ? Number(d) : null
 
   return (
     <div className="p-6 max-w-4xl">
@@ -85,7 +88,6 @@ export default async function ParentDashboard({
           <h1 className="text-2xl font-bold text-gray-900">Parent Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">Read-only view</p>
         </div>
-        {/* Student switcher */}
         {students.length > 1 && (
           <div className="flex gap-2">
             {students.map((s) => (
@@ -102,19 +104,18 @@ export default async function ParentDashboard({
       </div>
 
       <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6 text-sm text-purple-700">
-        <strong>Viewing:</strong> {student.firstName} {student.lastName} · Grade {student.gradeLevel.replace('GRADE_', '')} · {student.groups[0]?.group.name ?? 'No group'}
+        <strong>Viewing:</strong> {student.firstName} {student.lastName} · Grade {student.gradeLevel.replace('GRADE_', '')} · {student.groupMemberships[0]?.studentGroup.name ?? 'No group'}
       </div>
 
-      {/* Grade display - mirrors student dashboard */}
       <div className={`${gradeBg} text-white rounded-2xl p-6 mb-6 flex items-center gap-6`}>
         <div className="text-center">
           <div className="text-6xl font-black">{grade ?? '—'}</div>
           <div className="text-sm text-white/80 mt-1">Overall Grade</div>
         </div>
         <div className="flex-1">
-          {currentRotation && (
+          {currentActivity && (
             <div>
-              <div className="font-semibold">{currentRotation.activityTemplate.name}</div>
+              <div className="font-semibold">{currentActivity.activityTemplate.name}</div>
               <div className="text-white/80 text-sm">
                 {currentTeacher ? `${currentTeacher.firstName} ${currentTeacher.lastName}` : 'No teacher assigned'}
               </div>
@@ -122,10 +123,10 @@ export default async function ParentDashboard({
           )}
           <div className="mt-3 grid grid-cols-4 gap-2 text-center">
             {[
-              { label: 'Std 1', score: currentSnapshot?.standard1Score },
-              { label: 'Std 2', score: currentSnapshot?.standard2Score },
-              { label: 'Std 3', score: currentSnapshot?.standard3Score },
-              { label: 'Std 4', score: currentSnapshot?.standard4Score },
+              { label: 'Std 1', score: scoreVal(currentSnapshot?.standard1Score) },
+              { label: 'Std 2', score: scoreVal(currentSnapshot?.standard2Score) },
+              { label: 'Std 3', score: scoreVal(currentSnapshot?.standard3Score) },
+              { label: 'Std 4', score: scoreVal(currentSnapshot?.standard4Score) },
             ].map(({ label, score }) => (
               <div key={label} className="bg-white/20 rounded-lg p-2">
                 <div className="text-xs text-white/70">{label}</div>
@@ -136,13 +137,12 @@ export default async function ParentDashboard({
         </div>
       </div>
 
-      {/* Standard cards */}
       <div className="grid grid-cols-2 gap-4">
         {[
-          { num: 1, name: 'Movement Skills', score: currentSnapshot?.standard1Score },
-          { num: 2, name: 'Movement Concepts & Sport Strategies', score: currentSnapshot?.standard2Score },
-          { num: 3, name: 'Health, Fitness & Nutrition', score: currentSnapshot?.standard3Score },
-          { num: 4, name: 'Teamwork & Leadership', score: currentSnapshot?.standard4Score },
+          { num: 1, name: 'Movement Skills', score: scoreVal(currentSnapshot?.standard1Score) },
+          { num: 2, name: 'Movement Concepts & Sport Strategies', score: scoreVal(currentSnapshot?.standard2Score) },
+          { num: 3, name: 'Health, Fitness & Nutrition', score: scoreVal(currentSnapshot?.standard3Score) },
+          { num: 4, name: 'Teamwork & Leadership', score: scoreVal(currentSnapshot?.standard4Score) },
         ].map(({ num, name, score }) => (
           <div key={num} className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="text-xs font-medium text-gray-400 mb-1">Standard {num}</div>

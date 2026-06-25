@@ -77,7 +77,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     select: { id: true, positionOrder: true },
   })
 
-  const existingIds = new Set(existingPositions.map((p) => p.id))
+  const existingIds = new Set(existingPositions.map((p: { id: string; positionOrder: number }) => p.id))
   for (const pos of positions) {
     if (!existingIds.has(pos.positionId)) {
       return NextResponse.json(

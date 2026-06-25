@@ -40,7 +40,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ message: 'Email address already verified.' })
   }
 
-  await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx: typeof db) => {
     await tx.emailVerificationToken.update({
       where: { id: record.id },
       data: { usedAt: new Date() },

@@ -11,6 +11,10 @@ import {
   computeNextRotationAssignments,
 } from '@/lib/carousel/engine'
 
+type CarouselPos = { id: string; carouselPlanId: string; positionOrder: number; teacherClassAssignmentId: string }
+type StudentGrp = { id: string; name: string; schoolYearId: string; gradeLevel: string; gender: string; isActive: boolean }
+type RotAssignment = { id: string; rotationNumber: number }
+
 const RotateSchema = z.object({
   planId: z.string().uuid(),
   confirm: z.boolean().default(false),
@@ -83,14 +87,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const engineState = {
     plan: { id: plan.id, schoolYearId: plan.schoolYearId, name: plan.name, isActive: plan.isActive },
-    positions: plan.positions.map((p) => ({
+    positions: (plan.positions as CarouselPos[]).map((p) => ({
       id: p.id,
       carouselPlanId: p.carouselPlanId,
       positionOrder: p.positionOrder,
       teacherClassAssignmentId: p.teacherClassAssignmentId,
     })),
     currentAssignments,
-    studentGroups: plan.schoolYear.studentGroups.map((g) => ({
+    studentGroups: (plan.schoolYear.studentGroups as StudentGrp[]).map((g) => ({
       id: g.id,
       name: g.name,
       schoolYearId: g.schoolYearId,
@@ -123,16 +127,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const newAssignments = computeNextRotationAssignments(engineState)
   const nextRotationNumber =
     currentAssignments.length > 0
-      ? Math.max(...currentAssignments.map((a) => a.rotationNumber)) + 1
+      ? Math.max(...(currentAssignments as RotAssignment[]).map((a) => a.rotationNumber)) + 1
       : 1
 
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx: typeof db) => {
     // Mark current assignments as COMPLETED
     if (currentAssignments.length > 0) {
       await tx.groupRotationAssignment.updateMany({
-        where: { id: { in: currentAssignments.map((a) => a.id) } },
+        where: { id: { in: (currentAssignments as RotAssignment[]).map((a) => a.id) } },
         data: { status: RotationStatus.COMPLETED },
       })
     }
@@ -156,7 +160,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Find the teacher class assignment for each position to create HistoricalClassInstances
     const positionToTca = new Map(
-      plan.positions.map((p) => [p.id, p.teacherClassAssignmentId]),
+      (plan.positions as CarouselPos[]).map((p) => [p.id, p.teacherClassAssignmentId]),
     )
 
     await Promise.all(

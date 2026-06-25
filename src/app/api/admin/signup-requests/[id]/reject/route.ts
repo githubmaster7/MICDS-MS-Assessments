@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   const ip = ipRateLimitKey(req)
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx: typeof db) => {
     await tx.user.update({
       where: { id: signupRequest.userId },
       data: { status: AccountStatus.REJECTED },

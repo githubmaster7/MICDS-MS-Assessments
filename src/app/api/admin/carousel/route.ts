@@ -111,7 +111,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const ip = ipRateLimitKey(req)
 
-  const plan = await db.$transaction(async (tx) => {
+  const plan = await db.$transaction(async (tx: typeof db) => {
     const created = await tx.carouselPlan.create({
       data: {
         schoolYearId,

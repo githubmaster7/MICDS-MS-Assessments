@@ -187,7 +187,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
       select: { skillDefinitionId: true, score: true },
     })
     const std1Result = calculateStandard1(
-      allSkillScores.map((s) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
+      allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
     )
     await db.teacherAssessment.update({
       where: { id: assessment.id },
@@ -246,7 +246,7 @@ async function recalculateSnapshot(opts: {
       select: { standardNumber: true, score: true },
     })
 
-    const byStd = new Map(assessments.map((a) => [a.standardNumber, a.score != null ? Number(a.score) : null]))
+    const byStd = new Map<number, number | null>(assessments.map((a: { standardNumber: number; score: unknown }) => [a.standardNumber, a.score != null ? Number(a.score) : null]))
 
     const s1 = byStd.get(1) ?? null
     const s2 = byStd.get(2) ?? null

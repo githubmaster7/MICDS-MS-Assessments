@@ -83,7 +83,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   let userId: string
   try {
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: typeof db) => {
       const user = await tx.user.create({
         data: {
           email,

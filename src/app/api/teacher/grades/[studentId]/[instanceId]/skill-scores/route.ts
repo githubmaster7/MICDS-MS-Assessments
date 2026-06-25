@@ -110,7 +110,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   })
 
   const std1Result = calculateStandard1(
-    allSkillScores.map((s) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
+    allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
   )
 
   await db.teacherAssessment.update({
