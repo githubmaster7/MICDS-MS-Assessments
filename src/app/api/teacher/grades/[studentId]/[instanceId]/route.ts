@@ -258,10 +258,10 @@ async function recalculateSnapshot(opts: {
 
     if (s1 !== null && s2 !== null && s3 !== null && s4 !== null) {
       try {
-        const i1 = standardScoreToInternal(s1)
-        const i2 = standardScoreToInternal(s2)
-        const i3 = standardScoreToInternal(s3)
-        const i4 = standardScoreToInternal(s4)
+        const i1 = standardScoreToInternal(s1 as number)
+        const i2 = standardScoreToInternal(s2 as number)
+        const i3 = standardScoreToInternal(s3 as number)
+        const i4 = standardScoreToInternal(s4 as number)
         overallAverage = (i1 + i2 + i3 + i4) / 4
         letterGrade = internalAverageToLetterGrade(overallAverage)
       } catch {
