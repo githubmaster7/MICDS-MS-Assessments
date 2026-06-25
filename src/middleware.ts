@@ -3,11 +3,11 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 const PUBLIC_PATHS = [
-  "/auth/signin",
+  "/login",
   "/auth/signup",
-  "/auth/error",
-  "/auth/verify",
+  "/auth/verify-email",
   "/pending-approval",
+  "/unauthorized",
   "/api/auth",
 ];
 
@@ -74,11 +74,11 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  // Not authenticated — redirect to sign in
+  // Not authenticated — redirect to login
   if (!token) {
-    const signInUrl = new URL("/auth/signin", request.url);
-    signInUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(signInUrl);
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   const role = token.role as string | undefined;
@@ -89,10 +89,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/pending-approval", request.url));
   }
 
-  // REJECTED/SUSPENDED users are bounced to sign in
+  // REJECTED/SUSPENDED users are bounced to login
   if (status === "REJECTED" || status === "SUSPENDED") {
     return NextResponse.redirect(
-      new URL("/auth/signin?error=AccountDisabled", request.url)
+      new URL("/login?error=AccountDisabled", request.url)
     );
   }
 

@@ -34,10 +34,10 @@ export function StudentSubmissionForm({
   const [saved, setSaved] = useState(false)
   const [activeStd, setActiveStd] = useState<2 | 3 | 4>(2)
 
-  function setResponse(std: number, qId: string, val: string) {
+  function setResponse(std: number, qKey: string, val: string) {
     setResponses((prev) => ({
       ...prev,
-      [std]: { ...(prev[std] ?? {}), [qId]: val },
+      [std]: { ...(prev[std] ?? {}), [qKey]: val },
     }))
   }
 
@@ -87,45 +87,51 @@ export function StudentSubmissionForm({
       {/* Standard 2 */}
       {activeStd === 2 && (
         <div className="space-y-4">
-          <h2 className="font-semibold text-gray-900">Standard 2: Movement Concepts & Sport Strategies</h2>
+          <h2 className="font-semibold text-gray-900">Standard 2: Movement Concepts &amp; Sport Strategies</h2>
           {s2Qs.length === 0 ? (
             <p className="text-gray-400 text-sm">No questions defined for this activity.</p>
-          ) : s2Qs.map((q) => (
-            <div key={q.id}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{q.question}</label>
-              <textarea
-                value={responses[2]?.[q.id] ?? ''}
-                onChange={(e) => setResponse(2, q.id, e.target.value)}
-                rows={4}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          ))}
+          ) : s2Qs.map((q) => {
+            const qKey = `s2-${q.displayOrder}`
+            return (
+              <div key={qKey}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{q.promptText}</label>
+                <textarea
+                  value={responses[2]?.[qKey] ?? ''}
+                  onChange={(e) => setResponse(2, qKey, e.target.value)}
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )
+          })}
         </div>
       )}
 
       {/* Standard 3 */}
       {activeStd === 3 && (
         <div className="space-y-4">
-          <h2 className="font-semibold text-gray-900">Standard 3: Health, Fitness & Nutrition</h2>
-          {s3Qs.map((q) => (
-            <div key={q.id}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{q.question}</label>
-              <textarea
-                value={responses[3]?.[q.id] ?? ''}
-                onChange={(e) => setResponse(3, q.id, e.target.value)}
-                rows={4}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          ))}
+          <h2 className="font-semibold text-gray-900">Standard 3: Health, Fitness &amp; Nutrition</h2>
+          {s3Qs.map((q) => {
+            const qKey = `s3-${q.displayOrder}`
+            return (
+              <div key={qKey}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{q.promptText}</label>
+                <textarea
+                  value={responses[3]?.[qKey] ?? ''}
+                  onChange={(e) => setResponse(3, qKey, e.target.value)}
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )
+          })}
         </div>
       )}
 
       {/* Standard 4 */}
       {activeStd === 4 && (
         <div className="space-y-4">
-          <h2 className="font-semibold text-gray-900">Standard 4: Teamwork & Leadership</h2>
+          <h2 className="font-semibold text-gray-900">Standard 4: Teamwork &amp; Leadership</h2>
 
           {/* Self-ratings */}
           <div className="bg-blue-50 rounded-xl p-4">
@@ -172,17 +178,20 @@ export function StudentSubmissionForm({
             </div>
           </div>
 
-          {s4Qs.map((q) => (
-            <div key={q.id}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{q.question}</label>
-              <textarea
-                value={responses[4]?.[q.id] ?? ''}
-                onChange={(e) => setResponse(4, q.id, e.target.value)}
-                rows={4}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          ))}
+          {s4Qs.map((q) => {
+            const qKey = `s4-${q.displayOrder}`
+            return (
+              <div key={qKey}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{q.promptText}</label>
+                <textarea
+                  value={responses[4]?.[qKey] ?? ''}
+                  onChange={(e) => setResponse(4, qKey, e.target.value)}
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -205,7 +214,7 @@ export function StudentSubmissionForm({
 
       {saved ? (
         <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm text-center font-medium">
-          ✓ Your work has been submitted successfully!
+          Your work has been submitted successfully!
         </div>
       ) : (
         <button
