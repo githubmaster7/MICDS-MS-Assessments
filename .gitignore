@@ -19,6 +19,9 @@ dist/
 # Prisma
 prisma/generated/
 
+# Test coverage
+coverage/
+
 # Misc
 .DS_Store
 *.pem

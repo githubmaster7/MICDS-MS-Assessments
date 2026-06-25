@@ -153,7 +153,8 @@ export default async function TeacherDashboard() {
     return Math.round((filtered.reduce((a, b) => a + b, 0) / filtered.length) * 10) / 10
   }
 
-  const assessments = activeInstance?.teacherAssessments ?? []
+  type AssessmentLike = { standard1Score: unknown; standard2Score: unknown; standard3Score: unknown; standard4Score: unknown }
+  const assessments: AssessmentLike[] = activeInstance?.teacherAssessments ?? []
   const avgS1 = avg(assessments.map((a) => a.standard1Score ? Number(a.standard1Score) : null))
   const avgS2 = avg(assessments.map((a) => a.standard2Score ? Number(a.standard2Score) : null))
   const avgS3 = avg(assessments.map((a) => a.standard3Score ? Number(a.standard3Score) : null))
@@ -265,7 +266,7 @@ export default async function TeacherDashboard() {
             <p className="text-sm text-slate-400">No upcoming assignments scheduled.</p>
           ) : (
             <div className="space-y-2">
-              {upcomingAssignments.map((a) => (
+              {upcomingAssignments.map((a: (typeof upcomingAssignments)[number]) => (
                 <div key={a.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div>
                     <div className="text-sm font-medium text-slate-800">
@@ -292,7 +293,7 @@ export default async function TeacherDashboard() {
             <p className="text-sm text-slate-400">No grading activity yet.</p>
           ) : (
             <div className="space-y-2">
-              {recentAssessments.map((a) => (
+              {recentAssessments.map((a: (typeof recentAssessments)[number]) => (
                 <div key={a.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div>
                     <div className="text-sm font-medium text-slate-800">

@@ -8,9 +8,12 @@ const config: Config = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Stub out Prisma so tests don't need a generated client or a live DB
+    '^@prisma/client$': '<rootDir>/src/__tests__/__mocks__/prisma-stub.ts',
+    '^\\.prisma/client(.*)$': '<rootDir>/src/__tests__/__mocks__/prisma-stub.ts',
   },
   testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
-  setupFilesAfterFramework: [],
+  setupFilesAfterEnv: [],
 }
 
 export default createJestConfig(config)
