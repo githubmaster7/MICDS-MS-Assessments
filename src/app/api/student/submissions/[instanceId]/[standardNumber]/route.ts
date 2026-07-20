@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { auditSubmission, AuditAction } from '@/lib/audit'
 import { Role, SubmissionStatus, RotationStatus } from '@prisma/client'
 import { z } from 'zod'
-import { ipRateLimitKey } from '@/lib/rate-limit'
+import { isRevised } from '@/lib/grading/resubmission'
+import { hasOpenStudentRegradeGrant } from '@/lib/authorization'
+import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 interface RouteParams {
   params: Promise<{ instanceId: string; standardNumber: string }>
@@ -24,6 +26,16 @@ const UpdateSubmissionSchema = z.object({
     .array(
       z.object({
         skillDefinitionId: z.string().uuid(),
+        rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+      }),
+    )
+    .optional(),
+  // Student self-score on Standard 2/3 concept questions. Informational
+  // only — the teacher's TeacherPromptScore always wins for grade calc.
+  promptSelfRatings: z
+    .array(
+      z.object({
+        promptDefinitionId: z.string().uuid(),
         rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
       }),
     )
@@ -68,6 +80,11 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
           skillDefinition: { select: { id: true, skillName: true, skillType: true, displayOrder: true } },
         },
       },
+      studentPromptRatings: {
+        include: {
+          promptDefinition: { select: { id: true, promptText: true, displayOrder: true } },
+        },
+      },
       studentStandard4Ratings: true,
     },
   })
@@ -100,6 +117,14 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
   }
 
+  const rl = await checkRateLimit(apiLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
+  }
+
   const { instanceId, standardNumber: stdStr } = await params
   const standardNumber = parseInt(stdStr, 10)
   if (![1, 2, 3, 4].includes(standardNumber)) {
@@ -112,17 +137,27 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   })
   if (!studentProfile) return NextResponse.json({ error: 'Student profile not found.' }, { status: 404 })
 
-  // Check instance is not locked
+  // Only the currently active class instance accepts submission edits —
+  // unless an admin has explicitly reopened this instance for this
+  // student's resubmission via a ClassRegradeGrant.
   const instance = await db.historicalClassInstance.findUnique({
     where: { id: instanceId },
     select: { id: true, status: true },
   })
   if (!instance) return NextResponse.json({ error: 'Class instance not found.' }, { status: 404 })
-  if (instance.status === RotationStatus.LOCKED) {
-    return NextResponse.json({ error: 'This class instance is locked.' }, { status: 409 })
+  if (instance.status !== RotationStatus.ACTIVE) {
+    const reopened = await hasOpenStudentRegradeGrant(studentProfile.id, instanceId)
+    if (!reopened) {
+      return NextResponse.json(
+        { error: 'This class instance is not currently active.' },
+        { status: 409 },
+      )
+    }
   }
 
-  // Find the existing submission
+  // Find the existing submission, including its current live answers/scores
+  // — needed both to snapshot the outgoing attempt and to check resubmission
+  // eligibility.
   const submission = await db.studentSubmission.findUnique({
     where: {
       studentProfileId_historicalClassInstanceId_standardNumber: {
@@ -131,7 +166,12 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
         standardNumber,
       },
     },
-    select: { id: true, studentProfileId: true, status: true, honorCodeAcknowledgedAt: true },
+    include: {
+      writtenResponses: true,
+      studentSkillSelfRatings: true,
+      studentPromptRatings: true,
+      studentStandard4Ratings: true,
+    },
   })
 
   if (!submission) {
@@ -151,14 +191,6 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     return NextResponse.json({ error: 'Honor code must be acknowledged before submitting.' }, { status: 400 })
   }
 
-  // Cannot edit if already submitted (unless reassessment flow)
-  if (submission.status === SubmissionStatus.SUBMITTED || submission.status === SubmissionStatus.REASSESSMENT_SUBMITTED) {
-    return NextResponse.json(
-      { error: 'This submission has already been submitted.' },
-      { status: 409 },
-    )
-  }
-
   let body: unknown
   try {
     body = await req.json()
@@ -171,28 +203,112 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     return NextResponse.json({ error: parsed.error.errors[0]?.message ?? 'Invalid input.' }, { status: 400 })
   }
 
-  const { writtenResponses, skillSelfRatings, standard4SelfRating, submit } = parsed.data
+  const { writtenResponses, skillSelfRatings, promptSelfRatings, standard4SelfRating, submit } = parsed.data
+
+  const alreadyFinalized =
+    submission.status === SubmissionStatus.SUBMITTED || submission.status === SubmissionStatus.REASSESSMENT_SUBMITTED
+
+  // Once finalized, incremental draft saves are no longer meaningful — the
+  // only way to change a finalized submission is a full resubmission
+  // (submit: true), which is gated below.
+  if (alreadyFinalized && !submit) {
+    return NextResponse.json(
+      { error: 'This has already been submitted. Resubmit to make changes.' },
+      { status: 409 },
+    )
+  }
+
+  const isResubmission = alreadyFinalized && submit
+
+  if (isResubmission) {
+    let scoreChanged = false
+    for (const sr of skillSelfRatings ?? []) {
+      const existing = submission.studentSkillSelfRatings.find((e) => e.skillDefinitionId === sr.skillDefinitionId)
+      if (!existing || existing.rating !== sr.rating) {
+        scoreChanged = true
+        break
+      }
+    }
+    if (!scoreChanged) {
+      for (const pr of promptSelfRatings ?? []) {
+        const existing = submission.studentPromptRatings.find((e) => e.promptDefinitionId === pr.promptDefinitionId)
+        if (!existing || existing.rating !== pr.rating) {
+          scoreChanged = true
+          break
+        }
+      }
+    }
+    if (!scoreChanged && standard4SelfRating !== undefined) {
+      const existing = submission.studentStandard4Ratings[0]
+      if (!existing || existing.rating !== standard4SelfRating) scoreChanged = true
+    }
+
+    let commentRevised = false
+    for (const wr of writtenResponses ?? []) {
+      const existing = submission.writtenResponses.find((e) => e.promptDefinitionId === wr.promptDefinitionId)
+      const oldText = existing?.responseText ?? ''
+      if (isRevised(oldText, wr.responseText)) {
+        commentRevised = true
+        break
+      }
+    }
+
+    if (!scoreChanged && !commentRevised) {
+      return NextResponse.json(
+        {
+          error: 'Resubmission requires a meaningful change: adjust at least one score, or revise an answer.',
+        },
+        { status: 409 },
+      )
+    }
+  }
+
   const ip = ipRateLimitKey(req)
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  await db.$transaction(async (tx: typeof db) => {
+  await db.$transaction(async (tx: TxClient) => {
+    // A resubmission supersedes the currently-live attempt — freeze it into
+    // history before overwriting it below.
+    if (isResubmission) {
+      await tx.submissionHistoryEntry.create({
+        data: {
+          studentSubmissionId: submission.id,
+          attemptNumber: submission.latestAttemptNumber,
+          submittedAt: submission.submittedAt ?? submission.createdAt,
+          snapshotData: {
+            writtenResponses: submission.writtenResponses.map((wr) => ({
+              promptDefinitionId: wr.promptDefinitionId,
+              responseText: wr.responseText,
+            })),
+            skillSelfRatings: submission.studentSkillSelfRatings.map((sr) => ({
+              skillDefinitionId: sr.skillDefinitionId,
+              rating: sr.rating,
+            })),
+            promptSelfRatings: submission.studentPromptRatings.map((pr) => ({
+              promptDefinitionId: pr.promptDefinitionId,
+              rating: pr.rating,
+            })),
+            standard4SelfRating: submission.studentStandard4Ratings[0]?.rating ?? null,
+          },
+        },
+      })
+    }
+
     // Update written responses
     if (writtenResponses && writtenResponses.length > 0) {
       await Promise.all(
         writtenResponses.map((wr) =>
           tx.writtenResponse.upsert({
             where: {
-              studentSubmissionId_promptDefinitionId_isReassessment: {
+              studentSubmissionId_promptDefinitionId: {
                 studentSubmissionId: submission.id,
                 promptDefinitionId: wr.promptDefinitionId,
-                isReassessment: false,
               },
             },
             create: {
               studentSubmissionId: submission.id,
               promptDefinitionId: wr.promptDefinitionId,
               responseText: wr.responseText,
-              isReassessment: false,
             },
             update: { responseText: wr.responseText },
           }),
@@ -223,6 +339,29 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
       )
     }
 
+    // Update prompt self-ratings (Standard 2/3 concept questions)
+    if (promptSelfRatings && promptSelfRatings.length > 0) {
+      await Promise.all(
+        promptSelfRatings.map((pr) =>
+          tx.studentPromptRating.upsert({
+            where: {
+              studentSubmissionId_promptDefinitionId: {
+                studentSubmissionId: submission.id,
+                promptDefinitionId: pr.promptDefinitionId,
+              },
+            },
+            create: {
+              studentSubmissionId: submission.id,
+              studentProfileId: studentProfile.id,
+              promptDefinitionId: pr.promptDefinitionId,
+              rating: pr.rating,
+            },
+            update: { rating: pr.rating },
+          }),
+        ),
+      )
+    }
+
     // Standard 4 self-rating
     if (standard4SelfRating !== undefined) {
       await tx.studentStandard4SelfRating.upsert({
@@ -236,13 +375,16 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
       })
     }
 
-    // Submit
+    // Submit / resubmit
     if (submit) {
       await tx.studentSubmission.update({
         where: { id: submission.id },
         data: {
-          status: SubmissionStatus.SUBMITTED,
+          status: isResubmission ? SubmissionStatus.REASSESSMENT_SUBMITTED : SubmissionStatus.SUBMITTED,
           submittedAt: new Date(),
+          ...(isResubmission
+            ? { reassessmentSubmittedAt: new Date(), latestAttemptNumber: submission.latestAttemptNumber + 1 }
+            : {}),
         },
       })
     }
@@ -256,7 +398,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     action: submit
       ? AuditAction.STUDENT_SUBMISSION_SUBMITTED
       : AuditAction.STUDENT_SUBMISSION_UPDATED,
-    after: { standardNumber, submitted: submit },
+    after: { standardNumber, submitted: submit, resubmission: isResubmission },
     ipAddress: ip,
     userAgent,
   })
@@ -266,6 +408,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     include: {
       writtenResponses: true,
       studentSkillSelfRatings: true,
+      studentPromptRatings: true,
       studentStandard4Ratings: true,
     },
   })

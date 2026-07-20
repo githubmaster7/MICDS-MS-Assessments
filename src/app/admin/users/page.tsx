@@ -41,12 +41,18 @@ import { ROLES } from "@/lib/constants";
 
 interface User {
   id: string;
-  name: string;
   email: string;
   role: string;
   status: string;
   createdAt: string;
-  lastSignedInAt?: string;
+  studentProfile?: { firstName: string; lastName: string } | null;
+  teacherProfile?: { firstName: string; lastName: string } | null;
+  parentProfile?: { firstName: string; lastName: string } | null;
+}
+
+function displayName(user: User): string {
+  const profile = user.studentProfile ?? user.teacherProfile ?? user.parentProfile;
+  return profile ? `${profile.firstName} ${profile.lastName}` : user.email;
 }
 
 const PAGE_SIZE = 25;
@@ -60,9 +66,18 @@ const ROLE_LABELS: Record<string, string> = {
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "bg-green-50 text-green-700 border-green-100",
-  PENDING: "bg-yellow-50 text-yellow-700 border-yellow-100",
-  SUSPENDED: "bg-red-50 text-red-600 border-red-100",
+  PENDING_EMAIL_VERIFICATION: "bg-yellow-50 text-yellow-700 border-yellow-100",
+  PENDING_ADMIN_APPROVAL: "bg-yellow-50 text-yellow-700 border-yellow-100",
+  DEACTIVATED: "bg-red-50 text-red-600 border-red-100",
   REJECTED: "bg-gray-100 text-gray-500 border-gray-200",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Active",
+  PENDING_EMAIL_VERIFICATION: "Pending Verification",
+  PENDING_ADMIN_APPROVAL: "Pending Approval",
+  DEACTIVATED: "Deactivated",
+  REJECTED: "Rejected",
 };
 
 function formatDate(iso?: string) {
@@ -114,8 +129,8 @@ export default function UsersPage() {
     fetch(`/api/admin/users?${params}`)
       .then((r) => r.json())
       .then((d) => {
-        setUsers(d?.users ?? []);
-        setTotal(d?.total ?? 0);
+        setUsers(d?.data ?? []);
+        setTotal(d?.pagination?.total ?? 0);
       })
       .catch(() => { setUsers([]); setTotal(0); })
       .finally(() => setLoading(false));
@@ -133,7 +148,7 @@ export default function UsersPage() {
         body: JSON.stringify({ role: editRole }),
       });
       if (!res.ok) throw new Error();
-      toast({ title: "Role updated", description: `${editTarget.name} is now a ${ROLE_LABELS[editRole]}.` });
+      toast({ title: "Role updated", description: `${displayName(editTarget)} is now a ${ROLE_LABELS[editRole]}.` });
       setEditTarget(null);
       fetchUsers();
     } catch {
@@ -151,7 +166,7 @@ export default function UsersPage() {
       const res = await fetch(`/api/admin/users/${deactivateTarget.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: isActive ? "SUSPENDED" : "ACTIVE" }),
+        body: JSON.stringify({ status: isActive ? "DEACTIVATED" : "ACTIVE" }),
       });
       if (!res.ok) throw new Error();
       toast({ title: isActive ? "User deactivated" : "User reactivated" });
@@ -203,8 +218,10 @@ export default function UsersPage() {
           <SelectContent>
             <SelectItem value="ALL">All statuses</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="SUSPENDED">Suspended</SelectItem>
+            <SelectItem value="PENDING_EMAIL_VERIFICATION">Pending Verification</SelectItem>
+            <SelectItem value="PENDING_ADMIN_APPROVAL">Pending Approval</SelectItem>
+            <SelectItem value="DEACTIVATED">Deactivated</SelectItem>
+            <SelectItem value="REJECTED">Rejected</SelectItem>
           </SelectContent>
         </Select>
         {(debouncedSearch || roleFilter !== "ALL" || statusFilter !== "ALL") && (
@@ -227,7 +244,6 @@ export default function UsersPage() {
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</th>
-                <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Last sign-in</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide sr-only">Actions</th>
               </tr>
             </thead>
@@ -235,14 +251,14 @@ export default function UsersPage() {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 5 }).map((_, j) => (
                       <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[100px]" /></td>
                     ))}
                   </tr>
                 ))
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center">
+                  <td colSpan={5} className="py-16 text-center">
                     <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                     <p className="text-sm text-gray-400">No users found.</p>
                   </td>
@@ -251,21 +267,20 @@ export default function UsersPage() {
                 users.map((user) => (
                   <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                      <p className="text-sm font-medium text-gray-900">{displayName(user)}</p>
                       <p className="text-xs text-gray-500">{user.email}</p>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">{ROLE_LABELS[user.role] ?? user.role}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[user.status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}>
-                        {user.status.charAt(0) + user.status.slice(1).toLowerCase()}
+                        {STATUS_LABELS[user.status] ?? user.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{formatDate(user.createdAt)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{formatDate(user.lastSignedInAt)}</td>
                     <td className="px-4 py-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button size="icon-sm" variant="ghost" aria-label={`Actions for ${user.name}`}>
+                          <Button size="icon-sm" variant="ghost" aria-label={`Actions for ${displayName(user)}`}>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -316,7 +331,7 @@ export default function UsersPage() {
           {editTarget && (
             <div className="space-y-4 py-2">
               <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                <p className="font-medium text-gray-900">{editTarget.name}</p>
+                <p className="font-medium text-gray-900">{displayName(editTarget)}</p>
                 <p className="text-gray-500">{editTarget.email}</p>
               </div>
               <div className="space-y-1.5">
@@ -352,9 +367,9 @@ export default function UsersPage() {
           {deactivateTarget && (
             <p className="text-sm text-gray-600 py-2">
               {deactivateTarget.status === "ACTIVE" ? (
-                <><strong>{deactivateTarget.name}</strong> will no longer be able to sign in. You can reactivate their account at any time.</>
+                <><strong>{displayName(deactivateTarget)}</strong> will no longer be able to sign in. You can reactivate their account at any time.</>
               ) : (
-                <><strong>{deactivateTarget.name}</strong>&apos;s account will be restored to active status.</>
+                <><strong>{displayName(deactivateTarget)}</strong>&apos;s account will be restored to active status.</>
               )}
             </p>
           )}

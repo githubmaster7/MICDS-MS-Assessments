@@ -1,35 +1,58 @@
 import { Metadata } from 'next'
+import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export const metadata: Metadata = { title: 'Year at a Glance' }
 
-export default async function MassGradingPage() {
+export default async function MassGradingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ instanceId?: string }>
+}) {
   const session = await getServerSession(authOptions)
   if (!session) return null
 
   const teacher = await db.teacherProfile.findUnique({ where: { userId: session.user.id } })
   if (!teacher) return <div className="p-6 text-gray-500">Teacher profile not found.</div>
 
-  // Find the active class instance for this teacher
-  const activeInstance = await db.historicalClassInstance.findFirst({
+  // A teacher can have more than one simultaneously-ACTIVE class when they
+  // teach multiple groups at once — fetch all of them so "Year at a Glance"
+  // can be viewed for any of them, not just whichever one comes back first.
+  // Also include any LOCKED class an admin has reopened for this teacher's
+  // regrading, matching /teacher/grade/students.
+  const availableInstances = await db.historicalClassInstance.findMany({
     where: {
-      status: 'ACTIVE',
       teacherClassAssignment: { teacherProfileId: teacher.id },
+      OR: [
+        { status: 'ACTIVE' },
+        { status: 'LOCKED', regradeGrants: { some: { teacherRegradeEnabled: true, closedAt: null } } },
+      ],
     },
-    select: { studentGroupId: true, schoolYearId: true, studentGroup: { select: { name: true } } },
+    select: {
+      id: true,
+      status: true,
+      studentGroupId: true,
+      schoolYearId: true,
+      studentGroup: { select: { name: true } },
+      teacherClassAssignment: { select: { activityTemplate: { select: { name: true } } } },
+    },
+    orderBy: { studentGroup: { name: 'asc' } },
   })
 
-  if (!activeInstance) {
+  if (availableInstances.length === 0) {
     return (
       <div className="p-6">
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-gray-500">
-          No active class assignment. Year-at-a-glance requires an active assignment.
+          No active class assignment, and no locked class currently reopened for you.
         </div>
       </div>
     )
   }
+
+  const { instanceId } = await searchParams
+  const activeInstance = availableInstances.find((i) => i.id === instanceId) ?? availableInstances[0]
 
   // All class instances for this student group in the same school year
   const allInstances = await db.historicalClassInstance.findMany({
@@ -44,6 +67,41 @@ export default async function MassGradingPage() {
     },
     orderBy: { createdAt: 'asc' },
   })
+
+  // Future rotations don't get a HistoricalClassInstance row until they
+  // actually start, but the year-at-a-glance grid must still show them
+  // (as N/A) so teachers can see the whole year, not just what's happened.
+  const upcomingRotations = await db.groupRotationAssignment.findMany({
+    where: {
+      studentGroupId: activeInstance.studentGroupId,
+      schoolYearId: activeInstance.schoolYearId,
+      status: 'UPCOMING',
+    },
+    include: {
+      carouselPosition: {
+        include: { teacherClassAssignment: { include: { activityTemplate: true } } },
+      },
+    },
+    orderBy: { rotationNumber: 'asc' },
+  })
+
+  type Column =
+    | { kind: 'instance'; id: string; activityName: string; status: string }
+    | { kind: 'upcoming'; id: string; activityName: string }
+
+  const columns: Column[] = [
+    ...allInstances.map((inst): Column => ({
+      kind: 'instance',
+      id: inst.id,
+      activityName: inst.teacherClassAssignment.activityTemplate.name,
+      status: inst.status,
+    })),
+    ...upcomingRotations.map((rot): Column => ({
+      kind: 'upcoming',
+      id: rot.id,
+      activityName: rot.carouselPosition.teacherClassAssignment.activityTemplate.name,
+    })),
+  ]
 
   // All students in the group
   const memberships = await db.studentGroupMembership.findMany({
@@ -86,9 +144,28 @@ export default async function MassGradingPage() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Year at a Glance</h1>
-      <p className="text-gray-500 text-sm mb-6">
+      <p className="text-gray-500 text-sm mb-4">
         {activeInstance.studentGroup.name} — All students × all class rotations
       </p>
+
+      {availableInstances.length > 1 && (
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          {availableInstances.map((inst) => (
+            <Link
+              key={inst.id}
+              href={`/teacher/mass-grading?instanceId=${inst.id}`}
+              className={`text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                inst.id === activeInstance.id
+                  ? 'bg-blue-700 text-white border-blue-700'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+              }`}
+            >
+              {inst.teacherClassAssignment.activityTemplate.name} · {inst.studentGroup.name}
+              {inst.status === 'LOCKED' && ' 🔓'}
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="text-xs border-collapse">
@@ -97,16 +174,16 @@ export default async function MassGradingPage() {
               <th className="px-3 py-2 text-left font-medium text-gray-600 border border-gray-200 sticky left-0 bg-gray-100 z-10 min-w-[140px]">
                 Student
               </th>
-              {allInstances.map((inst) => (
+              {columns.map((col) => (
                 <th
-                  key={inst.id}
-                  className={`px-3 py-2 text-center font-medium text-gray-600 border border-gray-200 min-w-[110px] ${statusColors[inst.status] ?? ''}`}
+                  key={col.id}
+                  className={`px-3 py-2 text-center font-medium text-gray-600 border border-gray-200 min-w-[110px] ${col.kind === 'instance' ? statusColors[col.status] ?? '' : statusColors.UPCOMING}`}
                 >
-                  <div>{inst.teacherClassAssignment.activityTemplate.name}</div>
+                  <div>{col.activityName}</div>
                   <div className="text-xs font-normal text-gray-400">
-                    {inst.status === 'UPCOMING' ? 'Upcoming' :
-                     inst.status === 'ACTIVE' ? '▶ Active' :
-                     inst.status === 'LOCKED' ? '🔒 Locked' : inst.status}
+                    {col.kind === 'upcoming' ? 'Upcoming' :
+                     col.status === 'ACTIVE' ? '▶ Active' :
+                     col.status === 'LOCKED' ? '🔒 Locked' : col.status}
                   </div>
                 </th>
               ))}
@@ -127,19 +204,23 @@ export default async function MassGradingPage() {
                   <td className="px-3 py-2 border border-gray-200 sticky left-0 bg-white z-10 font-medium text-gray-900">
                     {student.firstName} {student.lastName}
                   </td>
-                  {allInstances.map((inst) => {
-                    const snap = studentSnaps[inst.id]
-                    const isUpcoming = inst.status === 'UPCOMING'
-                    const isActive = inst.status === 'ACTIVE'
+                  {columns.map((col) => {
+                    if (col.kind === 'upcoming') {
+                      return (
+                        <td key={col.id} className="px-3 py-2 border border-gray-200 text-center bg-white">
+                          <span className="text-gray-300">N/A</span>
+                        </td>
+                      )
+                    }
+                    const snap = studentSnaps[col.id]
+                    const isActive = col.status === 'ACTIVE'
 
                     return (
                       <td
-                        key={inst.id}
-                        className={`px-3 py-2 border border-gray-200 text-center ${statusColors[inst.status] ?? ''}`}
+                        key={col.id}
+                        className={`px-3 py-2 border border-gray-200 text-center ${statusColors[col.status] ?? ''}`}
                       >
-                        {isUpcoming ? (
-                          <span className="text-gray-300">N/A</span>
-                        ) : snap?.letterGrade ? (
+                        {snap?.letterGrade ? (
                           <span className={`font-semibold ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
                             {snap.letterGrade}
                           </span>

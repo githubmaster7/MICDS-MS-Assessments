@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { createAuditLog, AuditAction } from '@/lib/audit'
 import { Role } from '@prisma/client'
 import { z } from 'zod'
-import { ipRateLimitKey } from '@/lib/rate-limit'
+import { ipRateLimitKey, rotationLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 const CreatePlanSchema = z.object({
   schoolYearId: z.string().uuid(),
@@ -14,6 +14,7 @@ const CreatePlanSchema = z.object({
   positions: z
     .array(
       z.object({
+        studentGroupId: z.string().uuid(),
         positionOrder: z.number().int().min(1),
         teacherClassAssignmentId: z.string().uuid(),
       }),
@@ -61,6 +62,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
+  const rl = await checkRateLimit(rotationLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
+  }
+
   let body: unknown
   try {
     body = await req.json()
@@ -89,29 +98,41 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'A carousel plan with this name already exists.' }, { status: 409 })
   }
 
-  // Validate positions if provided
+  // Validate positions if provided — position order is contiguous per group,
+  // since each group now has its own independent carousel.
   if (positions && positions.length > 0) {
-    const orders = positions.map((p) => p.positionOrder).sort((a, b) => a - b)
-    for (let i = 0; i < orders.length; i++) {
-      if (orders[i] !== i + 1) {
-        return NextResponse.json({ error: 'Position orders must be contiguous starting at 1.' }, { status: 400 })
+    const byGroup = new Map<string, number[]>()
+    for (const p of positions) {
+      const list = byGroup.get(p.studentGroupId) ?? []
+      list.push(p.positionOrder)
+      byGroup.set(p.studentGroupId, list)
+    }
+    for (const orders of byGroup.values()) {
+      orders.sort((a, b) => a - b)
+      for (let i = 0; i < orders.length; i++) {
+        if (orders[i] !== i + 1) {
+          return NextResponse.json({ error: 'Position orders must be contiguous starting at 1 within each group.' }, { status: 400 })
+        }
       }
     }
 
-    // Validate teacher class assignments exist
+    const groupIds = Array.from(byGroup.keys())
     const tcaIds = positions.map((p) => p.teacherClassAssignmentId)
-    const tcas = await db.teacherClassAssignment.findMany({
-      where: { id: { in: tcaIds } },
-      select: { id: true },
-    })
-    if (tcas.length !== tcaIds.length) {
+    const [groupsFound, tcas] = await Promise.all([
+      db.studentGroup.findMany({ where: { id: { in: groupIds } }, select: { id: true } }),
+      db.teacherClassAssignment.findMany({ where: { id: { in: tcaIds } }, select: { id: true } }),
+    ])
+    if (groupsFound.length !== groupIds.length) {
+      return NextResponse.json({ error: 'One or more student groups not found.' }, { status: 404 })
+    }
+    if (tcas.length !== new Set(tcaIds).size) {
       return NextResponse.json({ error: 'One or more teacher class assignments not found.' }, { status: 404 })
     }
   }
 
   const ip = ipRateLimitKey(req)
 
-  const plan = await db.$transaction(async (tx: typeof db) => {
+  const plan = await db.$transaction(async (tx: TxClient) => {
     const created = await tx.carouselPlan.create({
       data: {
         schoolYearId,
@@ -125,6 +146,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       await tx.carouselPosition.createMany({
         data: positions.map((p) => ({
           carouselPlanId: created.id,
+          studentGroupId: p.studentGroupId,
           positionOrder: p.positionOrder,
           teacherClassAssignmentId: p.teacherClassAssignmentId,
         })),

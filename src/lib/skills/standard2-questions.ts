@@ -1,10 +1,9 @@
 /**
- * Standard 2 — Health-Related Fitness Knowledge
+ * Standard 2 — Movement Concepts, Strategies, and Tactics
  *
- * Each activity has a set of written-response prompts that students answer
- * to demonstrate understanding of health-related fitness concepts (FITT
- * principle, energy systems, body composition, training adaptations, etc.)
- * as they apply to that specific activity context.
+ * Each activity has two concept questions students answer to demonstrate
+ * understanding of movement concepts and the strategies/tactics used in that
+ * sport. Source: "Standard 2" rubric spreadsheet, 1st Semester.
  *
  * displayOrder is 1-based within each activity.
  */
@@ -17,163 +16,103 @@ export interface Standard2Question {
 export const STANDARD2_QUESTIONS: Record<string, Standard2Question[]> = {
   'Athletic Development': [
     {
-      promptText:
-        'Describe the FITT principle (Frequency, Intensity, Time, Type) and explain how you applied it during this Athletic Development rotation.',
+      promptText: 'What are the benefits of using the force platform to track movement data?',
       displayOrder: 1,
     },
     {
       promptText:
-        'Explain the difference between muscular strength and muscular endurance. Provide an example of each from the exercises we practiced.',
+        "Why are the exercises and activities we do in athletic development good for people that don't participate in athletics?",
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'What is the principle of progressive overload, and how would you use it to continue improving your fitness after this rotation ends?',
-      displayOrder: 3,
     },
   ],
 
   'Ultimate Frisbee': [
     {
-      promptText:
-        'Identify the primary components of health-related fitness used in Ultimate Frisbee (e.g., cardiovascular endurance, flexibility) and explain how each is challenged during a game.',
+      promptText: 'Describe how you would teach someone to throw a backhand.',
       displayOrder: 1,
     },
     {
       promptText:
-        'Describe how the cardiovascular system responds during sustained Ultimate Frisbee play. What changes do you notice in your breathing and heart rate?',
+        'Many sports have a transfer of skills, strategies, tactics, and/or energy systems (similar intensities). List a sport (Level 3) or sports (Level 4) that have a transfer to the game of ultimate and explain what transfers.',
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'How could you use the FITT principle to design a week of off-season training specifically for Ultimate Frisbee performance?',
-      displayOrder: 3,
     },
   ],
 
   'Flag Football': [
     {
-      promptText:
-        'Explain how Flag Football develops both anaerobic and aerobic fitness. Give specific examples from gameplay.',
+      promptText: 'Explain three of the receiving routes taught during this unit.',
       displayOrder: 1,
     },
     {
-      promptText:
-        'Identify two health-related fitness components that are most important for a flag football player and justify your choices.',
+      promptText: 'Describe two different defensive strategies used in football.',
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'Using the FITT principle, describe a training plan you could follow for two weeks to improve your performance in flag football.',
-      displayOrder: 3,
     },
   ],
 
   Tennis: [
     {
-      promptText:
-        'Describe the fitness components (e.g., agility, cardiovascular endurance, flexibility) most essential to tennis performance and explain how each is used during a match.',
+      promptText: 'How would you teach someone to hit a forehand?',
       displayOrder: 1,
     },
     {
-      promptText:
-        'Explain the concept of active recovery and why it matters between points and games in tennis.',
+      promptText: 'Describe at least two strategies used in tennis (more than two=Level 4).',
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'How does regular tennis play contribute to long-term health? Connect at least two health-related fitness components to specific health benefits.',
-      displayOrder: 3,
     },
   ],
 
   Squash: [
     {
-      promptText:
-        'Squash is described as one of the most demanding racquet sports. Identify the health-related fitness components it primarily develops and explain why.',
+      promptText: 'If you were to teach someone how to have a successful serve, what would you tell them?',
       displayOrder: 1,
     },
     {
-      promptText:
-        'Describe how your heart rate changes during a squash rally versus the rest period between points. What does this tell you about energy systems?',
+      promptText: 'Describe a strategy used in squash',
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'Using the FITT principle, outline how a squash player could structure three training sessions per week to improve cardiovascular endurance.',
-      displayOrder: 3,
     },
   ],
 
   Volleyball: [
     {
-      promptText:
-        'Explain how volleyball uses both aerobic and anaerobic energy systems. Provide specific examples from a game situation.',
+      promptText: 'How do you increase your chance of making a good forearm pass?',
       displayOrder: 1,
     },
     {
-      promptText:
-        'Identify the health-related fitness components most important for a volleyball player and explain how each contributes to performance.',
+      promptText: 'Describe the proper technique for setting a ball.',
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'Describe how you could use the FITT principle to design a conditioning program that prepares you for a volleyball season.',
-      displayOrder: 3,
     },
   ],
 
   'Floor Hockey': [
     {
-      promptText:
-        'Describe the cardiovascular demands of floor hockey. How does sustained play benefit heart health over time?',
+      promptText: 'If you were to teach someone how to pass properly, what would you tell them?',
       displayOrder: 1,
     },
     {
-      promptText:
-        'Identify two health-related fitness components that floor hockey develops and explain how each is used during a game.',
+      promptText: 'Describe a strategy that would help an offense score in floor hockey.',
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'How would you apply the FITT principle to train specifically for the physical demands of floor hockey?',
-      displayOrder: 3,
     },
   ],
 
   Wrestling: [
     {
-      promptText:
-        'Explain how wrestling develops muscular strength, muscular endurance, and flexibility. Give examples of moves or positions that require each.',
+      promptText: 'Describe the technique for the double leg takedown.',
       displayOrder: 1,
     },
     {
-      promptText:
-        'Describe the energy systems used during a wrestling match. Why is both aerobic and anaerobic fitness important for a wrestler?',
+      promptText: 'Describe the proper technique for the switch.',
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'Using the FITT principle, design a two-week off-season strength and conditioning program for a middle school wrestler.',
-      displayOrder: 3,
     },
   ],
 
   Yoga: [
     {
-      promptText:
-        'Identify the health-related fitness components that yoga primarily develops (e.g., flexibility, muscular endurance, body composition) and explain how regular practice improves each.',
+      promptText: 'How can you increase the difficulty of a yoga pose?',
       displayOrder: 1,
     },
     {
       promptText:
-        'Explain the relationship between yoga and stress management. How does controlled breathing affect your body during practice?',
+        'Describe the proper alignment of your front leg when transitioning between Warrior 2, Reverse Warrior, and Extended Side Angle. Explain why maintaining this alignment is important for both safety and effectiveness.',
       displayOrder: 2,
-    },
-    {
-      promptText:
-        'How could you incorporate the FITT principle into a personal yoga practice to continue improving flexibility and core strength outside of class?',
-      displayOrder: 3,
     },
   ],
 }

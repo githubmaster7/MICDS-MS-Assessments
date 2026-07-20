@@ -6,7 +6,7 @@ import { createAuditLog, AuditAction } from '@/lib/audit'
 import { canTeacherGrade } from '@/lib/authorization'
 import { Role } from '@prisma/client'
 import { z } from 'zod'
-import { ipRateLimitKey } from '@/lib/rate-limit'
+import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 interface RouteParams {
   params: Promise<{ studentId: string; instanceId: string }>
@@ -21,8 +21,16 @@ const FeedbackSchema = z.object({
 export async function PUT(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
-  if (session.user.role !== Role.TEACHER && session.user.role !== Role.ADMIN) {
+  if (session.user.role !== Role.TEACHER) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+  }
+
+  const rl = await checkRateLimit(apiLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
   }
 
   const { studentId, instanceId } = await params

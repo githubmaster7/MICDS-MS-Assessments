@@ -3,7 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import { Role } from '@prisma/client'
+import { Role, RotationStatus } from '@prisma/client'
+import Link from 'next/link'
+import { hasOpenStudentRegradeGrant } from '@/lib/authorization'
 
 export const metadata: Metadata = { title: 'Class Detail' }
 
@@ -105,6 +107,10 @@ export default async function StudentClassDetailPage({
   const teacher = inst.teacherClassAssignment.teacherProfile
   const rotation = inst.groupRotationAssignment
 
+  const canSubmit =
+    instance.status === RotationStatus.ACTIVE ||
+    (await hasOpenStudentRegradeGrant(studentProfile.id, instanceId))
+
   const gradeColorClass: Record<string, string> = {
     A: 'bg-emerald-600',
     'A-': 'bg-emerald-500',
@@ -134,13 +140,21 @@ export default async function StudentClassDetailPage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{activityName}</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Rotation {rotation.rotationNumber} ·{' '}
+          Class {rotation.rotationNumber} ·{' '}
           {new Date(rotation.startDate).toLocaleDateString()} –{' '}
           {new Date(rotation.endDate).toLocaleDateString()}
         </p>
         <p className="text-sm text-gray-500">
           Teacher: {teacher.firstName} {teacher.lastName}
         </p>
+        {canSubmit && (
+          <Link
+            href={`/student/submit/${instanceId}`}
+            className="inline-block mt-3 bg-blue-700 hover:bg-blue-800 transition-colors text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            Submit Work
+          </Link>
+        )}
       </div>
 
       {/* Grade summary */}

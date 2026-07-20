@@ -17,14 +17,22 @@ const SkillScoreInput = z.object({
   score: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
 })
 
+const PromptScoreInput = z.object({
+  promptDefinitionId: z.string().uuid(),
+  score: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+})
+
 const BulkGradeEntry = z.object({
   studentProfileId: z.string().uuid(),
   instanceId: z.string().uuid(),
   standardNumber: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
-  score: z.number().optional(),
+  // No raw `score` field on purpose — always derived from
+  // skillScores/promptScores/standard4Rating, never set directly.
   feedback: z.string().max(2000).optional(),
   isFeedbackStudentVisible: z.boolean().optional(),
   skillScores: z.array(SkillScoreInput).optional(),
+  promptScores: z.array(PromptScoreInput).optional(),
+  standard4Rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
 })
 
 const BulkGradeSchema = z.object({
@@ -120,7 +128,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ? { score: existing.score?.toNumber(), feedback: existing.feedback }
         : null
 
-      const assessment = await db.teacherAssessment.upsert({
+      let assessment = await db.teacherAssessment.upsert({
         where: {
           teacherProfileId_historicalClassInstanceId_studentProfileId_standardNumber: {
             teacherProfileId: teacherProfile.id,
@@ -134,12 +142,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           historicalClassInstanceId: grade.instanceId,
           studentProfileId: grade.studentProfileId,
           standardNumber: grade.standardNumber,
-          score: grade.score ?? null,
           feedback: grade.feedback ?? null,
           isFeedbackStudentVisible: grade.isFeedbackStudentVisible ?? false,
         },
         update: {
-          ...(grade.score !== undefined ? { score: grade.score } : {}),
           ...(grade.feedback !== undefined ? { feedback: grade.feedback } : {}),
           ...(grade.isFeedbackStudentVisible !== undefined
             ? { isFeedbackStudentVisible: grade.isFeedbackStudentVisible }
@@ -176,10 +182,96 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         const std1Result = calculateStandard1(
           allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
         )
-        await db.teacherAssessment.update({
+        assessment = await db.teacherAssessment.update({
           where: { id: assessment.id },
           data: { score: std1Result.score },
         })
+      }
+
+      // Handle per-question prompt scores for standards 2/3/4 + Standard 4's
+      // teacher demonstration rating
+      if (
+        (grade.standardNumber === 2 || grade.standardNumber === 3 || grade.standardNumber === 4) &&
+        grade.promptScores &&
+        grade.promptScores.length > 0
+      ) {
+        await Promise.all(
+          grade.promptScores.map((ps) =>
+            db.teacherPromptScore.upsert({
+              where: {
+                teacherAssessmentId_promptDefinitionId: {
+                  teacherAssessmentId: assessment.id,
+                  promptDefinitionId: ps.promptDefinitionId,
+                },
+              },
+              create: {
+                teacherAssessmentId: assessment.id,
+                promptDefinitionId: ps.promptDefinitionId,
+                score: ps.score,
+              },
+              update: { score: ps.score },
+            }),
+          ),
+        )
+      }
+
+      if (grade.standardNumber === 4 && grade.standard4Rating !== undefined) {
+        await db.teacherStandard4Rating.upsert({
+          where: { teacherAssessmentId: assessment.id },
+          create: { teacherAssessmentId: assessment.id, rating: grade.standard4Rating },
+          update: { rating: grade.standard4Rating },
+        })
+      }
+
+      if (
+        (grade.standardNumber === 2 || grade.standardNumber === 3 || grade.standardNumber === 4) &&
+        (grade.promptScores?.length || grade.standard4Rating !== undefined)
+      ) {
+        const items: { itemId: string; score: 1 | 2 | 3 | 4 }[] = []
+
+        const allPromptScores = await db.teacherPromptScore.findMany({
+          where: { teacherAssessmentId: assessment.id },
+          select: { promptDefinitionId: true, score: true },
+        })
+        items.push(
+          ...allPromptScores.map((p: { promptDefinitionId: string; score: number }) => ({
+            itemId: p.promptDefinitionId,
+            score: p.score as 1 | 2 | 3 | 4,
+          })),
+        )
+
+        if (grade.standardNumber === 4) {
+          const teacherRating = await db.teacherStandard4Rating.findUnique({
+            where: { teacherAssessmentId: assessment.id },
+            select: { rating: true },
+          })
+          if (teacherRating) {
+            items.push({ itemId: 'teacher-demonstration-rating', score: teacherRating.rating as 1 | 2 | 3 | 4 })
+          }
+
+          const submission = await db.studentSubmission.findUnique({
+            where: {
+              studentProfileId_historicalClassInstanceId_standardNumber: {
+                studentProfileId: grade.studentProfileId,
+                historicalClassInstanceId: grade.instanceId,
+                standardNumber: 4,
+              },
+            },
+            include: { studentStandard4Ratings: true },
+          })
+          const selfRating = submission?.studentStandard4Ratings[0]
+          if (selfRating) {
+            items.push({ itemId: 'student-self-rating', score: selfRating.rating as 1 | 2 | 3 | 4 })
+          }
+        }
+
+        if (items.length > 0) {
+          const std234Result = calculateStandard234(items)
+          assessment = await db.teacherAssessment.update({
+            where: { id: assessment.id },
+            data: { score: std234Result.score },
+          })
+        }
       }
 
       await auditGradeChange({
@@ -189,7 +281,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         historicalClassInstanceId: grade.instanceId,
         standardNumber: grade.standardNumber,
         before,
-        after: { score: grade.score, feedback: grade.feedback },
+        after: { score: assessment.score?.toNumber() ?? null, feedback: grade.feedback },
         ipAddress: ip,
         userAgent,
       })

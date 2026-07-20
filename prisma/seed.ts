@@ -9,6 +9,10 @@ import {
   SkillType,
 } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { ACTIVITY_SKILLS } from '../src/lib/skills/definitions'
+import { STANDARD2_QUESTIONS } from '../src/lib/skills/standard2-questions'
+import { STANDARD3_QUESTIONS } from '../src/lib/skills/standard3-questions'
+import { STANDARD4_QUESTIONS } from '../src/lib/skills/standard4-questions'
 
 const db = new PrismaClient()
 
@@ -462,96 +466,101 @@ async function main() {
   // =========================================================================
   // Rubric Versions + Skill Definitions + Prompt Definitions
   // =========================================================================
-  // Athletic Development — Standard 1 skills
+  // Every activity's Standard 1 skills and Standard 2-4 concept questions are
+  // loaded from the versioned config in src/lib/skills/* (transcribed
+  // verbatim from the source rubric spreadsheets) so grading and student
+  // submissions work identically for the full nine-activity carousel.
   const athDevId = activityMap['Athletic Development']
 
-  // Standard 1 rubric for Athletic Development
-  const foundRv1 = await db.rubricVersion.findFirst({
-    where: { activityTemplateId: athDevId, standardNumber: 1, version: 1 },
-  })
-  const rv1 = foundRv1 ?? await db.rubricVersion.create({
-    data: {
-      activityTemplateId: athDevId,
-      standardNumber: 1,
-      activityName: 'Athletic Development',
-      version: 1,
-      isActive: true,
-    },
-  })
+  const QUESTION_SETS_BY_STANDARD: Record<number, Record<string, { promptText: string; displayOrder: number }[]>> = {
+    2: STANDARD2_QUESTIONS,
+    3: STANDARD3_QUESTIONS,
+    4: STANDARD4_QUESTIONS,
+  }
 
-  const std1Skills = [
-    { name: 'Squat',                          type: SkillType.FUNDAMENTAL, order: 1 },
-    { name: 'Lateral Lunge',                  type: SkillType.FUNDAMENTAL, order: 2 },
-    { name: 'Hip Hinge / RDL',                type: SkillType.FUNDAMENTAL, order: 3 },
-    { name: 'Horizontal Press (Push-Up)',      type: SkillType.FUNDAMENTAL, order: 4 },
-    { name: 'Vertical Pull (Flexed-Arm Hang)', type: SkillType.FUNDAMENTAL, order: 5 },
-    { name: 'Core Stability (Plank)',          type: SkillType.FUNDAMENTAL, order: 6 },
-  ]
-
+  // skillDefMap/promptDefMap are keyed by "<activityName>|<skillName>" and
+  // "<activityName>|<standardNumber>-<displayOrder>" so the sample-grade
+  // section below can look up real IDs by name instead of guessing them.
   const skillDefMap: Record<string, string> = {}
-  for (const skill of std1Skills) {
-    const found = await db.skillDefinition.findFirst({
-      where: { rubricVersionId: rv1.id, displayOrder: skill.order },
-    })
-    const sd = found ?? await db.skillDefinition.create({
-      data: {
-        rubricVersionId: rv1.id,
-        skillType: skill.type,
-        skillName: skill.name,
-        displayOrder: skill.order,
-        isActive: true,
-      },
-    })
-    skillDefMap[skill.name] = sd.id
-  }
-
-  // Standards 2-4 rubric versions + prompt definitions
-  const prompts: Record<number, string[]> = {
-    2: [
-      'Describe how the movement patterns practiced in Athletic Development transfer to other sports or physical activities.',
-      'Explain the role of each movement pattern (squat, hinge, lunge, push, pull, carry) in daily life.',
-    ],
-    3: [
-      'What personal health or fitness goals did you set at the start of this unit, and what is your progress toward them?',
-      'Explain how regular physical activity contributes to long-term health and wellness.',
-    ],
-    4: [
-      'Describe a moment when you demonstrated a positive attitude or helped a classmate during this unit.',
-      'How did you respond when a skill or drill was challenging? What strategies did you use?',
-    ],
-  }
-
   const promptDefMap: Record<string, string> = {}
-  for (const stdNum of [2, 3, 4]) {
-    const foundRv = await db.rubricVersion.findFirst({
-      where: { activityTemplateId: athDevId, standardNumber: stdNum, version: 1 },
+
+  for (const [activityName, activityId] of Object.entries(activityMap)) {
+    // Standard 1 — fundamental + specific skills
+    const foundRv1 = await db.rubricVersion.findFirst({
+      where: { activityTemplateId: activityId, standardNumber: 1, version: 1 },
     })
-    const rv = foundRv ?? await db.rubricVersion.create({
+    const rv1 = foundRv1 ?? await db.rubricVersion.create({
       data: {
-        activityTemplateId: athDevId,
-        standardNumber: stdNum,
-        activityName: 'Athletic Development',
+        activityTemplateId: activityId,
+        standardNumber: 1,
+        activityName,
         version: 1,
         isActive: true,
       },
     })
-    for (let pi = 0; pi < prompts[stdNum].length; pi++) {
-      const found = await db.promptDefinition.findFirst({
-        where: { rubricVersionId: rv.id, standardNumber: stdNum, displayOrder: pi + 1 },
+
+    const skills = ACTIVITY_SKILLS[activityName]
+    if (skills) {
+      // displayOrder is unique per rubricVersionId in the schema, so it must
+      // be renumbered sequentially across both categories here — skillType
+      // (not displayOrder) is what the UI groups fundamental vs. specific by.
+      const allSkills = [
+        ...skills.fundamental.map((s) => ({ ...s, type: SkillType.FUNDAMENTAL })),
+        ...skills.specific.map((s) => ({ ...s, type: SkillType.SPECIFIC })),
+      ]
+      for (let i = 0; i < allSkills.length; i++) {
+        const skill = allSkills[i]
+        const displayOrder = i + 1
+        const found = await db.skillDefinition.findFirst({
+          where: { rubricVersionId: rv1.id, skillName: skill.name },
+        })
+        const sd = found ?? await db.skillDefinition.create({
+          data: {
+            rubricVersionId: rv1.id,
+            skillType: skill.type,
+            skillName: skill.name,
+            displayOrder,
+            isActive: true,
+          },
+        })
+        skillDefMap[`${activityName}|${skill.name}`] = sd.id
+      }
+    }
+
+    // Standards 2-4 — concept-question prompts
+    for (const stdNum of [2, 3, 4]) {
+      const foundRvOther = await db.rubricVersion.findFirst({
+        where: { activityTemplateId: activityId, standardNumber: stdNum, version: 1 },
       })
-      const pd = found ?? await db.promptDefinition.create({
+      const rvOther = foundRvOther ?? await db.rubricVersion.create({
         data: {
-          rubricVersionId: rv.id,
+          activityTemplateId: activityId,
           standardNumber: stdNum,
-          promptText: prompts[stdNum][pi],
-          displayOrder: pi + 1,
+          activityName,
+          version: 1,
           isActive: true,
         },
       })
-      promptDefMap[`${stdNum}-${pi + 1}`] = pd.id
+
+      const questions = QUESTION_SETS_BY_STANDARD[stdNum][activityName] ?? []
+      for (const q of questions) {
+        const found = await db.promptDefinition.findFirst({
+          where: { rubricVersionId: rvOther.id, standardNumber: stdNum, displayOrder: q.displayOrder },
+        })
+        const pd = found ?? await db.promptDefinition.create({
+          data: {
+            rubricVersionId: rvOther.id,
+            standardNumber: stdNum,
+            promptText: q.promptText,
+            displayOrder: q.displayOrder,
+            isActive: true,
+          },
+        })
+        promptDefMap[`${activityName}|${stdNum}-${q.displayOrder}`] = pd.id
+      }
     }
   }
-  log('Rubric versions, skill definitions, and prompt definitions created for Athletic Development')
+  log('Rubric versions, skill definitions, and prompt definitions created for all 9 activities')
 
   // =========================================================================
   // Sample Grades — Rotation 1, Alex Thompson in Athletic Development
@@ -589,17 +598,14 @@ async function main() {
         isFeedbackStudentVisible: true,
       },
     })
-    // Skill scores: Squat=4, Lateral Lunge=3, Hip Hinge=4, Push-Up=3, Flexed-Arm Hang=3, Plank=4
+    // Skill scores: Squat=4, Lateral Lunge=3, Hip Hinge/RDL=3 → allGreen, 1/3 bright → 3.5
     const skillScoreData: Array<{ name: string; score: number }> = [
-      { name: 'Squat',                          score: 4 },
-      { name: 'Lateral Lunge',                  score: 3 },
-      { name: 'Hip Hinge / RDL',                score: 4 },
-      { name: 'Horizontal Press (Push-Up)',      score: 3 },
-      { name: 'Vertical Pull (Flexed-Arm Hang)', score: 3 },
-      { name: 'Core Stability (Plank)',          score: 4 },
+      { name: 'Squat', score: 4 },
+      { name: 'Lateral Lunge', score: 3 },
+      { name: 'Hip Hinge/RDL', score: 3 },
     ]
     for (const ss of skillScoreData) {
-      const sdId = skillDefMap[ss.name]
+      const sdId = skillDefMap[`Athletic Development|${ss.name}`]
       if (!sdId) continue
       await db.teacherSkillScore.upsert({
         where: { teacherAssessmentId_skillDefinitionId: { teacherAssessmentId: ta1s1.id, skillDefinitionId: sdId } },
@@ -608,7 +614,7 @@ async function main() {
       })
     }
 
-    // Standard 2
+    // Standard 2 — 2 prompts, both scored 3 → allGreen, 0% bright → 3.0
     const foundA1s2 = await db.teacherAssessment.findUnique({
       where: {
         teacherProfileId_historicalClassInstanceId_studentProfileId_standardNumber: {
@@ -616,7 +622,7 @@ async function main() {
         },
       },
     })
-    foundA1s2 || await db.teacherAssessment.create({
+    const ta1s2 = foundA1s2 ?? await db.teacherAssessment.create({
       data: {
         teacherProfileId: sarahId, historicalClassInstanceId: hci1AId, studentProfileId: alexId,
         standardNumber: 2, score: 3.0,
@@ -624,8 +630,17 @@ async function main() {
         isFeedbackStudentVisible: true,
       },
     })
+    for (const displayOrder of [1, 2]) {
+      const pdId = promptDefMap[`Athletic Development|2-${displayOrder}`]
+      if (!pdId) continue
+      await db.teacherPromptScore.upsert({
+        where: { teacherAssessmentId_promptDefinitionId: { teacherAssessmentId: ta1s2.id, promptDefinitionId: pdId } },
+        update: {},
+        create: { teacherAssessmentId: ta1s2.id, promptDefinitionId: pdId, score: 3 },
+      })
+    }
 
-    // Standard 3
+    // Standard 3 — 2 prompts, scored 3 and 2 → 50% green, no red → 2.0
     const foundA1s3 = await db.teacherAssessment.findUnique({
       where: {
         teacherProfileId_historicalClassInstanceId_studentProfileId_standardNumber: {
@@ -633,16 +648,26 @@ async function main() {
         },
       },
     })
-    foundA1s3 || await db.teacherAssessment.create({
+    const ta1s3 = foundA1s3 ?? await db.teacherAssessment.create({
       data: {
         teacherProfileId: sarahId, historicalClassInstanceId: hci1AId, studentProfileId: alexId,
-        standardNumber: 3, score: 2.5,
+        standardNumber: 3, score: 2.0,
         feedback: 'Developing a solid understanding of health concepts. Work on connecting activity to long-term wellness.',
         isFeedbackStudentVisible: false,
       },
     })
+    const std3Scores = [3, 2]
+    for (let i = 0; i < std3Scores.length; i++) {
+      const pdId = promptDefMap[`Athletic Development|3-${i + 1}`]
+      if (!pdId) continue
+      await db.teacherPromptScore.upsert({
+        where: { teacherAssessmentId_promptDefinitionId: { teacherAssessmentId: ta1s3.id, promptDefinitionId: pdId } },
+        update: {},
+        create: { teacherAssessmentId: ta1s3.id, promptDefinitionId: pdId, score: std3Scores[i] },
+      })
+    }
 
-    // Standard 4
+    // Standard 4 — 1 concept question + student self-rating + teacher rating, all 3 → 3.0
     const foundA1s4 = await db.teacherAssessment.findUnique({
       where: {
         teacherProfileId_historicalClassInstanceId_studentProfileId_standardNumber: {
@@ -650,7 +675,7 @@ async function main() {
         },
       },
     })
-    foundA1s4 || await db.teacherAssessment.create({
+    const ta1s4 = foundA1s4 ?? await db.teacherAssessment.create({
       data: {
         teacherProfileId: sarahId, historicalClassInstanceId: hci1AId, studentProfileId: alexId,
         standardNumber: 4, score: 3.0,
@@ -658,8 +683,22 @@ async function main() {
         isFeedbackStudentVisible: true,
       },
     })
+    const pd41Id = promptDefMap['Athletic Development|4-1']
+    if (pd41Id) {
+      await db.teacherPromptScore.upsert({
+        where: { teacherAssessmentId_promptDefinitionId: { teacherAssessmentId: ta1s4.id, promptDefinitionId: pd41Id } },
+        update: {},
+        create: { teacherAssessmentId: ta1s4.id, promptDefinitionId: pd41Id, score: 3 },
+      })
+    }
+    await db.teacherStandard4Rating.upsert({
+      where: { teacherAssessmentId: ta1s4.id },
+      update: {},
+      create: { teacherAssessmentId: ta1s4.id, rating: 3 },
+    })
 
     // Grade snapshot — rotation 1, Alex
+    // Internal values: 3.5->0.9, 3.0->0.8, 2.0->0.7, 3.0->0.8 → avg 0.8 → B-
     const foundSnap1 = await db.gradeCalculationSnapshot.findFirst({
       where: { studentProfileId: alexId, historicalClassInstanceId: hci1AId },
     })
@@ -670,20 +709,19 @@ async function main() {
         schoolYearId: schoolYear.id,
         standard1Score: 3.5,
         standard2Score: 3.0,
-        standard3Score: 2.5,
+        standard3Score: 2.0,
         standard4Score: 3.0,
-        // Internal values: 3.5->0.875, 3.0->0.75, 2.5->0.625, 3.0->0.75 → avg 0.75 → B+
-        overallAverage: 0.75,
-        letterGrade: 'B+',
+        overallAverage: 0.8,
+        letterGrade: 'B-',
         snapshotData: {
           method: 'seed',
           breakdown: {
-            standard1: { rawScore: 3.5, internalValue: 0.875, weight: 0.25 },
-            standard2: { rawScore: 3.0, internalValue: 0.75,  weight: 0.25 },
-            standard3: { rawScore: 2.5, internalValue: 0.625, weight: 0.25 },
-            standard4: { rawScore: 3.0, internalValue: 0.75,  weight: 0.25 },
+            standard1: { rawScore: 3.5, internalValue: 0.9, weight: 0.25 },
+            standard2: { rawScore: 3.0, internalValue: 0.8, weight: 0.25 },
+            standard3: { rawScore: 2.0, internalValue: 0.7, weight: 0.25 },
+            standard4: { rawScore: 3.0, internalValue: 0.8, weight: 0.25 },
           },
-          gradeBoundaries: 'B+: 0.735–0.769',
+          gradeBoundaries: 'B-: 0.77–0.82',
         },
       },
     })
@@ -702,7 +740,8 @@ async function main() {
         effortTeacherScore: 4,
         effortStudentScore: 3,
         daysLateUnprepared: 0,
-        calculatedScore: 3.75,
+        // (4 + 4 + 4 + 3 + 4[daysLateScore]) / 5 = 3.8
+        calculatedScore: 3.8,
       },
     })
 
@@ -714,16 +753,15 @@ async function main() {
         honorCodeAcknowledgedAt: new Date('2024-09-18'),
         honorCodeVersion: '1.0',
         submittedAt: new Date('2024-09-18'),
+        latestAttemptNumber: 1,
         responses: [
           {
-            key: '2-1',
-            text: 'The squat pattern helps me get up from low positions in basketball, and the hip hinge is basically the start of a jump. Every sport I play uses these movements.',
-            isReassessment: false,
+            key: 'Athletic Development|2-1',
+            text: 'The force platform shows you the amount of force and power you produce, so you can track whether your jumps and lifts are actually improving over time instead of guessing.',
           },
           {
-            key: '2-2',
-            text: 'In daily life I squat whenever I pick something up off the floor, and the horizontal press pattern is like pushing open a heavy door. These movements are everywhere.',
-            isReassessment: false,
+            key: 'Athletic Development|2-2',
+            text: 'Even if you never play a sport, the exercises build strength and mobility you use every day, like carrying groceries, climbing stairs, or picking things up safely.',
           },
         ],
       },
@@ -734,22 +772,28 @@ async function main() {
         honorCodeVersion: '1.0',
         submittedAt: new Date('2024-09-19'),
         reassessmentSubmittedAt: new Date('2024-09-25'),
+        latestAttemptNumber: 2,
+        // Attempt 1 (superseded) — frozen into a history entry below.
+        priorAttempt: {
+          attemptNumber: 1,
+          submittedAt: new Date('2024-09-19'),
+          responses: [
+            { key: 'Athletic Development|3-1', text: 'Strength training makes your muscles stronger.' },
+            {
+              key: 'Athletic Development|3-2',
+              text: 'The three energy systems are phosphagen, glycolytic, and aerobic. Phosphagen is used for very short, max-effort bursts, glycolytic takes over for efforts lasting under about two minutes, and aerobic becomes the main system for anything longer than that.',
+            },
+          ],
+        },
+        // Attempt 2 (current/live) — meaningfully revised prompt 3-1.
         responses: [
           {
-            key: '3-1',
-            text: 'My goal was to hold a plank for 60 seconds by the end of the unit. I started at 35 seconds and made it to 52 seconds, so I am close but not there yet.',
-            isReassessment: false,
+            key: 'Athletic Development|3-1',
+            text: 'Improving strength also helps your posture and balance, which lowers your risk of injury both in sports and in everyday movements like lifting or catching yourself if you trip.',
           },
           {
-            key: '3-2',
-            text: 'Regular physical activity keeps the heart strong, builds muscle, and helps manage stress. We need to move to stay healthy and feel good.',
-            isReassessment: false,
-          },
-          // Reassessment response for prompt 3-1
-          {
-            key: '3-1',
-            text: 'My goal was to hold a plank for 60 seconds. By my reassessment I reached 60 seconds and held it. I practiced every night at home for five minutes.',
-            isReassessment: true,
+            key: 'Athletic Development|3-2',
+            text: 'The three energy systems are phosphagen, glycolytic, and aerobic. Phosphagen is used for very short, max-effort bursts, glycolytic takes over for efforts lasting under about two minutes, and aerobic becomes the main system for anything longer than that.',
           },
         ],
       },
@@ -759,16 +803,11 @@ async function main() {
         honorCodeAcknowledgedAt: new Date('2024-09-20'),
         honorCodeVersion: '1.0',
         submittedAt: new Date('2024-09-20'),
+        latestAttemptNumber: 1,
         responses: [
           {
-            key: '4-1',
-            text: 'When Jordan was struggling with the hip hinge I showed him the towel-along-the-wall trick that Ms. Johnson taught us and it helped him understand the movement.',
-            isReassessment: false,
-          },
-          {
-            key: '4-2',
-            text: 'The flexed-arm hang was really hard for me. I kept trying, asked for modifications, and celebrated small improvements each class instead of getting frustrated.',
-            isReassessment: false,
+            key: 'Athletic Development|4-1',
+            text: 'Hard work sets the tone for the group — when I push myself during a tough set, it encourages the people training next to me to keep going too instead of giving up.',
           },
         ],
       },
@@ -794,6 +833,7 @@ async function main() {
           honorCodeVersion: subDef.honorCodeVersion,
           submittedAt: subDef.submittedAt,
           reassessmentSubmittedAt: (subDef as any).reassessmentSubmittedAt ?? null,
+          latestAttemptNumber: subDef.latestAttemptNumber,
         },
       })
 
@@ -804,20 +844,46 @@ async function main() {
           continue
         }
         const foundWr = await db.writtenResponse.findUnique({
-          where: { studentSubmissionId_promptDefinitionId_isReassessment: {
-            studentSubmissionId: sub.id,
-            promptDefinitionId: pdId,
-            isReassessment: resp.isReassessment,
-          }},
+          where: { studentSubmissionId_promptDefinitionId: { studentSubmissionId: sub.id, promptDefinitionId: pdId } },
         })
         foundWr || await db.writtenResponse.create({
           data: {
             studentSubmissionId: sub.id,
             promptDefinitionId: pdId,
             responseText: resp.text,
-            isReassessment: resp.isReassessment,
             submittedAt: subDef.submittedAt,
           },
+        })
+      }
+
+      // Demonstrate the resubmission-history feature: freeze the superseded
+      // attempt as a SubmissionHistoryEntry snapshot.
+      const priorAttempt = (subDef as { priorAttempt?: { attemptNumber: number; submittedAt: Date; responses: { key: string; text: string }[] } }).priorAttempt
+      if (priorAttempt) {
+        const foundHistory = await db.submissionHistoryEntry.findUnique({
+          where: { studentSubmissionId_attemptNumber: { studentSubmissionId: sub.id, attemptNumber: priorAttempt.attemptNumber } },
+        })
+        foundHistory || await db.submissionHistoryEntry.create({
+          data: {
+            studentSubmissionId: sub.id,
+            attemptNumber: priorAttempt.attemptNumber,
+            submittedAt: priorAttempt.submittedAt,
+            snapshotData: {
+              writtenResponses: priorAttempt.responses.map((r) => ({
+                promptDefinitionId: promptDefMap[r.key],
+                responseText: r.text,
+              })),
+            },
+          },
+        })
+      }
+
+      // Standard 4 also carries the student's self-rating of teamwork/leadership
+      if (subDef.standardNumber === 4) {
+        await db.studentStandard4SelfRating.upsert({
+          where: { studentSubmissionId: sub.id },
+          update: {},
+          create: { studentSubmissionId: sub.id, studentProfileId: alexId, rating: 3 },
         })
       }
     }
@@ -882,7 +948,8 @@ async function main() {
         effortTeacherScore: 3,
         effortStudentScore: 4,
         daysLateUnprepared: 1,
-        calculatedScore: 3.25,
+        // (3 + 4 + 3 + 4 + 3[daysLateScore]) / 5 = 3.4
+        calculatedScore: 3.4,
       },
     })
   }

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 
 declare global {
   // eslint-disable-next-line no-var
@@ -17,3 +17,6 @@ export const db =
 if (process.env.NODE_ENV !== 'production') {
   globalThis.prisma = db
 }
+
+/** Type of the interactive transaction client passed to db.$transaction(async (tx) => ...). */
+export type TxClient = Prisma.TransactionClient

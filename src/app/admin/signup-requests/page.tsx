@@ -35,15 +35,20 @@ import { ROLES } from "@/lib/constants";
 
 interface SignupRequest {
   id: string;
-  name: string;
   email: string;
-  role: string;
+  requestedRole: string;
   status: string;
   createdAt: string;
-  reviewNote?: string;
-  reviewedAt?: string;
-  reviewedByName?: string;
+  adminNote?: string | null;
+  reviewedAt?: string | null;
+  reviewer?: { email: string } | null;
 }
+
+const TAB_TO_STATUS: Record<string, string> = {
+  PENDING: "PENDING_ADMIN_APPROVAL",
+  APPROVED: "ACTIVE",
+  REJECTED: "REJECTED",
+};
 
 const ROLE_LABELS: Record<string, string> = {
   TEACHER: "Teacher",
@@ -92,18 +97,17 @@ function RequestRow({
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
       <td className="px-4 py-3">
-        <p className="text-sm font-medium text-gray-900">{req.name}</p>
-        <p className="text-xs text-gray-500">{req.email}</p>
+        <p className="text-sm font-medium text-gray-900">{req.email}</p>
       </td>
       <td className="px-4 py-3">
-        <RoleBadge role={req.role} />
+        <RoleBadge role={req.requestedRole} />
       </td>
       <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">
         {formatDate(req.createdAt)}
       </td>
       {!actionable && (
         <td className="px-4 py-3">
-          {req.status === "APPROVED" ? (
+          {req.status === "ACTIVE" ? (
             <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Approved
@@ -118,11 +122,11 @@ function RequestRow({
       )}
       {!actionable && (
         <td className="px-4 py-3 text-xs text-gray-400">
-          {req.reviewedByName ?? "—"}
+          {req.reviewer?.email ?? "—"}
           {req.reviewedAt ? ` · ${formatDate(req.reviewedAt)}` : ""}
-          {req.reviewNote && (
+          {req.adminNote && (
             <p className="text-gray-500 italic mt-0.5 max-w-xs truncate">
-              &ldquo;{req.reviewNote}&rdquo;
+              &ldquo;{req.adminNote}&rdquo;
             </p>
           )}
         </td>
@@ -134,7 +138,7 @@ function RequestRow({
               size="sm"
               variant="success"
               onClick={() => onApprove(req)}
-              aria-label={`Approve ${req.name}`}
+              aria-label={`Approve ${req.email}`}
             >
               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
               Approve
@@ -144,7 +148,7 @@ function RequestRow({
               variant="outline"
               className="text-red-600 border-red-200 hover:bg-red-50"
               onClick={() => onReject(req)}
-              aria-label={`Reject ${req.name}`}
+              aria-label={`Reject ${req.email}`}
             >
               <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
               Reject
@@ -180,7 +184,40 @@ export default function SignupRequestsPage() {
     React.useState<SignupRequest | null>(null);
   const [approveRole, setApproveRole] = React.useState("");
   const [approveNote, setApproveNote] = React.useState("");
+  const [approveFirstName, setApproveFirstName] = React.useState("");
+  const [approveLastName, setApproveLastName] = React.useState("");
+  const [approveGradeLevel, setApproveGradeLevel] = React.useState("");
+  const [approveGender, setApproveGender] = React.useState("");
+  const [approveStudentId, setApproveStudentId] = React.useState("");
+  const [approveEmployeeId, setApproveEmployeeId] = React.useState("");
+  const [approveError, setApproveError] = React.useState("");
   const [approveLoading, setApproveLoading] = React.useState(false);
+
+  const effectiveApproveRole = approveRole || approveTarget?.requestedRole || "";
+
+  React.useEffect(() => {
+    if (approveTarget) {
+      setApproveRole("");
+      setApproveNote("");
+      setApproveFirstName("");
+      setApproveLastName("");
+      setApproveGradeLevel("");
+      setApproveGender("");
+      setApproveStudentId("");
+      setApproveEmployeeId("");
+      setApproveError("");
+    }
+  }, [approveTarget]);
+
+  const approveFormValid =
+    effectiveApproveRole === "ADMIN" ||
+    (approveFirstName.trim() !== "" &&
+      approveLastName.trim() !== "" &&
+      (effectiveApproveRole !== "STUDENT" ||
+        (approveGradeLevel !== "" &&
+          approveGender !== "" &&
+          approveStudentId.trim() !== "")) &&
+      (effectiveApproveRole !== "TEACHER" || approveEmployeeId.trim() !== ""));
 
   const [rejectTarget, setRejectTarget] = React.useState<SignupRequest | null>(
     null
@@ -191,7 +228,7 @@ export default function SignupRequestsPage() {
   const fetchData = React.useCallback(() => {
     setLoading(true);
     const params = new URLSearchParams({
-      status: tab,
+      status: TAB_TO_STATUS[tab] ?? tab,
       page: String(page),
       pageSize: String(PAGE_SIZE),
     });
@@ -200,8 +237,8 @@ export default function SignupRequestsPage() {
     fetch(`/api/admin/signup-requests?${params}`)
       .then((r) => r.json())
       .then((d) => {
-        setRequests(d?.requests ?? []);
-        setTotal(d?.total ?? 0);
+        setRequests(d?.data ?? []);
+        setTotal(d?.pagination?.total ?? 0);
       })
       .catch(() => {
         setRequests([]);
@@ -219,8 +256,9 @@ export default function SignupRequestsPage() {
   }, [tab, search]);
 
   const handleApprove = async () => {
-    if (!approveTarget) return;
+    if (!approveTarget || !approveFormValid) return;
     setApproveLoading(true);
+    setApproveError("");
     try {
       const res = await fetch(
         `/api/admin/signup-requests/${approveTarget.id}/approve`,
@@ -228,22 +266,30 @@ export default function SignupRequestsPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            role: approveRole || approveTarget.role,
+            role: effectiveApproveRole,
             note: approveNote || undefined,
+            firstName: approveFirstName.trim() || undefined,
+            lastName: approveLastName.trim() || undefined,
+            gradeLevel: approveGradeLevel || undefined,
+            gender: approveGender || undefined,
+            studentId: approveStudentId.trim() || undefined,
+            employeeId: approveEmployeeId.trim() || undefined,
           }),
         }
       );
-      if (!res.ok) throw new Error();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setApproveError(data?.error ?? "Failed to approve.");
+        return;
+      }
       toast({
         title: "Request approved",
-        description: `${approveTarget.name} approved as ${ROLE_LABELS[approveRole || approveTarget.role]}.`,
+        description: `${approveTarget.email} approved as ${ROLE_LABELS[effectiveApproveRole]}.`,
       });
       setApproveTarget(null);
-      setApproveNote("");
-      setApproveRole("");
       fetchData();
     } catch {
-      toast({ title: "Failed to approve", variant: "destructive" });
+      setApproveError("Failed to approve.");
     } finally {
       setApproveLoading(false);
     }
@@ -264,7 +310,7 @@ export default function SignupRequestsPage() {
       if (!res.ok) throw new Error();
       toast({
         title: "Request rejected",
-        description: `${rejectTarget.name}'s request has been rejected.`,
+        description: `${rejectTarget.email}'s request has been rejected.`,
       });
       setRejectTarget(null);
       setRejectReason("");
@@ -429,13 +475,12 @@ export default function SignupRequestsPage() {
           {approveTarget && (
             <div className="space-y-4 py-2">
               <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                <p className="font-medium text-gray-900">{approveTarget.name}</p>
-                <p className="text-gray-500">{approveTarget.email}</p>
+                <p className="font-medium text-gray-900">{approveTarget.email}</p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="approve-role">Role</Label>
                 <Select
-                  value={approveRole || approveTarget.role}
+                  value={effectiveApproveRole}
                   onValueChange={setApproveRole}
                 >
                   <SelectTrigger id="approve-role">
@@ -448,6 +493,82 @@ export default function SignupRequestsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {effectiveApproveRole !== "ADMIN" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="approve-first-name">First name</Label>
+                    <Input
+                      id="approve-first-name"
+                      value={approveFirstName}
+                      onChange={(e) => setApproveFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="approve-last-name">Last name</Label>
+                    <Input
+                      id="approve-last-name"
+                      value={approveLastName}
+                      onChange={(e) => setApproveLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {effectiveApproveRole === "STUDENT" && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="approve-grade-level">Grade level</Label>
+                      <Select
+                        value={approveGradeLevel}
+                        onValueChange={setApproveGradeLevel}
+                      >
+                        <SelectTrigger id="approve-grade-level">
+                          <SelectValue placeholder="Select grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="GRADE_6">Grade 6</SelectItem>
+                          <SelectItem value="GRADE_7">Grade 7</SelectItem>
+                          <SelectItem value="GRADE_8">Grade 8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="approve-gender">Gender</Label>
+                      <Select value={approveGender} onValueChange={setApproveGender}>
+                        <SelectTrigger id="approve-gender">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MALE">Male</SelectItem>
+                          <SelectItem value="FEMALE">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="approve-student-id">Student ID</Label>
+                    <Input
+                      id="approve-student-id"
+                      value={approveStudentId}
+                      onChange={(e) => setApproveStudentId(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              {effectiveApproveRole === "TEACHER" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="approve-employee-id">Employee ID</Label>
+                  <Input
+                    id="approve-employee-id"
+                    value={approveEmployeeId}
+                    onChange={(e) => setApproveEmployeeId(e.target.value)}
+                  />
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label htmlFor="approve-note">
                   Note{" "}
@@ -461,6 +582,10 @@ export default function SignupRequestsPage() {
                   rows={2}
                 />
               </div>
+
+              {approveError && (
+                <p className="text-sm text-red-600">{approveError}</p>
+              )}
             </div>
           )}
           <DialogFooter>
@@ -475,6 +600,7 @@ export default function SignupRequestsPage() {
               variant="success"
               onClick={handleApprove}
               loading={approveLoading}
+              disabled={!approveFormValid}
             >
               Approve
             </Button>
@@ -497,8 +623,7 @@ export default function SignupRequestsPage() {
           {rejectTarget && (
             <div className="space-y-4 py-2">
               <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                <p className="font-medium text-gray-900">{rejectTarget.name}</p>
-                <p className="text-gray-500">{rejectTarget.email}</p>
+                <p className="font-medium text-gray-900">{rejectTarget.email}</p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="reject-reason">

@@ -86,13 +86,12 @@ export function SignUpForm() {
 
     setIsLoading(true);
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: formData.name?.trim(),
           email: formData.email?.trim().toLowerCase(),
-          role: formData.role,
+          requestedRole: formData.role,
           password: formData.password,
         }),
       });
@@ -100,7 +99,7 @@ export function SignUpForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        setServerError(data.message ?? "Registration failed. Please try again.");
+        setServerError(data.error ?? "Registration failed. Please try again.");
         return;
       }
 
@@ -289,7 +288,7 @@ export function SignUpForm() {
       <p className="mt-6 text-center text-sm text-gray-500">
         Already have an account?{" "}
         <Link
-          href="/auth/signin"
+          href="/login"
           className="text-primary-600 font-medium hover:underline"
         >
           Sign in

@@ -68,6 +68,22 @@ export default async function ParentDashboard({
     },
   })
 
+  // The student's actual current class is whichever rotation is ACTIVE right
+  // now — not whichever class happens to have the most recent grade snapshot
+  // (that could still be a prior, fully-graded rotation while the new one is
+  // still in progress and ungraded).
+  const activeGroupId = student.groupMemberships[0]?.studentGroupId
+  const activeInstance = activeGroupId
+    ? await db.historicalClassInstance.findFirst({
+        where: { studentGroupId: activeGroupId, status: 'ACTIVE' },
+        include: {
+          teacherClassAssignment: {
+            include: { activityTemplate: true, teacherProfile: true },
+          },
+        },
+      })
+    : null
+
   const gradeColorClass: Record<string, string> = {
     A: 'bg-emerald-600', 'A-': 'bg-emerald-500',
     'B+': 'bg-blue-600', B: 'bg-blue-500', 'B-': 'bg-blue-400',
@@ -77,7 +93,7 @@ export default async function ParentDashboard({
 
   const grade = currentSnapshot?.letterGrade
   const gradeBg = grade ? (gradeColorClass[grade] ?? 'bg-gray-500') : 'bg-gray-300'
-  const currentActivity = currentSnapshot?.historicalClassInstance.teacherClassAssignment
+  const currentActivity = activeInstance?.teacherClassAssignment
   const currentTeacher = currentActivity?.teacherProfile
   const scoreVal = (d: unknown) => d != null ? Number(d) : null
 

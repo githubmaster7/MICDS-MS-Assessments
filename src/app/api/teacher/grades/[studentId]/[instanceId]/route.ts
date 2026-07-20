@@ -4,11 +4,12 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { auditGradeChange, auditGradeSnapshot, AuditAction, createAuditLog } from '@/lib/audit'
 import { canTeacherGrade } from '@/lib/authorization'
-import { Role } from '@prisma/client'
+import { Role, RotationStatus } from '@prisma/client'
 import { z } from 'zod'
 import { calculateStandard1 } from '@/lib/grading/standard1'
-import { standardScoreToInternal, internalAverageToLetterGrade } from '@/lib/grading/conversion'
-import { ipRateLimitKey } from '@/lib/rate-limit'
+import { calculateStandard234 } from '@/lib/grading/standards234'
+import { createGradeSnapshot } from '@/lib/grading/snapshot'
+import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 interface RouteParams {
   params: Promise<{ studentId: string; instanceId: string }>
@@ -16,7 +17,10 @@ interface RouteParams {
 
 const UpdateAssessmentSchema = z.object({
   standardNumber: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
-  score: z.number().optional(),
+  // No raw `score` field on purpose — the score is always derived from
+  // skillScores/promptScores/standard4Rating via the rubric formula, never
+  // set directly, so it can't drift from the spreadsheet's percentage-tier
+  // logic.
   feedback: z.string().max(2000).optional().nullable(),
   isFeedbackStudentVisible: z.boolean().optional(),
   skillScores: z
@@ -27,12 +31,24 @@ const UpdateAssessmentSchema = z.object({
       }),
     )
     .optional(),
+  // Per-question teacher scores for Standard 2/3/4 concept questions.
+  promptScores: z
+    .array(
+      z.object({
+        promptDefinitionId: z.string().uuid(),
+        score: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+      }),
+    )
+    .optional(),
+  // Standard 4 only: teacher's rating of observed teamwork/leadership,
+  // separate from the student's own self-rating.
+  standard4Rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
 })
 
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
-  if (session.user.role !== Role.TEACHER && session.user.role !== Role.ADMIN) {
+  if (session.user.role !== Role.TEACHER) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
   }
 
@@ -52,11 +68,19 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   })
   if (!teacherProfile) return NextResponse.json({ error: 'Teacher profile not found.' }, { status: 404 })
 
-  if (instance.teacherClassAssignment.teacherProfileId !== teacherProfile.id && session.user.role !== Role.ADMIN) {
+  if (instance.teacherClassAssignment.teacherProfileId !== teacherProfile.id) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
   }
 
-  const [assessments, snapshot] = await Promise.all([
+  const regradeGrantActive =
+    instance.status !== RotationStatus.ACTIVE
+      ? (await db.classRegradeGrant.findFirst({
+          where: { historicalClassInstanceId: instanceId, teacherRegradeEnabled: true, closedAt: null },
+          select: { id: true },
+        })) !== null
+      : false
+
+  const [assessments, snapshot, gradeHistoryLogs, submissions] = await Promise.all([
     db.teacherAssessment.findMany({
       where: {
         historicalClassInstanceId: instanceId,
@@ -68,6 +92,11 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
             skillDefinition: { select: { id: true, skillName: true, skillType: true, displayOrder: true } },
           },
         },
+        teacherPromptScores: {
+          include: {
+            promptDefinition: { select: { id: true, promptText: true, standardNumber: true, displayOrder: true } },
+          },
+        },
         teacherStandard4Ratings: true,
       },
     }),
@@ -75,16 +104,127 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
       where: { studentProfileId: studentId, historicalClassInstanceId: instanceId },
       orderBy: { calculatedAt: 'desc' },
     }),
+    db.auditLog.findMany({
+      where: {
+        targetType: 'TeacherAssessment',
+        targetId: studentId,
+        targetLabel: { in: [1, 2, 3, 4].map((n) => `Standard ${n} — student ${studentId} — instance ${instanceId}`) },
+      },
+      include: { actor: { select: { email: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+    db.studentSubmission.findMany({
+      where: { historicalClassInstanceId: instanceId, studentProfileId: studentId },
+      include: {
+        historyEntries: { orderBy: { attemptNumber: 'asc' } },
+        writtenResponses: true,
+        studentSkillSelfRatings: true,
+        studentPromptRatings: true,
+        studentStandard4Ratings: true,
+      },
+    }),
   ])
 
-  return NextResponse.json({ data: { assessments, snapshot, canEdit: canGrade } })
+  // Teacher grading history, per standard — every save the teacher has made
+  // (score + feedback before/after), sourced from the audit log. This is the
+  // teacher-side counterpart to the student's own resubmission history.
+  const gradeHistory: Record<1 | 2 | 3 | 4, typeof gradeHistoryLogs> = { 1: [], 2: [], 3: [], 4: [] }
+  for (const log of gradeHistoryLogs) {
+    const match = log.targetLabel?.match(/^Standard (\d) —/)
+    const std = match ? (Number(match[1]) as 1 | 2 | 3 | 4) : null
+    if (std) gradeHistory[std].push(log)
+  }
+
+  // Student resubmission history, per standard — every attempt the student
+  // has made (frozen self-ratings + written responses), sourced from
+  // SubmissionHistoryEntry. Self-contained here so this route can power the
+  // group Class Analytics page's history modal without needing SSR.
+  const submissionStatus: Record<1 | 2 | 3 | 4, string | null> = { 1: null, 2: null, 3: null, 4: null }
+  const attemptCount: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 }
+  const studentHistory: Record<
+    1 | 2 | 3 | 4,
+    Array<{
+      attemptNumber: number
+      submittedAt: string
+      writtenResponses: { promptDefinitionId: string; responseText: string }[]
+      skillSelfRatings: { skillDefinitionId: string; rating: number }[]
+      promptSelfRatings: { promptDefinitionId: string; rating: number }[]
+      standard4SelfRating: number | null
+    }>
+  > = { 1: [], 2: [], 3: [], 4: [] }
+  for (const sub of submissions) {
+    const std = sub.standardNumber as 1 | 2 | 3 | 4
+    if (std !== 1 && std !== 2 && std !== 3 && std !== 4) continue
+    submissionStatus[std] = sub.status
+    attemptCount[std] = sub.latestAttemptNumber
+    studentHistory[std] = sub.historyEntries.map((h) => {
+      const s = h.snapshotData as {
+        writtenResponses?: { promptDefinitionId: string; responseText: string }[]
+        skillSelfRatings?: { skillDefinitionId: string; rating: number }[]
+        promptSelfRatings?: { promptDefinitionId: string; rating: number }[]
+        standard4SelfRating?: number | null
+      }
+      return {
+        attemptNumber: h.attemptNumber,
+        submittedAt: h.submittedAt.toISOString(),
+        writtenResponses: s.writtenResponses ?? [],
+        skillSelfRatings: s.skillSelfRatings ?? [],
+        promptSelfRatings: s.promptSelfRatings ?? [],
+        standard4SelfRating: s.standard4SelfRating ?? null,
+      }
+    })
+
+    // The live/current attempt isn't frozen into a SubmissionHistoryEntry
+    // until the *next* resubmission — append it as the timeline's final
+    // entry so the modal shows every attempt, not just the frozen ones.
+    if (sub.status !== 'NOT_STARTED') {
+      studentHistory[std].push({
+        attemptNumber: sub.latestAttemptNumber,
+        submittedAt: (sub.reassessmentSubmittedAt ?? sub.submittedAt ?? sub.updatedAt).toISOString(),
+        writtenResponses: sub.writtenResponses.map((wr) => ({
+          promptDefinitionId: wr.promptDefinitionId,
+          responseText: wr.responseText,
+        })),
+        skillSelfRatings: sub.studentSkillSelfRatings.map((sr) => ({
+          skillDefinitionId: sr.skillDefinitionId,
+          rating: sr.rating,
+        })),
+        promptSelfRatings: sub.studentPromptRatings.map((pr) => ({
+          promptDefinitionId: pr.promptDefinitionId,
+          rating: pr.rating,
+        })),
+        standard4SelfRating: sub.studentStandard4Ratings[0]?.rating ?? null,
+      })
+    }
+  }
+
+  return NextResponse.json({
+    data: {
+      assessments,
+      snapshot,
+      canEdit: canGrade,
+      regradeGrantActive,
+      gradeHistory,
+      studentHistory,
+      submissionStatus,
+      attemptCount,
+    },
+  })
 }
 
 export async function PUT(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
-  if (session.user.role !== Role.TEACHER && session.user.role !== Role.ADMIN) {
+  if (session.user.role !== Role.TEACHER) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+  }
+
+  const rl = await checkRateLimit(apiLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
   }
 
   const { studentId, instanceId } = await params
@@ -110,7 +250,8 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     return NextResponse.json({ error: parsed.error.errors[0]?.message ?? 'Invalid input.' }, { status: 400 })
   }
 
-  const { standardNumber, score, feedback, isFeedbackStudentVisible, skillScores } = parsed.data
+  const { standardNumber, feedback, isFeedbackStudentVisible, skillScores, promptScores, standard4Rating } =
+    parsed.data
 
   const teacherProfile = await db.teacherProfile.findUnique({
     where: { userId: session.user.id },
@@ -135,7 +276,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
 
   const before = existing ? { score: existing.score?.toNumber(), feedback: existing.feedback } : null
 
-  const assessment = await db.teacherAssessment.upsert({
+  let assessment = await db.teacherAssessment.upsert({
     where: {
       teacherProfileId_historicalClassInstanceId_studentProfileId_standardNumber: {
         teacherProfileId: teacherProfile.id,
@@ -149,12 +290,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
       historicalClassInstanceId: instanceId,
       studentProfileId: studentId,
       standardNumber,
-      score: score ?? null,
       feedback: feedback ?? null,
       isFeedbackStudentVisible: isFeedbackStudentVisible ?? false,
     },
     update: {
-      ...(score !== undefined ? { score } : {}),
       ...(feedback !== undefined ? { feedback } : {}),
       ...(isFeedbackStudentVisible !== undefined ? { isFeedbackStudentVisible } : {}),
     },
@@ -189,10 +328,92 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     const std1Result = calculateStandard1(
       allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
     )
-    await db.teacherAssessment.update({
+    assessment = await db.teacherAssessment.update({
       where: { id: assessment.id },
       data: { score: std1Result.score },
     })
+  }
+
+  // Handle Standard 2/3/4 per-question prompt scores + Standard 4's
+  // teacher demonstration rating
+  if ((standardNumber === 2 || standardNumber === 3 || standardNumber === 4) && promptScores && promptScores.length > 0) {
+    await Promise.all(
+      promptScores.map((ps) =>
+        db.teacherPromptScore.upsert({
+          where: {
+            teacherAssessmentId_promptDefinitionId: {
+              teacherAssessmentId: assessment.id,
+              promptDefinitionId: ps.promptDefinitionId,
+            },
+          },
+          create: {
+            teacherAssessmentId: assessment.id,
+            promptDefinitionId: ps.promptDefinitionId,
+            score: ps.score,
+          },
+          update: { score: ps.score },
+        }),
+      ),
+    )
+  }
+
+  if (standardNumber === 4 && standard4Rating !== undefined) {
+    await db.teacherStandard4Rating.upsert({
+      where: { teacherAssessmentId: assessment.id },
+      create: { teacherAssessmentId: assessment.id, rating: standard4Rating },
+      update: { rating: standard4Rating },
+    })
+  }
+
+  if (
+    (standardNumber === 2 || standardNumber === 3 || standardNumber === 4) &&
+    (promptScores?.length || standard4Rating !== undefined)
+  ) {
+    const items: { itemId: string; score: 1 | 2 | 3 | 4 }[] = []
+
+    const allPromptScores = await db.teacherPromptScore.findMany({
+      where: { teacherAssessmentId: assessment.id },
+      select: { promptDefinitionId: true, score: true },
+    })
+    items.push(
+      ...allPromptScores.map((p: { promptDefinitionId: string; score: number }) => ({
+        itemId: p.promptDefinitionId,
+        score: p.score as 1 | 2 | 3 | 4,
+      })),
+    )
+
+    if (standardNumber === 4) {
+      const teacherRating = await db.teacherStandard4Rating.findUnique({
+        where: { teacherAssessmentId: assessment.id },
+        select: { rating: true },
+      })
+      if (teacherRating) {
+        items.push({ itemId: 'teacher-demonstration-rating', score: teacherRating.rating as 1 | 2 | 3 | 4 })
+      }
+
+      const submission = await db.studentSubmission.findUnique({
+        where: {
+          studentProfileId_historicalClassInstanceId_standardNumber: {
+            studentProfileId: studentId,
+            historicalClassInstanceId: instanceId,
+            standardNumber: 4,
+          },
+        },
+        include: { studentStandard4Ratings: true },
+      })
+      const selfRating = submission?.studentStandard4Ratings[0]
+      if (selfRating) {
+        items.push({ itemId: 'student-self-rating', score: selfRating.rating as 1 | 2 | 3 | 4 })
+      }
+    }
+
+    if (items.length > 0) {
+      const std234Result = calculateStandard234(items)
+      assessment = await db.teacherAssessment.update({
+        where: { id: assessment.id },
+        data: { score: std234Result.score },
+      })
+    }
   }
 
   // Recalculate grade snapshot
@@ -216,7 +437,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     historicalClassInstanceId: instanceId,
     standardNumber,
     before,
-    after: { score, feedback },
+    after: { score: assessment.score?.toNumber() ?? null, feedback },
     ipAddress: ip,
     userAgent,
   })
@@ -238,50 +459,10 @@ async function recalculateSnapshot(opts: {
   userAgent?: string
 }): Promise<void> {
   try {
-    const assessments = await db.teacherAssessment.findMany({
-      where: {
-        historicalClassInstanceId: opts.instanceId,
-        studentProfileId: opts.studentProfileId,
-      },
-      select: { standardNumber: true, score: true },
-    })
-
-    const byStd = new Map<number, number | null>(assessments.map((a: { standardNumber: number; score: unknown }) => [a.standardNumber, a.score != null ? Number(a.score) : null]))
-
-    const s1 = byStd.get(1) ?? null
-    const s2 = byStd.get(2) ?? null
-    const s3 = byStd.get(3) ?? null
-    const s4 = byStd.get(4) ?? null
-
-    let overallAverage: number | null = null
-    let letterGrade: string | null = null
-
-    if (s1 !== null && s2 !== null && s3 !== null && s4 !== null) {
-      try {
-        const i1 = standardScoreToInternal(s1 as number)
-        const i2 = standardScoreToInternal(s2 as number)
-        const i3 = standardScoreToInternal(s3 as number)
-        const i4 = standardScoreToInternal(s4 as number)
-        overallAverage = (i1 + i2 + i3 + i4) / 4
-        letterGrade = internalAverageToLetterGrade(overallAverage)
-      } catch {
-        // Score not in valid set yet — skip
-      }
-    }
-
-    const snapshot = await db.gradeCalculationSnapshot.create({
-      data: {
-        studentProfileId: opts.studentProfileId,
-        historicalClassInstanceId: opts.instanceId,
-        schoolYearId: opts.schoolYearId,
-        standard1Score: s1,
-        standard2Score: s2,
-        standard3Score: s3,
-        standard4Score: s4,
-        overallAverage,
-        letterGrade,
-        snapshotData: { assessments: Object.fromEntries(byStd) },
-      },
+    const snapshot = await createGradeSnapshot(db, {
+      studentProfileId: opts.studentProfileId,
+      historicalClassInstanceId: opts.instanceId,
+      schoolYearId: opts.schoolYearId,
     })
 
     await auditGradeSnapshot({

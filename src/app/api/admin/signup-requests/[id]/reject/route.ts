@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { sendRejectionEmail } from '@/lib/email'
 import { auditApproval } from '@/lib/audit'
 import { Role, AccountStatus } from '@prisma/client'
 import { z } from 'zod'
-import { ipRateLimitKey } from '@/lib/rate-limit'
+import { ipRateLimitKey, adminApprovalLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 const RejectSchema = z.object({
   reason: z.string().max(500).optional(),
@@ -23,6 +23,14 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   }
   if (session.user.role !== Role.ADMIN) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+  }
+
+  const rl = await checkRateLimit(adminApprovalLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
   }
 
   const { id } = await params
@@ -62,7 +70,7 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   const ip = ipRateLimitKey(req)
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  await db.$transaction(async (tx: typeof db) => {
+  await db.$transaction(async (tx: TxClient) => {
     await tx.user.update({
       where: { id: signupRequest.userId },
       data: { status: AccountStatus.REJECTED },

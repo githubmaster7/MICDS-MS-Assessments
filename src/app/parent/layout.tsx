@@ -9,7 +9,7 @@ export default async function ParentLayout({ children }: { children: React.React
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-56 bg-purple-900 text-white flex flex-col shrink-0">
+      <aside className="w-56 h-screen sticky top-0 bg-purple-900 text-white flex flex-col shrink-0">
         <div className="p-4 border-b border-purple-800">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded bg-purple-700 flex items-center justify-center font-bold text-sm">PE</div>

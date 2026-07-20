@@ -84,13 +84,17 @@ export async function middleware(request: NextRequest) {
   const role = token.role as string | undefined;
   const status = token.status as string | undefined;
 
-  // PENDING users may only see the pending approval page
-  if (status === "PENDING" && pathname !== "/pending-approval") {
+  // Users who haven't verified their email or been approved by an admin may
+  // only see the pending-approval page. No sensitive route is reachable.
+  if (
+    (status === "PENDING_EMAIL_VERIFICATION" || status === "PENDING_ADMIN_APPROVAL") &&
+    pathname !== "/pending-approval"
+  ) {
     return NextResponse.redirect(new URL("/pending-approval", request.url));
   }
 
-  // REJECTED/SUSPENDED users are bounced to login
-  if (status === "REJECTED" || status === "SUSPENDED") {
+  // REJECTED/DEACTIVATED users are bounced to login
+  if (status === "REJECTED" || status === "DEACTIVATED") {
     return NextResponse.redirect(
       new URL("/login?error=AccountDisabled", request.url)
     );

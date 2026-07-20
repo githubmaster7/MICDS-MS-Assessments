@@ -6,8 +6,8 @@
  * for Standards 1–4 determines the letter grade via fixed thresholds.
  */
 
-// Re-exported from constants for convenience — kept as the single source of
-// truth in constants.ts but exposed here so callers only need one import.
+// The single source of truth for standard-score → internal-contribution
+// mapping. Do not duplicate this elsewhere.
 export const STANDARD_SCORE_MAP: Record<number, number> = {
   1: 0.5,
   1.5: 0.6,

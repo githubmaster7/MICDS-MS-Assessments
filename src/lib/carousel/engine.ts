@@ -196,14 +196,9 @@ export function validateCarouselRotation(state: CarouselState): ValidationResult
     }
   }
 
-  // Warn about positions with no current group assigned
-  for (const position of state.positions) {
-    if (!assignmentsByPosition.has(position.id)) {
-      warnings.push(
-        `Position "${position.id}" (order ${position.positionOrder}) has no group currently assigned`
-      )
-    }
-  }
+  // A position with no group currently assigned is expected whenever there
+  // are fewer active groups than carousel positions — not a validation
+  // problem, so it's intentionally not surfaced as a warning here.
 
   return { isValid: errors.length === 0, errors, warnings }
 }
@@ -298,6 +293,33 @@ export function computeNextRotationAssignments(state: CarouselState): NewAssignm
   }
 
   return result
+}
+
+/**
+ * Given a group's positions (in whatever order they currently hold) and the
+ * position it's presently sitting at, compute the sequence of position IDs
+ * for the next `count` rotations by walking `nextPosition` repeatedly.
+ *
+ * Used to eagerly re-sync a group's pre-scheduled UPCOMING rotations after
+ * an admin reorders positions, so every view that reads the stored
+ * `GroupRotationAssignment.carouselPositionId` directly (the admin's full
+ * plan, the teacher's upcoming-classes list, the student's My Classes page)
+ * reflects the new order immediately rather than waiting for `/rotate` to
+ * actually execute each future rotation.
+ */
+export function computeUpcomingSequence(
+  positions: CarouselPosition[],
+  currentPositionId: string,
+  count: number,
+): string[] {
+  const sequence: string[] = []
+  let cursor = currentPositionId
+  for (let i = 0; i < count; i++) {
+    const next = nextPosition(positions, cursor)
+    sequence.push(next.id)
+    cursor = next.id
+  }
+  return sequence
 }
 
 /**

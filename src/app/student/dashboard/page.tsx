@@ -2,12 +2,20 @@ import { Metadata } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import Link from 'next/link'
 
 
 type ClassInst = {
   id: string
   status: string
-  gradeSnapshots: { letterGrade?: string | null }[]
+  gradeSnapshots: {
+    letterGrade?: string | null
+    standard1Score?: unknown
+    standard2Score?: unknown
+    standard3Score?: unknown
+    standard4Score?: unknown
+    historicalClassInstanceId: string
+  }[]
   teacherClassAssignment: {
     activityTemplate: { name: string }
     teacherProfile: { firstName: string; lastName: string }
@@ -41,24 +49,6 @@ export default async function StudentDashboard() {
     )
   }
 
-  // Get most recent grade snapshot
-  const currentSnapshot = await db.gradeCalculationSnapshot.findFirst({
-    where: { studentProfileId: student.id },
-    orderBy: { calculatedAt: 'desc' },
-    include: {
-      historicalClassInstance: {
-        include: {
-          teacherClassAssignment: {
-            include: {
-              activityTemplate: true,
-              teacherProfile: true,
-            },
-          },
-        },
-      },
-    },
-  })
-
   // Get all class instances for this student's group
   const groupId = student.groupMemberships[0]?.studentGroup.id
   const allInstances = groupId ? await db.historicalClassInstance.findMany({
@@ -90,10 +80,20 @@ export default async function StudentDashboard() {
     'D+': 'bg-orange-600', D: 'bg-red-500', 'D-': 'bg-red-600', F: 'bg-red-700',
   }
 
+  // The student's actual current class is whichever rotation is ACTIVE right
+  // now — not whichever class happens to have the most recent grade snapshot
+  // (that could still be a prior, fully-graded rotation while the new one is
+  // still in progress and ungraded). The hero grade/standards MUST come from
+  // that same active instance's own snapshot — pulling the globally most
+  // recent snapshot instead would show a past class's grade under the
+  // current class's name whenever the active class hasn't been graded yet.
+  const activeInstance = (allInstances as ClassInst[]).find((i) => i.status === 'ACTIVE')
+  const currentSnapshot = activeInstance?.gradeSnapshots[0] ?? null
+  const currentActivity = activeInstance?.teacherClassAssignment
+  const currentTeacher = currentActivity?.teacherProfile
+
   const grade = currentSnapshot?.letterGrade
   const gradeBg = grade ? (gradeColorClass[grade] ?? 'bg-gray-500') : 'bg-gray-300'
-  const currentActivity = currentSnapshot?.historicalClassInstance.teacherClassAssignment
-  const currentTeacher = currentActivity?.teacherProfile
 
   const scoreVal = (d: unknown) => d != null ? Number(d) : null
 
@@ -128,11 +128,21 @@ export default async function StudentDashboard() {
         </div>
         <div className="flex-1">
           {currentActivity && (
-            <div>
-              <div className="font-semibold">{currentActivity.activityTemplate.name}</div>
-              <div className="text-white/80 text-sm">
-                {currentTeacher ? `${currentTeacher.firstName} ${currentTeacher.lastName}` : 'No teacher assigned'}
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="font-semibold">{currentActivity.activityTemplate.name}</div>
+                <div className="text-white/80 text-sm">
+                  {currentTeacher ? `${currentTeacher.firstName} ${currentTeacher.lastName}` : 'No teacher assigned'}
+                </div>
               </div>
+              {activeInstance && (
+                <Link
+                  href={`/student/submit/${activeInstance.id}`}
+                  className="shrink-0 bg-white/20 hover:bg-white/30 transition-colors text-white text-sm font-medium px-4 py-2 rounded-lg"
+                >
+                  Submit Work
+                </Link>
+              )}
             </div>
           )}
           <div className="mt-3 grid grid-cols-4 gap-2 text-center">

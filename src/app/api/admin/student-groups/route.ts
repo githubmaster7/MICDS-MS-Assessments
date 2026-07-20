@@ -52,6 +52,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       include: {
         schoolYear: { select: { id: true, name: true } },
         _count: { select: { memberships: true } },
+        groupRotationAssignments: {
+          where: { status: 'ACTIVE' },
+          take: 1,
+          include: {
+            carouselPosition: {
+              include: {
+                teacherClassAssignment: {
+                  include: {
+                    activityTemplate: { select: { name: true } },
+                    teacherProfile: { select: { firstName: true, lastName: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     }),
   ])

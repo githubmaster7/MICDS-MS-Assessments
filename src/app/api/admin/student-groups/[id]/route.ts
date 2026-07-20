@@ -31,7 +31,6 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
       _count: { select: { memberships: true } },
       groupRotationAssignments: {
         orderBy: { rotationNumber: 'desc' },
-        take: 5,
         select: {
           id: true,
           rotationNumber: true,
@@ -46,6 +45,16 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
                   teacherProfile: { select: { firstName: true, lastName: true } },
                   activityTemplate: { select: { name: true } },
                 },
+              },
+            },
+          },
+          historicalClassInstances: {
+            select: {
+              id: true,
+              status: true,
+              regradeGrants: {
+                where: { closedAt: null },
+                select: { id: true, teacherRegradeEnabled: true, _count: { select: { studentGrants: true } } },
               },
             },
           },
@@ -124,4 +133,58 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   })
 
   return NextResponse.json({ data: updated })
+}
+
+export async function DELETE(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
+  if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+
+  const { id } = await params
+
+  const existing = await db.studentGroup.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      _count: { select: { groupRotationAssignments: true, historicalClassInstances: true, memberships: true } },
+    },
+  })
+  if (!existing) return NextResponse.json({ error: 'Student group not found.' }, { status: 404 })
+
+  if (existing.isActive) {
+    return NextResponse.json(
+      { error: 'Remove this group first before permanently deleting it.' },
+      { status: 409 },
+    )
+  }
+
+  if (existing._count.groupRotationAssignments > 0 || existing._count.historicalClassInstances > 0) {
+    return NextResponse.json(
+      {
+        error:
+          'This group has rotation and grade history, so it can only be removed (archived), not permanently deleted.',
+      },
+      { status: 409 },
+    )
+  }
+
+  const ip = ipRateLimitKey(req)
+
+  await db.studentGroup.delete({ where: { id } })
+
+  await createAuditLog({
+    actorId: session.user.id,
+    actorRole: session.user.role,
+    action: AuditAction.STUDENT_GROUP_DELETED,
+    targetType: 'StudentGroup',
+    targetId: id,
+    targetLabel: existing.name,
+    beforeValue: { name: existing.name, memberships: existing._count.memberships },
+    ipAddress: ip,
+    userAgent: req.headers.get('user-agent') ?? undefined,
+  })
+
+  return NextResponse.json({ data: { id } })
 }

@@ -7,14 +7,20 @@ import {
   ChevronUp,
   ChevronDown,
   AlertTriangle,
-  CheckCircle2,
   Clock,
   Undo2,
-  GripVertical,
+  CalendarDays,
+  Save,
+  Unlock,
+  Lock,
+  Plus,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -23,7 +29,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 
 interface Position {
@@ -31,333 +36,597 @@ interface Position {
   positionOrder: number;
   teacherName: string;
   activity: string;
-  assignedGroup?: {
-    id: string;
-    name: string;
-    gradeLevel: string;
-    gender: string;
-  };
+  isCurrent: boolean;
 }
 
-interface CarouselPlan {
+interface GroupCarousel {
   id: string;
   name: string;
-  isActive: boolean;
+  gradeLevel: string;
+  gender: string;
   positions: Position[];
-}
-
-interface PreviewRow {
-  groupId: string;
-  groupName: string;
-  currentTeacher: string;
-  currentActivity: string;
-  nextTeacher: string;
-  nextActivity: string;
 }
 
 interface RotationRecord {
   id: string;
+  studentGroupId: string;
+  groupName: string;
+  rotationNumber: number;
+  fromActivityName: string | null;
+  toActivityName: string;
   executedAt: string;
-  executedByName: string;
-  positionsCount: number;
+  executedByEmail: string;
   isReverted: boolean;
-  revertedAt?: string;
-  revertedByName?: string;
-  revertReason?: string;
+  revertedByEmail: string | null;
+  revertReason: string | null;
 }
 
+interface OpenGrantSummary {
+  id: string;
+  teacherRegradeEnabled: boolean;
+  historicalClassInstance: {
+    studentGroup: { name: string };
+    groupRotationAssignment: { rotationNumber: number };
+    teacherClassAssignment: { activityTemplate: { name: string } };
+  };
+  studentGrants: Array<{ studentProfile: { id: string; firstName: string; lastName: string } }>;
+}
+
+interface GroupPreviewRow {
+  studentGroupId: string;
+  groupName: string;
+  currentActivity: string | null;
+  currentTeacher: string | null;
+  nextActivity: string | null;
+  nextTeacher: string | null;
+  earlyRotation: { currentEndDate: string } | null;
+  error?: string;
+}
+
+interface EarlyRotationInfo {
+  groups: Array<{ studentGroupId: string; groupName: string; currentEndDate: string }>;
+}
+
+interface AssignmentOption {
+  id: string;
+  teacherProfile: { firstName: string; lastName: string };
+  activityTemplate: { name: string };
+}
+
+const GRADE_LABELS: Record<string, string> = { GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
+const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+function toInputDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+function defaultDates() {
+  const today = new Date();
+  const twoWeeksOut = new Date(today);
+  twoWeeksOut.setDate(twoWeeksOut.getDate() + 14);
+  return { start: toInputDate(today), end: toInputDate(twoWeeksOut) };
 }
 
 function GenderDot({ gender }: { gender: string }) {
-  const colors: Record<string, string> = {
-    MALE: "bg-sky-400",
-    FEMALE: "bg-pink-400",
-    MIXED: "bg-violet-400",
-  };
-  return (
-    <span
-      className={`inline-block h-2 w-2 rounded-full ${colors[gender] ?? "bg-gray-400"}`}
-      title={gender.charAt(0) + gender.slice(1).toLowerCase()}
-    />
-  );
-}
-
-function PositionCard({
-  position,
-  index,
-  total,
-  onMoveUp,
-  onMoveDown,
-  isDragging,
-}: {
-  position: Position;
-  index: number;
-  total: number;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  isDragging: boolean;
-}) {
-  return (
-    <div
-      className={`flex items-center gap-3 bg-white rounded-xl border px-4 py-3 transition-all ${
-        isDragging ? "border-primary-400 shadow-lg scale-[1.02]" : "border-gray-200 hover:border-gray-300"
-      }`}
-      role="listitem"
-    >
-      <div className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing shrink-0" aria-hidden="true">
-        <GripVertical className="h-4 w-4" />
-      </div>
-      <span className="text-xs font-semibold text-gray-400 tabular-nums w-5 shrink-0">{position.positionOrder}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{position.teacherName}</p>
-        <p className="text-xs text-gray-500 truncate">{position.activity}</p>
-      </div>
-      <div className="shrink-0 text-right">
-        {position.assignedGroup ? (
-          <div className="flex items-center gap-1.5">
-            <GenderDot gender={position.assignedGroup.gender} />
-            <span className="text-sm text-gray-700 font-medium">{position.assignedGroup.name}</span>
-            <span className="text-xs text-gray-400">Gr.{position.assignedGroup.gradeLevel}</span>
-          </div>
-        ) : (
-          <span className="text-xs text-gray-400 italic">Unassigned</span>
-        )}
-      </div>
-      <div className="flex flex-col gap-0.5 shrink-0">
-        <button
-          onClick={onMoveUp}
-          disabled={index === 0}
-          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-          aria-label="Move position up"
-        >
-          <ChevronUp className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={onMoveDown}
-          disabled={index === total - 1}
-          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-          aria-label="Move position down"
-        >
-          <ChevronDown className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    </div>
-  );
+  const colors: Record<string, string> = { MALE: "bg-sky-400", FEMALE: "bg-pink-400" };
+  return <span className={`inline-block h-2 w-2 rounded-full ${colors[gender] ?? "bg-gray-400"}`} title={GENDER_LABELS[gender] ?? gender} />;
 }
 
 export default function CarouselPage() {
   const { toast } = useToast();
 
-  const [plan, setPlan] = React.useState<CarouselPlan | null>(null);
-  const [positions, setPositions] = React.useState<Position[]>([]);
-  const [rotations, setRotations] = React.useState<RotationRecord[]>([]);
+  const [planId, setPlanId] = React.useState<string | null>(null);
+  const [planName, setPlanName] = React.useState("");
+  const [groups, setGroups] = React.useState<GroupCarousel[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [orderDirty, setOrderDirty] = React.useState(false);
-  const [savingOrder, setSavingOrder] = React.useState(false);
+  const [dirtyGroups, setDirtyGroups] = React.useState<Set<string>>(new Set());
+  const [savingGroupId, setSavingGroupId] = React.useState<string | null>(null);
+  const [selectedGroupIds, setSelectedGroupIds] = React.useState<Set<string>>(new Set());
+
+  const [history, setHistory] = React.useState<RotationRecord[]>([]);
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [preview, setPreview] = React.useState<PreviewRow[]>([]);
   const [previewLoading, setPreviewLoading] = React.useState(false);
-  const [previewWarnings, setPreviewWarnings] = React.useState<string[]>([]);
+  const [previewRows, setPreviewRows] = React.useState<GroupPreviewRow[]>([]);
+
+  const [fullPlanOpen, setFullPlanOpen] = React.useState(false);
+  const [fullPlan, setFullPlan] = React.useState<Array<{ groupId: string; groupName: string; steps: Array<{ rotationNumber: number; status: string; teacher: string; activity: string }> }>>([]);
+  const [fullPlanLoading, setFullPlanLoading] = React.useState(false);
+  const [fullPlanError, setFullPlanError] = React.useState<string | null>(null);
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [confirmGroupIds, setConfirmGroupIds] = React.useState<string[]>([]);
   const [confirmText, setConfirmText] = React.useState("");
   const [rotating, setRotating] = React.useState(false);
+  const [rotateStartDate, setRotateStartDate] = React.useState("");
+  const [rotateEndDate, setRotateEndDate] = React.useState("");
+  const [earlyRotation, setEarlyRotation] = React.useState<EarlyRotationInfo | null>(null);
+  const [earlyRotationChecking, setEarlyRotationChecking] = React.useState(false);
+  const [overrideEarlyRotation, setOverrideEarlyRotation] = React.useState(false);
 
-  const [reopenTarget, setReopenTarget] = React.useState<RotationRecord | null>(null);
-  const [reopenReason, setReopenReason] = React.useState("");
-  const [reopenLoading, setReopenLoading] = React.useState(false);
+  const [reopenAllOpen, setReopenAllOpen] = React.useState(false);
+  const [reopenAllTeacherEnabled, setReopenAllTeacherEnabled] = React.useState(true);
+  const [reopenAllReason, setReopenAllReason] = React.useState("");
+  const [reopenAllConfirmText, setReopenAllConfirmText] = React.useState("");
+  const [reopenAllLoading, setReopenAllLoading] = React.useState(false);
 
-  const [dragIndex, setDragIndex] = React.useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
+  const [lockAllOpen, setLockAllOpen] = React.useState(false);
+  const [lockAllConfirmText, setLockAllConfirmText] = React.useState("");
+  const [lockAllLoading, setLockAllLoading] = React.useState(false);
+  const [lockAllOpenGrants, setLockAllOpenGrants] = React.useState<OpenGrantSummary[]>([]);
+  const [lockAllFetching, setLockAllFetching] = React.useState(false);
+
+  const [setupGroup, setSetupGroup] = React.useState<{ id: string; name: string } | null>(null);
+  const [setupOptions, setSetupOptions] = React.useState<AssignmentOption[]>([]);
+  const [setupOptionsLoading, setSetupOptionsLoading] = React.useState(false);
+  const [setupSelected, setSetupSelected] = React.useState<string[]>([]);
+  const [setupStartDate, setSetupStartDate] = React.useState("");
+  const [setupEndDate, setSetupEndDate] = React.useState("");
+  const [setupSubmitting, setSetupSubmitting] = React.useState(false);
 
   const fetchData = React.useCallback(() => {
     setLoading(true);
     fetch("/api/admin/carousel")
       .then((r) => r.json())
-      .then((d) => {
-        const p: CarouselPlan = d?.plan ?? d;
-        setPlan(p);
-        const sorted = [...(p?.positions ?? [])].sort((a, b) => a.positionOrder - b.positionOrder);
-        setPositions(sorted);
-        setRotations(d?.rotations ?? []);
+      .then(async (carouselData) => {
+        interface RawPlan { id: string; name: string; isActive: boolean }
+        const plans: RawPlan[] = carouselData?.data ?? [];
+        const plan = plans.find((p) => p.isActive) ?? plans[0] ?? null;
+        if (!plan) {
+          setPlanId(null);
+          setPlanName("");
+          setGroups([]);
+          setHistory([]);
+          return;
+        }
+        setPlanId(plan.id);
+        setPlanName(plan.name);
+
+        const groupsRes = await fetch("/api/admin/student-groups");
+        const groupsData = await groupsRes.json();
+        interface RawGroup { id: string; name: string; gradeLevel: string; gender: string; isActive: boolean }
+        const activeGroups: RawGroup[] = (groupsData?.data ?? []).filter((g: RawGroup) => g.isActive);
+
+        interface RawPosition {
+          id: string;
+          positionOrder: number;
+          teacherClassAssignment: { teacherProfile: { firstName: string; lastName: string }; activityTemplate: { name: string } };
+          groupRotationAssignments: Array<{ id: string }>;
+        }
+
+        const groupCarousels: GroupCarousel[] = await Promise.all(
+          activeGroups.map(async (g) => {
+            const posRes = await fetch(`/api/admin/carousel/${g.id}/positions`);
+            const posData = await posRes.json();
+            const rawPositions: RawPosition[] = posData?.data ?? [];
+            const positions: Position[] = rawPositions
+              .map((p) => ({
+                id: p.id,
+                positionOrder: p.positionOrder,
+                teacherName: `${p.teacherClassAssignment.teacherProfile.firstName} ${p.teacherClassAssignment.teacherProfile.lastName}`,
+                activity: p.teacherClassAssignment.activityTemplate.name,
+                isCurrent: p.groupRotationAssignments.length > 0,
+              }))
+              .sort((a, b) => a.positionOrder - b.positionOrder);
+            return { id: g.id, name: g.name, gradeLevel: g.gradeLevel, gender: g.gender, positions };
+          }),
+        );
+        setGroups(groupCarousels);
+        setSelectedGroupIds((prev) => (prev.size > 0 ? prev : new Set(groupCarousels.map((g) => g.id))));
+
+        const historyRes = await fetch(`/api/admin/carousel/rotation-history?planId=${plan.id}`);
+        const historyData = await historyRes.json();
+        setHistory(historyData?.data ?? []);
       })
-      .catch(() => { setPlan(null); setPositions([]); })
+      .catch(() => { setGroups([]); setHistory([]); })
       .finally(() => setLoading(false));
   }, []);
 
   React.useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleDragStart = (index: number) => setDragIndex(index);
-  const handleDragOver = (e: React.DragEvent, index: number) => { e.preventDefault(); setDragOverIndex(index); };
-  const handleDrop = (targetIndex: number) => {
-    if (dragIndex === null || dragIndex === targetIndex) { setDragIndex(null); setDragOverIndex(null); return; }
-    const newPositions = [...positions];
-    const [moved] = newPositions.splice(dragIndex, 1);
-    newPositions.splice(targetIndex, 0, moved);
-    setPositions(newPositions.map((p, i) => ({ ...p, positionOrder: i + 1 })));
-    setOrderDirty(true);
-    setDragIndex(null);
-    setDragOverIndex(null);
-  };
-  const handleDragEnd = () => { setDragIndex(null); setDragOverIndex(null); };
-
-  const movePosition = (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= positions.length) return;
-    const newPositions = [...positions];
-    [newPositions[index], newPositions[target]] = [newPositions[target], newPositions[index]];
-    setPositions(newPositions.map((p, i) => ({ ...p, positionOrder: i + 1 })));
-    setOrderDirty(true);
+  const toggleGroupSelected = (groupId: string) => {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
   };
 
-  const handleSaveOrder = async () => {
-    if (!plan) return;
-    setSavingOrder(true);
+  const movePosition = (groupId: string, index: number, direction: -1 | 1) => {
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g;
+        const target = index + direction;
+        if (target < 0 || target >= g.positions.length) return g;
+        const positions = [...g.positions];
+        [positions[index], positions[target]] = [positions[target], positions[index]];
+        return { ...g, positions: positions.map((p, i) => ({ ...p, positionOrder: i + 1 })) };
+      }),
+    );
+    setDirtyGroups((prev) => new Set(prev).add(groupId));
+  };
+
+  const saveOrder = async (groupId: string) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    setSavingGroupId(groupId);
     try {
-      const res = await fetch(`/api/admin/carousel/${plan.id}/positions`, {
-        method: "PATCH",
+      const res = await fetch(`/api/admin/carousel/${groupId}/positions`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ positions: positions.map((p) => ({ id: p.id, positionOrder: p.positionOrder })) }),
+        body: JSON.stringify({ positions: group.positions.map((p) => ({ positionId: p.id, positionOrder: p.positionOrder })) }),
       });
-      if (!res.ok) throw new Error();
-      toast({ title: "Order saved" });
-      setOrderDirty(false);
-    } catch {
-      toast({ title: "Failed to save order", variant: "destructive" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to save order.");
+      toast({ title: `${group.name}: order saved` });
+      setDirtyGroups((prev) => { const next = new Set(prev); next.delete(groupId); return next; });
+      fetchData();
+    } catch (e) {
+      toast({ title: "Failed to save order", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
     } finally {
-      setSavingOrder(false);
+      setSavingGroupId(null);
     }
   };
 
-  const handlePreview = async () => {
+  const handlePreview = async (groupIds: string[]) => {
+    if (!planId) return;
+    if (groupIds.length === 0) {
+      toast({ title: "Select at least one group to preview", variant: "destructive" });
+      return;
+    }
     setPreviewLoading(true);
     setPreviewOpen(true);
+    const { start, end } = defaultDates();
     try {
-      const res = await fetch("/api/admin/carousel/preview", {
+      const res = await fetch("/api/admin/carousel/rotate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan?.id }),
+        body: JSON.stringify({ planId, studentGroupIds: groupIds, confirm: false, startDate: new Date(start).toISOString(), endDate: new Date(end).toISOString() }),
       });
-      const data = await res.json();
-      setPreview(data?.preview ?? []);
-      setPreviewWarnings(data?.warnings ?? []);
-    } catch {
-      setPreview([]);
-      setPreviewWarnings(["Failed to load preview."]);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load preview.");
+      setPreviewRows(data?.data?.groups ?? []);
+    } catch (e) {
+      setPreviewRows([]);
+      toast({ title: "Failed to load preview", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
     } finally {
       setPreviewLoading(false);
     }
   };
 
+  const handleViewFullPlan = async () => {
+    if (!planId) return;
+    setFullPlanOpen(true);
+    setFullPlanLoading(true);
+    setFullPlanError(null);
+    try {
+      const res = await fetch(`/api/admin/carousel/full-plan?planId=${planId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load the full plan.");
+      setFullPlan(data?.data ?? []);
+    } catch (e) {
+      setFullPlan([]);
+      setFullPlanError(e instanceof Error ? e.message : "Failed to load the full plan.");
+    } finally {
+      setFullPlanLoading(false);
+    }
+  };
+
+  const checkEarlyRotation = React.useCallback(async (groupIds: string[], startDateInput: string) => {
+    if (!planId || groupIds.length === 0 || !startDateInput) return;
+    setEarlyRotationChecking(true);
+    try {
+      const placeholderEnd = new Date(startDateInput);
+      placeholderEnd.setDate(placeholderEnd.getDate() + 1);
+      const res = await fetch("/api/admin/carousel/rotate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId, studentGroupIds: groupIds, confirm: false, startDate: new Date(startDateInput).toISOString(), endDate: placeholderEnd.toISOString() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const rows: GroupPreviewRow[] = data?.data?.groups ?? [];
+      const early = rows.filter((r) => r.earlyRotation);
+      setEarlyRotation(
+        early.length > 0
+          ? { groups: early.map((r) => ({ studentGroupId: r.studentGroupId, groupName: r.groupName, currentEndDate: r.earlyRotation!.currentEndDate })) }
+          : null,
+      );
+    } catch {
+      setEarlyRotation(null);
+    } finally {
+      setEarlyRotationChecking(false);
+    }
+  }, [planId]);
+
+  const openConfirmRotate = (groupIds: string[]) => {
+    if (groupIds.length === 0) {
+      toast({ title: "Select at least one group to rotate", variant: "destructive" });
+      return;
+    }
+    const { start, end } = defaultDates();
+    setConfirmGroupIds(groupIds);
+    setRotateStartDate(start);
+    setRotateEndDate(end);
+    setOverrideEarlyRotation(false);
+    setEarlyRotation(null);
+    setConfirmText("");
+    setConfirmOpen(true);
+    checkEarlyRotation(groupIds, start);
+  };
+
   const handleRotate = async () => {
-    if (confirmText !== "ROTATE") return;
+    if (!planId || confirmText !== "ROTATE" || !rotateStartDate || !rotateEndDate) return;
+    if (earlyRotation && !overrideEarlyRotation) return;
     setRotating(true);
     try {
       const res = await fetch("/api/admin/carousel/rotate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan?.id }),
+        body: JSON.stringify({
+          planId,
+          studentGroupIds: confirmGroupIds,
+          confirm: true,
+          override: overrideEarlyRotation,
+          startDate: new Date(rotateStartDate).toISOString(),
+          endDate: new Date(rotateEndDate).toISOString(),
+        }),
       });
-      if (!res.ok) throw new Error();
-      toast({ title: "Classes rotated", description: "All groups have been assigned to their new positions." });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.earlyRotation) {
+        setEarlyRotation(data.earlyRotation);
+        toast({ title: "Confirm overriding the current rotation's end date first", variant: "destructive" });
+        return;
+      }
+      if (!res.ok) throw new Error(data?.error ?? "Rotation failed.");
+      const rotatedCount = data?.data?.rotated?.length ?? 0;
+      toast({ title: `${rotatedCount} group${rotatedCount !== 1 ? "s" : ""} rotated`, description: "All groups have been assigned to their new positions." });
       setConfirmOpen(false);
       setConfirmText("");
       setPreviewOpen(false);
       fetchData();
-    } catch {
-      toast({ title: "Rotation failed", variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Rotation failed", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
     } finally {
       setRotating(false);
     }
   };
 
-  const handleReopen = async () => {
-    if (!reopenTarget || !reopenReason.trim()) return;
-    setReopenLoading(true);
+  const handleReopenAll = async () => {
+    if (reopenAllConfirmText !== "REOPEN" || !reopenAllReason.trim()) return;
+    setReopenAllLoading(true);
     try {
-      const res = await fetch(`/api/admin/rotations/${reopenTarget.id}/reopen`, {
+      const res = await fetch("/api/admin/regrade-grants/bulk-all", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: reopenReason.trim() }),
+        body: JSON.stringify({ teacherRegradeEnabled: reopenAllTeacherEnabled, reason: reopenAllReason.trim() }),
       });
-      if (!res.ok) throw new Error();
-      toast({ title: "Rotation reopened" });
-      setReopenTarget(null);
-      setReopenReason("");
-      fetchData();
-    } catch {
-      toast({ title: "Failed to reopen rotation", variant: "destructive" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to reopen groups.");
+      toast({ title: data?.data?.message ?? "Groups reopened" });
+      setReopenAllOpen(false);
+      setReopenAllConfirmText("");
+      setReopenAllReason("");
+    } catch (e) {
+      toast({ title: "Failed to reopen groups", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
     } finally {
-      setReopenLoading(false);
+      setReopenAllLoading(false);
     }
   };
 
+  const openLockAllDialog = async () => {
+    setLockAllOpen(true);
+    setLockAllConfirmText("");
+    setLockAllFetching(true);
+    try {
+      const res = await fetch("/api/admin/regrade-grants?status=open");
+      const data = await res.json().catch(() => ({}));
+      setLockAllOpenGrants(data?.data ?? []);
+    } catch {
+      setLockAllOpenGrants([]);
+    } finally {
+      setLockAllFetching(false);
+    }
+  };
+
+  const handleLockAll = async () => {
+    if (lockAllConfirmText !== "LOCK") return;
+    setLockAllLoading(true);
+    try {
+      const res = await fetch("/api/admin/regrade-grants/close-all", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to lock groups.");
+      toast({ title: data?.data?.message ?? "Groups locked" });
+      setLockAllOpen(false);
+      setLockAllConfirmText("");
+    } catch (e) {
+      toast({ title: "Failed to lock groups", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
+    } finally {
+      setLockAllLoading(false);
+    }
+  };
+
+  const openSetupDialog = async (group: { id: string; name: string }) => {
+    setSetupGroup(group);
+    setSetupSelected([]);
+    const { start, end } = defaultDates();
+    setSetupStartDate(start);
+    setSetupEndDate(end);
+    setSetupOptionsLoading(true);
+    try {
+      const res = await fetch("/api/admin/teacher-class-assignments?isActive=true");
+      const data = await res.json().catch(() => ({}));
+      setSetupOptions(data?.data ?? []);
+    } catch {
+      setSetupOptions([]);
+    } finally {
+      setSetupOptionsLoading(false);
+    }
+  };
+
+  const toggleSetupSelection = (id: string) => {
+    setSetupSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const handleCreatePositions = async () => {
+    if (!setupGroup || !planId || setupSelected.length === 0 || !setupStartDate || !setupEndDate) return;
+    setSetupSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/carousel/${setupGroup.id}/positions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId,
+          teacherClassAssignmentIds: setupSelected,
+          startDate: new Date(setupStartDate).toISOString(),
+          endDate: new Date(setupEndDate).toISOString(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to set up rotation.");
+      toast({ title: `${setupGroup.name}: rotation set up`, description: `${setupSelected.length} position${setupSelected.length !== 1 ? "s" : ""} created.` });
+      setSetupGroup(null);
+      fetchData();
+    } catch (e) {
+      toast({ title: "Failed to set up rotation", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
+    } finally {
+      setSetupSubmitting(false);
+    }
+  };
+
+  const allGroupIds = groups.map((g) => g.id);
+  const selectedList = Array.from(selectedGroupIds);
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-8">
+    <div className="p-6 max-w-6xl mx-auto space-y-8">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Carousel &amp; Rotations</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{plan?.name ?? "Loading carousel plan…"}</p>
+          <p className="text-sm text-gray-500 mt-0.5">{planName || "Loading carousel plan…"}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {orderDirty && (
-            <Button variant="outline" size="sm" onClick={handleSaveOrder} loading={savingOrder}>
-              Save order
-            </Button>
-          )}
-          <Button variant="outline" onClick={handlePreview}>
-            <Eye className="h-4 w-4" aria-hidden="true" />
-            Preview next rotation
+          <Button variant="outline" onClick={handleViewFullPlan} disabled={!planId}>
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
+            View full plan
           </Button>
-          <Button onClick={() => setConfirmOpen(true)}>
+          <Button variant="outline" onClick={() => handlePreview(selectedList)} disabled={!planId || selectedList.length === 0}>
+            <Eye className="h-4 w-4" aria-hidden="true" />
+            Preview selected
+          </Button>
+          <Button variant="outline" onClick={() => openConfirmRotate(selectedList)} disabled={!planId || selectedList.length === 0}>
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
-            Rotate classes
+            Rotate selected
+          </Button>
+          <Button onClick={() => openConfirmRotate(allGroupIds)} disabled={!planId || allGroupIds.length === 0}>
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            Rotate all
+          </Button>
+          <Button
+            variant="outline"
+            className="text-amber-700 border-amber-200 hover:bg-amber-50"
+            onClick={() => { setReopenAllOpen(true); setReopenAllTeacherEnabled(true); setReopenAllReason(""); setReopenAllConfirmText(""); }}
+          >
+            <Unlock className="h-4 w-4" aria-hidden="true" />
+            Reopen ALL groups
+          </Button>
+          <Button
+            variant="outline"
+            className="text-red-700 border-red-200 hover:bg-red-50"
+            onClick={openLockAllDialog}
+          >
+            <Lock className="h-4 w-4" aria-hidden="true" />
+            Lock ALL groups
           </Button>
         </div>
       </div>
 
-      {/* Positions */}
+      {/* Per-group carousel positions */}
       <section aria-labelledby="positions-heading">
         <div className="flex items-center justify-between mb-3">
           <h2 id="positions-heading" className="text-sm font-semibold text-gray-700">Carousel Positions</h2>
-          <p className="text-xs text-gray-400">Drag or use arrows to reorder</p>
+          <p className="text-xs text-gray-400">Each group has its own independent rotation order — check the groups you want to include in a rotation.</p>
         </div>
         {loading ? (
-          <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}</div>
-        ) : positions.length === 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-xl" />)}
+          </div>
+        ) : groups.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 py-16 text-center">
             <RotateCcw className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">No carousel positions configured.</p>
+            <p className="text-sm text-gray-400">No active student groups configured.</p>
           </div>
         ) : (
-          <div className="space-y-2" role="list" aria-label="Carousel positions">
-            {positions.map((position, index) => (
-              <div
-                key={position.id}
-                draggable
-                onDragStart={() => handleDragStart(index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={() => handleDrop(index)}
-                onDragEnd={handleDragEnd}
-                className={`transition-opacity ${dragIndex === index ? "opacity-40" : "opacity-100"} ${dragOverIndex === index && dragIndex !== index ? "ring-2 ring-primary-400 ring-offset-1 rounded-xl" : ""}`}
-              >
-                <PositionCard
-                  position={position}
-                  index={index}
-                  total={positions.length}
-                  onMoveUp={() => movePosition(index, -1)}
-                  onMoveDown={() => movePosition(index, 1)}
-                  isDragging={dragIndex === index}
-                />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {groups.map((group) => (
+              <div key={group.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedGroupIds.has(group.id)}
+                    onChange={() => toggleGroupSelected(group.id)}
+                    className="rounded border-gray-300"
+                    aria-label={`Include ${group.name} in next rotation`}
+                  />
+                  <GenderDot gender={group.gender} />
+                  <h3 className="text-sm font-semibold text-gray-900 flex-1 truncate">{group.name}</h3>
+                  <span className="text-xs text-gray-400">Gr.{GRADE_LABELS[group.gradeLevel] ?? group.gradeLevel}</span>
+                  {dirtyGroups.has(group.id) && (
+                    <Button size="sm" variant="outline" className="text-xs" onClick={() => saveOrder(group.id)} loading={savingGroupId === group.id}>
+                      <Save className="h-3 w-3" aria-hidden="true" />
+                      Save order
+                    </Button>
+                  )}
+                </div>
+                {group.positions.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-200 py-6 text-center">
+                    <p className="text-xs text-gray-400 mb-2">No carousel positions configured yet.</p>
+                    <Button size="sm" variant="outline" onClick={() => openSetupDialog({ id: group.id, name: group.name })}>
+                      <Plus className="h-3 w-3" aria-hidden="true" />
+                      Set up rotation
+                    </Button>
+                  </div>
+                ) : (
+                <div className="space-y-1.5" role="list" aria-label={`${group.name} carousel positions`}>
+                  {group.positions.map((position, index) => (
+                    <div
+                      key={position.id}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-2 border ${position.isCurrent ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-100"}`}
+                      role="listitem"
+                    >
+                      <span className="text-xs font-semibold text-gray-400 tabular-nums w-4 shrink-0">{position.positionOrder}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{position.activity}</p>
+                        <p className="text-xs text-gray-500 truncate">{position.teacherName}</p>
+                      </div>
+                      {position.isCurrent && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded-full px-1.5 py-0.5 shrink-0">Now</span>
+                      )}
+                      <div className="flex flex-col gap-0 shrink-0">
+                        <button
+                          onClick={() => movePosition(group.id, index, -1)}
+                          disabled={index === 0}
+                          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+                          aria-label="Move position up"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => movePosition(group.id, index, 1)}
+                          disabled={index === group.positions.length - 1}
+                          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+                          aria-label="Move position down"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                )}
               </div>
             ))}
           </div>
@@ -368,51 +637,40 @@ export default function CarouselPage() {
       <section aria-labelledby="history-heading">
         <h2 id="history-heading" className="text-sm font-semibold text-gray-700 mb-3">Rotation History</h2>
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {rotations.length === 0 ? (
+          {history.length === 0 ? (
             <div className="py-12 text-center">
               <Clock className="h-7 w-7 text-gray-300 mx-auto mb-2" />
               <p className="text-sm text-gray-400">No rotations yet.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[580px]">
+              <table className="w-full text-left min-w-[680px]">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Group</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Change</th>
                     <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Executed by</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Positions</th>
                     <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide sr-only">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {rotations.map((r) => (
+                  {history.map((r) => (
                     <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">{formatDate(r.executedAt)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{r.executedByName}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">{r.positionsCount}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 tabular-nums whitespace-nowrap">{formatDateTime(r.executedAt)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.groupName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {r.fromActivityName ? `${r.fromActivityName} → ${r.toActivityName}` : `Started on ${r.toActivityName}`}
+                        <span className="text-xs text-gray-400 ml-1.5">(Rotation {r.rotationNumber})</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{r.executedByEmail}</td>
                       <td className="px-4 py-3">
                         {r.isReverted ? (
                           <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
                             <Undo2 className="h-3 w-3" />Reverted
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
-                            <CheckCircle2 className="h-3 w-3" />Complete
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!r.isReverted && (
-                          <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setReopenTarget(r); setReopenReason(""); }}>
-                            <Undo2 className="h-3 w-3" aria-hidden="true" />
-                            Reopen
-                          </Button>
-                        )}
-                        {r.isReverted && r.revertReason && (
-                          <span className="text-xs text-gray-400 italic truncate max-w-[140px] block" title={r.revertReason}>
-                            &ldquo;{r.revertReason}&rdquo;
-                          </span>
+                          <span className="text-xs text-green-700 font-medium">Complete</span>
                         )}
                       </td>
                     </tr>
@@ -424,22 +682,89 @@ export default function CarouselPage() {
         </div>
       </section>
 
+      {/* Full plan modal */}
+      <Dialog open={fullPlanOpen} onOpenChange={(o) => !o && setFullPlanOpen(false)}>
+        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
+          <DialogHeader><DialogTitle>Full carousel plan</DialogTitle></DialogHeader>
+          <p className="text-xs text-gray-500 -mt-2">
+            Every group&apos;s scheduled teacher/activity for each rotation this school year —
+            already-completed rotations aren&apos;t shown, only the current and upcoming ones.
+          </p>
+          <div className="flex-1 overflow-auto">
+            {fullPlanLoading ? (
+              <div className="space-y-2 py-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : fullPlanError ? (
+              <div className="py-8 text-center">
+                <AlertTriangle className="h-7 w-7 text-red-300 mx-auto mb-2" />
+                <p className="text-sm text-red-500">{fullPlanError}</p>
+              </div>
+            ) : fullPlan.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-400">No scheduled rotations to show.</div>
+            ) : (
+              (() => {
+                const rotationNumbers = [...new Set(fullPlan.flatMap((row) => row.steps.map((s) => s.rotationNumber)))].sort((a, b) => a - b);
+                return (
+                  <table className="w-full text-sm border-separate border-spacing-0 min-w-[640px]">
+                    <thead>
+                      <tr>
+                        <th className="sticky left-0 bg-white px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                          Group
+                        </th>
+                        {rotationNumbers.map((n) => (
+                          <th key={n} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 whitespace-nowrap">
+                            Rotation {n}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fullPlan.map((row) => {
+                        const stepByRotation = new Map(row.steps.map((s) => [s.rotationNumber, s]));
+                        return (
+                          <tr key={row.groupId} className="hover:bg-gray-50">
+                            <td className="sticky left-0 bg-white px-3 py-2.5 font-medium text-gray-900 border-b border-gray-100 whitespace-nowrap">
+                              {row.groupName}
+                            </td>
+                            {rotationNumbers.map((n) => {
+                              const s = stepByRotation.get(n);
+                              return (
+                                <td key={n} className="px-3 py-2.5 border-b border-gray-100 whitespace-nowrap">
+                                  {s ? (
+                                    <>
+                                      <span className={`block ${s.status === "ACTIVE" ? "text-emerald-700 font-medium" : "text-gray-800"}`}>
+                                        {s.activity}
+                                      </span>
+                                      <span className="block text-xs text-gray-400">{s.teacher}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-300">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              })()
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFullPlanOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Preview modal */}
       <Dialog open={previewOpen} onOpenChange={(o) => !o && setPreviewOpen(false)}>
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle>Preview next rotation</DialogTitle></DialogHeader>
-          {previewWarnings.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex gap-2.5">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-800 space-y-1">
-                {previewWarnings.map((w, i) => <p key={i}>{w}</p>)}
-              </div>
-            </div>
-          )}
           <div className="flex-1 overflow-y-auto">
             {previewLoading ? (
               <div className="space-y-2 py-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-            ) : preview.length === 0 ? (
+            ) : previewRows.length === 0 ? (
               <div className="py-8 text-center text-sm text-gray-400">No groups to preview.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -452,17 +777,23 @@ export default function CarouselPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {preview.map((row) => (
-                      <tr key={row.groupId} className="hover:bg-gray-50">
+                    {previewRows.map((row) => (
+                      <tr key={row.studentGroupId} className="hover:bg-gray-50">
                         <td className="px-3 py-2.5 font-medium text-gray-900">{row.groupName}</td>
-                        <td className="px-3 py-2.5 text-gray-600">
-                          <span className="block">{row.currentTeacher}</span>
-                          <span className="text-xs text-gray-400">{row.currentActivity}</span>
-                        </td>
-                        <td className="px-3 py-2.5 text-gray-800">
-                          <span className="block font-medium">{row.nextTeacher}</span>
-                          <span className="text-xs text-gray-500">{row.nextActivity}</span>
-                        </td>
+                        {row.error ? (
+                          <td className="px-3 py-2.5 text-red-500 text-xs" colSpan={2}>{row.error}</td>
+                        ) : (
+                          <>
+                            <td className="px-3 py-2.5 text-gray-600">
+                              <span className="block">{row.currentTeacher ?? "—"}</span>
+                              <span className="text-xs text-gray-400">{row.currentActivity ?? "Not yet started"}</span>
+                            </td>
+                            <td className="px-3 py-2.5 text-gray-800">
+                              <span className="block font-medium">{row.nextTeacher}</span>
+                              <span className="text-xs text-gray-500">{row.nextActivity}</span>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -472,7 +803,7 @@ export default function CarouselPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPreviewOpen(false)}>Close</Button>
-            <Button onClick={() => { setPreviewOpen(false); setConfirmOpen(true); }}>
+            <Button onClick={() => { setPreviewOpen(false); openConfirmRotate(previewRows.filter((r) => !r.error).map((r) => r.studentGroupId)); }}>
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
               Confirm rotation
             </Button>
@@ -490,9 +821,65 @@ export default function CarouselPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <p className="text-sm text-gray-600">
-              This will advance all student groups to their next carousel positions. This action is logged and can be reopened by an administrator.
-            </p>
+            <div className="text-sm text-gray-600">
+              This will advance the following group{confirmGroupIds.length !== 1 ? "s" : ""} to their next carousel position — each group's own rotation order, independent of the others. This action is logged.
+              <ul className="list-disc list-inside mt-1.5 text-gray-700">
+                {confirmGroupIds.map((gid) => {
+                  const g = groups.find((gr) => gr.id === gid);
+                  return <li key={gid}>{g?.name ?? gid}</li>;
+                })}
+              </ul>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="rotate-start-date">New rotation starts</Label>
+                <Input
+                  id="rotate-start-date"
+                  type="date"
+                  value={rotateStartDate}
+                  onChange={(e) => {
+                    setRotateStartDate(e.target.value);
+                    setOverrideEarlyRotation(false);
+                    checkEarlyRotation(confirmGroupIds, e.target.value);
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rotate-end-date">New rotation ends</Label>
+                <Input id="rotate-end-date" type="date" value={rotateEndDate} onChange={(e) => setRotateEndDate(e.target.value)} />
+              </div>
+            </div>
+
+            {earlyRotation && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 space-y-2.5">
+                <div className="flex gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                  <div className="text-sm text-red-800 space-y-1">
+                    <p className="font-medium">
+                      You&apos;re starting this rotation before the scheduled end date of the current one:
+                    </p>
+                    <ul className="list-disc list-inside">
+                      {earlyRotation.groups.map((g) => (
+                        <li key={g.studentGroupId}>
+                          {g.groupName} isn&apos;t scheduled to end until {formatDate(g.currentEndDate)}
+                        </li>
+                      ))}
+                    </ul>
+                    <p>Are you sure you want to override this and start the new rotation now?</p>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-red-800 pl-6">
+                  <input
+                    type="checkbox"
+                    checked={overrideEarlyRotation}
+                    onChange={(e) => setOverrideEarlyRotation(e.target.checked)}
+                    className="rounded border-red-300"
+                  />
+                  Yes, override and start early
+                </label>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label htmlFor="rotate-confirm">
                 Type <strong className="font-mono tracking-wider">ROTATE</strong> to confirm
@@ -509,7 +896,18 @@ export default function CarouselPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setConfirmOpen(false); setConfirmText(""); }} disabled={rotating}>Cancel</Button>
-            <Button variant="destructive" onClick={handleRotate} disabled={confirmText !== "ROTATE"} loading={rotating}>
+            <Button
+              variant="destructive"
+              onClick={handleRotate}
+              disabled={
+                confirmText !== "ROTATE" ||
+                !rotateStartDate ||
+                !rotateEndDate ||
+                earlyRotationChecking ||
+                (!!earlyRotation && !overrideEarlyRotation)
+              }
+              loading={rotating}
+            >
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
               Rotate now
             </Button>
@@ -517,40 +915,212 @@ export default function CarouselPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reopen modal */}
-      <Dialog open={!!reopenTarget} onOpenChange={(o) => !o && setReopenTarget(null)}>
+      {/* Reopen ALL groups modal */}
+      <Dialog open={reopenAllOpen} onOpenChange={(o) => { if (!o) { setReopenAllOpen(false); setReopenAllConfirmText(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Undo2 className="h-4 w-4 text-amber-500" aria-hidden="true" />
-              Reopen rotation
+              <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
+              Reopen ALL groups for regrading
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {reopenTarget && (
-              <div className="bg-gray-50 rounded-lg px-3 py-2.5 text-sm">
-                <p className="text-gray-500 text-xs mb-0.5">Rotation executed</p>
-                <p className="font-medium text-gray-900">{formatDate(reopenTarget.executedAt)}</p>
-                <p className="text-gray-500">by {reopenTarget.executedByName}</p>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="reopen-reason">
-                Reason <span className="text-red-500 text-xs font-normal">(required)</span>
+            <p className="text-sm text-gray-600">
+              For every active group, this reopens the most recently locked class for its full current
+              roster — access stays open until you close it group-by-group later. Groups with no locked
+              class history are skipped.
+            </p>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="reopen-all-teacher"
+                checked={reopenAllTeacherEnabled}
+                onCheckedChange={(v) => setReopenAllTeacherEnabled(v === true)}
+              />
+              <Label htmlFor="reopen-all-teacher" className="text-sm font-normal cursor-pointer">
+                Also allow each class&apos;s teacher to regrade
               </Label>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="reopen-all-reason">Reason</Label>
               <Textarea
-                id="reopen-reason"
-                placeholder="Explain why this rotation is being reopened…"
-                value={reopenReason}
-                onChange={(e) => setReopenReason(e.target.value)}
-                rows={3}
+                id="reopen-all-reason"
+                placeholder="Why is this being reopened?"
+                value={reopenAllReason}
+                onChange={(e) => setReopenAllReason(e.target.value)}
+                rows={2}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="reopen-all-confirm">
+                Type <strong className="font-mono tracking-wider">REOPEN</strong> to confirm
+              </Label>
+              <Input
+                id="reopen-all-confirm"
+                placeholder="REOPEN"
+                value={reopenAllConfirmText}
+                onChange={(e) => setReopenAllConfirmText(e.target.value)}
+                className="font-mono"
+                autoComplete="off"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReopenTarget(null)} disabled={reopenLoading}>Cancel</Button>
-            <Button variant="warning" onClick={handleReopen} disabled={!reopenReason.trim()} loading={reopenLoading}>
-              Reopen rotation
+            <Button variant="outline" onClick={() => { setReopenAllOpen(false); setReopenAllConfirmText(""); }} disabled={reopenAllLoading}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleReopenAll}
+              disabled={reopenAllConfirmText !== "REOPEN" || !reopenAllReason.trim()}
+              loading={reopenAllLoading}
+            >
+              <Unlock className="h-4 w-4" aria-hidden="true" />
+              Reopen all now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lock ALL groups modal */}
+      <Dialog open={lockAllOpen} onOpenChange={(o) => { if (!o) { setLockAllOpen(false); setLockAllConfirmText(""); } }}>
+        <DialogContent className="max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-500" aria-hidden="true" />
+              Lock ALL groups
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 -mt-2">
+            This immediately closes every currently open regrade grant, across every group —
+            teachers lose regrade access and students lose resubmit access right away.
+          </p>
+          <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
+            {lockAllFetching ? (
+              <div className="space-y-2 p-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : lockAllOpenGrants.length === 0 ? (
+              <div className="py-6 text-center text-sm text-gray-400">No open regrade grants right now.</div>
+            ) : (
+              <ul role="list" className="divide-y divide-gray-100">
+                {lockAllOpenGrants.map((grant) => (
+                  <li key={grant.id} className="px-3 py-2.5 text-sm">
+                    <div className="font-medium text-gray-900">
+                      {grant.historicalClassInstance.studentGroup.name} · Rotation {grant.historicalClassInstance.groupRotationAssignment.rotationNumber} · {grant.historicalClassInstance.teacherClassAssignment.activityTemplate.name}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {grant.teacherRegradeEnabled ? "Teacher regrade enabled" : ""}
+                      {grant.teacherRegradeEnabled && grant.studentGrants.length > 0 ? " · " : ""}
+                      {grant.studentGrants.length > 0 ? `${grant.studentGrants.length} student${grant.studentGrants.length !== 1 ? "s" : ""} can resubmit` : ""}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="space-y-1.5 pt-1">
+            <Label htmlFor="lock-all-confirm">
+              Type <strong className="font-mono tracking-wider">LOCK</strong> to confirm
+            </Label>
+            <Input
+              id="lock-all-confirm"
+              placeholder="LOCK"
+              value={lockAllConfirmText}
+              onChange={(e) => setLockAllConfirmText(e.target.value)}
+              className="font-mono"
+              autoComplete="off"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setLockAllOpen(false); setLockAllConfirmText(""); }} disabled={lockAllLoading}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleLockAll}
+              disabled={lockAllConfirmText !== "LOCK" || lockAllOpenGrants.length === 0}
+              loading={lockAllLoading}
+            >
+              <Lock className="h-4 w-4" aria-hidden="true" />
+              Lock all now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set up rotation modal — bootstraps positions for a brand-new group */}
+      <Dialog open={!!setupGroup} onOpenChange={(o) => !o && setSetupGroup(null)}>
+        <DialogContent className="max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Set up rotation for {setupGroup?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 -mt-2">
+            Pick each teacher/class this group will rotate through, in order. The first one becomes
+            the group&apos;s current active class; the rest are scheduled as upcoming.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="setup-start-date">First rotation starts</Label>
+              <Input id="setup-start-date" type="date" value={setupStartDate} onChange={(e) => setSetupStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="setup-end-date">First rotation ends</Label>
+              <Input id="setup-end-date" type="date" value={setupEndDate} onChange={(e) => setSetupEndDate(e.target.value)} />
+            </div>
+          </div>
+
+          {setupSelected.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Order</Label>
+              <ul className="space-y-1">
+                {setupSelected.map((id, i) => {
+                  const opt = setupOptions.find((o) => o.id === id);
+                  return (
+                    <li key={id} className="flex items-center gap-2 text-sm bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
+                      <span className="text-xs font-semibold text-gray-400 w-4">{i + 1}</span>
+                      <span className="flex-1 truncate">
+                        {opt?.activityTemplate.name} — {opt?.teacherProfile.firstName} {opt?.teacherProfile.lastName}
+                      </span>
+                      <button onClick={() => toggleSetupSelection(id)} aria-label={`Remove ${opt?.activityTemplate.name}`}>
+                        <X className="h-3.5 w-3.5 text-gray-400 hover:text-gray-700" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          <div className="space-y-1.5 flex-1 overflow-y-auto min-h-0">
+            <Label>Available teacher/class assignments</Label>
+            {setupOptionsLoading ? (
+              <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+            ) : (
+              <ul className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+                {setupOptions.map((opt) => {
+                  const selected = setupSelected.includes(opt.id);
+                  return (
+                    <li key={opt.id}>
+                      <button
+                        type="button"
+                        onClick={() => toggleSetupSelection(opt.id)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50 ${selected ? "bg-primary-50" : ""}`}
+                      >
+                        <span className="flex-1 truncate">
+                          {opt.activityTemplate.name} — {opt.teacherProfile.firstName} {opt.teacherProfile.lastName}
+                        </span>
+                        {selected ? <X className="h-3.5 w-3.5 text-primary-600 shrink-0" /> : <Plus className="h-3.5 w-3.5 text-gray-400 shrink-0" />}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSetupGroup(null)} disabled={setupSubmitting}>Cancel</Button>
+            <Button
+              onClick={handleCreatePositions}
+              disabled={setupSelected.length === 0 || !setupStartDate || !setupEndDate || setupSubmitting}
+              loading={setupSubmitting}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Create {setupSelected.length || ""} position{setupSelected.length !== 1 ? "s" : ""}
             </Button>
           </DialogFooter>
         </DialogContent>

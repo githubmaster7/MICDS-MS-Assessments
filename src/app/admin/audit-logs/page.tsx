@@ -26,29 +26,50 @@ import { useToast } from "@/components/ui/use-toast";
 
 interface AuditLog {
   id: string;
-  actor: string;
-  actorEmail: string;
+  actor: { id: string; email: string; role: string } | null;
   action: string;
   targetType: string;
-  targetId: string;
-  targetLabel: string;
-  before?: Record<string, unknown>;
-  after?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  targetId: string | null;
+  targetLabel: string | null;
+  beforeValue?: Record<string, unknown> | null;
+  afterValue?: Record<string, unknown> | null;
+  reason?: string | null;
   createdAt: string;
-  ipAddress?: string;
+  ipAddress?: string | null;
 }
 
 const PAGE_SIZE = 25;
 
 const ACTION_TYPES = [
-  "USER_APPROVED", "USER_REJECTED", "USER_DEACTIVATED", "USER_REACTIVATED",
-  "ROLE_CHANGED", "ROTATION_EXECUTED", "ROTATION_REVERTED",
-  "GROUP_CREATED", "GROUP_UPDATED", "MEMBER_ADDED", "MEMBER_REMOVED",
-  "SIGNIN", "SIGNOUT",
+  "USER_REGISTERED", "USER_EMAIL_VERIFIED", "USER_LOGIN", "USER_LOGIN_FAILED",
+  "USER_LOGOUT", "USER_PASSWORD_RESET_REQUESTED", "USER_PASSWORD_RESET",
+  "SIGNUP_REQUEST_APPROVED", "SIGNUP_REQUEST_REJECTED", "USER_DEACTIVATED", "USER_REACTIVATED",
+  "STUDENT_PROFILE_CREATED", "STUDENT_PROFILE_UPDATED",
+  "TEACHER_PROFILE_CREATED", "TEACHER_PROFILE_UPDATED",
+  "PARENT_PROFILE_CREATED", "PARENT_STUDENT_LINK_CREATED", "PARENT_STUDENT_LINK_REMOVED",
+  "SCHOOL_YEAR_CREATED", "SCHOOL_YEAR_UPDATED", "TERM_CREATED", "TERM_UPDATED",
+  "STUDENT_GROUP_CREATED", "STUDENT_GROUP_UPDATED",
+  "STUDENT_GROUP_MEMBERSHIP_ADDED", "STUDENT_GROUP_MEMBERSHIP_REMOVED",
+  "CAROUSEL_PLAN_CREATED", "CAROUSEL_PLAN_UPDATED",
+  "ROTATION_ADVANCED", "ROTATION_REVERSED",
+  "GROUP_ROTATION_ASSIGNED", "GROUP_ROTATION_UPDATED",
+  "CLASS_INSTANCE_LOCKED", "CLASS_INSTANCE_REOPENED",
+  "RUBRIC_VERSION_CREATED", "RUBRIC_VERSION_UPDATED",
+  "SKILL_DEFINITION_CREATED", "SKILL_DEFINITION_UPDATED",
+  "PROMPT_DEFINITION_CREATED", "PROMPT_DEFINITION_UPDATED",
+  "STUDENT_SUBMISSION_CREATED", "STUDENT_SUBMISSION_UPDATED", "STUDENT_SUBMISSION_SUBMITTED",
+  "WRITTEN_RESPONSE_SAVED", "SKILL_SELF_RATING_SAVED",
+  "TEACHER_ASSESSMENT_CREATED", "TEACHER_ASSESSMENT_UPDATED",
+  "TEACHER_SKILL_SCORE_SAVED", "TEACHER_STANDARD4_RATING_SAVED",
+  "STUDENT_STANDARD4_SELF_RATING_SAVED",
+  "ATL_RECORD_CREATED", "ATL_RECORD_UPDATED", "GRADE_SNAPSHOT_CREATED",
 ];
 
-const TARGET_TYPES = ["USER", "SIGNUP_REQUEST", "STUDENT_GROUP", "ROTATION", "CAROUSEL_PLAN"];
+const TARGET_TYPES = [
+  "User", "SignupRequest", "StudentGroup", "StudentGroupMembership",
+  "CarouselPlan", "HistoricalClassInstance", "TeacherAssessment",
+  "StudentSubmission", "ApproachToLearningRecord", "GradeCalculationSnapshot",
+];
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("en-US", {
@@ -81,19 +102,19 @@ function JsonView({ data }: { data: Record<string, unknown> }) {
 
 function LogRow({ log }: { log: AuditLog }) {
   const [expanded, setExpanded] = React.useState(false);
-  const hasDetail = log.before ?? log.after ?? log.metadata;
+  const hasDetail = log.beforeValue ?? log.afterValue ?? log.reason;
 
   return (
     <>
       <tr className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${expanded ? "bg-blue-50/40" : ""}`}>
         <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">{formatDate(log.createdAt)}</td>
         <td className="px-4 py-3">
-          <p className="text-sm font-medium text-gray-900">{log.actor}</p>
-          <p className="text-xs text-gray-400">{log.actorEmail}</p>
+          <p className="text-sm font-medium text-gray-900">{log.actor?.email ?? "System"}</p>
+          {log.actor && <p className="text-xs text-gray-400">{log.actor.role}</p>}
         </td>
         <td className="px-4 py-3"><ActionBadge action={log.action} /></td>
         <td className="px-4 py-3">
-          <p className="text-sm text-gray-700">{log.targetLabel}</p>
+          <p className="text-sm text-gray-700">{log.targetLabel ?? "—"}</p>
           <p className="text-xs text-gray-400">{log.targetType}</p>
         </td>
         <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{log.ipAddress ?? "—"}</td>
@@ -115,22 +136,22 @@ function LogRow({ log }: { log: AuditLog }) {
         <tr className="border-b border-gray-100 bg-blue-50/20">
           <td colSpan={6} className="px-4 py-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {log.before && (
+              {log.reason && (
+                <div className="col-span-2">
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Reason</p>
+                  <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md p-3">{log.reason}</p>
+                </div>
+              )}
+              {log.beforeValue && (
                 <div>
                   <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Before</p>
-                  <JsonView data={log.before} />
+                  <JsonView data={log.beforeValue} />
                 </div>
               )}
-              {log.after && (
+              {log.afterValue && (
                 <div>
                   <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">After</p>
-                  <JsonView data={log.after} />
-                </div>
-              )}
-              {log.metadata && !log.before && !log.after && (
-                <div className="col-span-2">
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Metadata</p>
-                  <JsonView data={log.metadata} />
+                  <JsonView data={log.afterValue} />
                 </div>
               )}
             </div>
@@ -174,7 +195,7 @@ export default function AuditLogsPage() {
 
     fetch(`/api/admin/audit-logs?${params}`)
       .then((r) => r.json())
-      .then((d) => { setLogs(d?.logs ?? []); setTotal(d?.total ?? 0); })
+      .then((d) => { setLogs(d?.data ?? []); setTotal(d?.pagination?.total ?? 0); })
       .catch(() => { setLogs([]); setTotal(0); })
       .finally(() => setLoading(false));
   }, [page, debouncedActor, actionType, targetType, dateFrom, dateTo]);
@@ -238,24 +259,33 @@ export default function AuditLogsPage() {
           )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <div className="relative lg:col-span-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
-            <Input placeholder="Actor name/email" value={actorSearch} onChange={(e) => setActorSearch(e.target.value)} className="pl-8 h-8 text-sm" aria-label="Filter by actor" />
+          <div className="space-y-0.5">
+            <Label htmlFor="filter-actor" className="text-xs text-gray-500">Actor</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+              <Input id="filter-actor" placeholder="Name or email" value={actorSearch} onChange={(e) => setActorSearch(e.target.value)} className="pl-8 h-8 text-sm" />
+            </div>
           </div>
-          <Select value={actionType} onValueChange={setActionType}>
-            <SelectTrigger className="h-8 text-sm" aria-label="Filter by action"><SelectValue placeholder="Action" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All actions</SelectItem>
-              {ACTION_TYPES.map((a) => <SelectItem key={a} value={a}>{a.replace(/_/g, " ")}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={targetType} onValueChange={setTargetType}>
-            <SelectTrigger className="h-8 text-sm" aria-label="Filter by target type"><SelectValue placeholder="Target type" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All targets</SelectItem>
-              {TARGET_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="space-y-0.5">
+            <Label htmlFor="filter-action" className="text-xs text-gray-500">Action</Label>
+            <Select value={actionType} onValueChange={setActionType}>
+              <SelectTrigger id="filter-action" className="h-8 text-sm"><SelectValue placeholder="All actions" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All actions</SelectItem>
+                {ACTION_TYPES.map((a) => <SelectItem key={a} value={a}>{a.replace(/_/g, " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-0.5">
+            <Label htmlFor="filter-target" className="text-xs text-gray-500">Target type</Label>
+            <Select value={targetType} onValueChange={setTargetType}>
+              <SelectTrigger id="filter-target" className="h-8 text-sm"><SelectValue placeholder="All targets" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All targets</SelectItem>
+                {TARGET_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-0.5">
             <Label htmlFor="date-from" className="text-xs text-gray-500">From</Label>
             <Input id="date-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 text-sm" />

@@ -8,20 +8,21 @@
  *   7+      → 1
  *
  * The overall ATL score combines:
- *   - responsiblePrepared  (teacher-rated 1–4)
- *   - respectfulWorks      (teacher-rated 1–4)
- *   - effortTeacherScore   (teacher-rated 1–4)
- *   - effortStudentScore   (student self-rated 1–4)
+ *   - responsiblePrepared  (teacher-rated 1–4, "Responsible and Prepared for Class")
+ *   - respectfulWorks      (teacher-rated 1–4, "Respectful and Works Well with Others")
+ *   - effortTeacherScore   (teacher-rated 1–4, "Puts Forth Effort to Learn")
+ *   - effortStudentScore   (student self-rated 1–4, "Puts Forth Effort to Learn")
  *   - daysLateUnprepared   (converted to 1–4 via calculateDaysLateScore)
  *
  * The calculated score is the arithmetic mean of the five values, rounded to
- * two decimal places.
+ * two decimal places. ATL is informational only — it does not factor into the
+ * overall Standards 1–4 average or letter grade.
  */
 
 export interface ATLInput {
-  /** Teacher rating 1–4: responsible & prepared */
+  /** Teacher rating 1–4: responsible & prepared for class */
   responsiblePrepared: number
-  /** Teacher rating 1–4: respectful, works well with others */
+  /** Teacher rating 1–4: respectful & works well with others */
   respectfulWorks: number
   /** Teacher effort rating 1–4 */
   effortTeacherScore: number

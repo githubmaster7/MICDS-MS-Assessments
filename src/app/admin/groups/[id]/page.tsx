@@ -11,9 +11,18 @@ import {
   Search,
   Users,
   Clock,
+  Trash2,
+  RotateCcw,
+  ChevronDown,
+  ChevronRight,
+  Unlock,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -24,42 +33,84 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 
+interface OpenRegradeGrant {
+  id: string;
+  teacherRegradeEnabled: boolean;
+  _count: { studentGrants: number };
+}
+
+interface HistoricalInstance {
+  id: string;
+  status: string;
+  regradeGrants: OpenRegradeGrant[];
+}
+
+interface RotationAssignment {
+  id: string;
+  rotationNumber: number;
+  status: string;
+  startDate: string;
+  endDate: string;
+  carouselPosition: {
+    teacherClassAssignment: {
+      teacherProfile: { firstName: string; lastName: string };
+      activityTemplate: { name: string };
+    };
+  };
+  historicalClassInstances: HistoricalInstance[];
+}
+
 interface GroupDetail {
   id: string;
   name: string;
   gradeLevel: string;
   gender: string;
-  memberCount: number;
-  currentAssignment?: {
-    teacherName: string;
-    activity: string;
-    rotationName: string;
-  };
+  isActive: boolean;
+  schoolYear: { id: string; name: string };
+  _count: { memberships: number };
+  groupRotationAssignments: RotationAssignment[];
 }
 
 interface Member {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface RotationHistory {
-  id: string;
-  rotationName: string;
-  teacherName: string;
-  activity: string;
-  startDate: string;
-  endDate?: string;
+  id: string; // membership id
+  studentProfileId: string;
+  firstName: string;
+  lastName: string;
+  studentId: string;
 }
 
 interface AvailableStudent {
-  id: string;
-  name: string;
+  id: string; // studentProfileId
+  firstName: string;
+  lastName: string;
   email: string;
 }
 
-function formatDate(iso?: string) {
-  if (!iso) return "Present";
+interface ClassGrade {
+  rotationNumber: number;
+  activityName: string;
+  teacherName: string;
+  status: string;
+  letterGrade: string | null;
+  overallAverage: number | null;
+  standard1Score: number | null;
+  standard2Score: number | null;
+  standard3Score: number | null;
+  standard4Score: number | null;
+}
+
+interface StudentGrades {
+  studentProfileId: string;
+  firstName: string;
+  lastName: string;
+  studentId: string;
+  classes: ClassGrade[];
+}
+
+const GRADE_LABELS: Record<string, string> = { GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
+const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
+
+function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
   });
@@ -72,7 +123,6 @@ export default function StudentGroupDetailPage() {
 
   const [group, setGroup] = React.useState<GroupDetail | null>(null);
   const [members, setMembers] = React.useState<Member[]>([]);
-  const [history, setHistory] = React.useState<RotationHistory[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [memberSearch, setMemberSearch] = React.useState("");
 
@@ -84,39 +134,89 @@ export default function StudentGroupDetailPage() {
   const [removeTarget, setRemoveTarget] = React.useState<Member | null>(null);
   const [removeLoading, setRemoveLoading] = React.useState(false);
 
+  const [removeGroupOpen, setRemoveGroupOpen] = React.useState(false);
+  const [groupActionLoading, setGroupActionLoading] = React.useState(false);
+
+  const [deleteGroupOpen, setDeleteGroupOpen] = React.useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
+
+  const [grades, setGrades] = React.useState<Map<string, StudentGrades>>(new Map());
+  const [expandedStudentId, setExpandedStudentId] = React.useState<string | null>(null);
+
+  const [reopenTarget, setReopenTarget] = React.useState<RotationAssignment | null>(null);
+  const [reopenSelectedStudents, setReopenSelectedStudents] = React.useState<Set<string>>(new Set());
+  const [reopenTeacherEnabled, setReopenTeacherEnabled] = React.useState(false);
+  const [reopenReason, setReopenReason] = React.useState("");
+  const [reopenLoading, setReopenLoading] = React.useState(false);
+  const [closingGrantId, setClosingGrantId] = React.useState<string | null>(null);
+
   const fetchGroup = React.useCallback(() => {
     setLoading(true);
     Promise.all([
       fetch(`/api/admin/student-groups/${id}`).then((r) => r.json()),
       fetch(`/api/admin/student-groups/${id}/members`).then((r) => r.json()),
+      fetch(`/api/admin/student-groups/${id}/grades`).then((r) => r.json()),
     ])
-      .then(([groupData, membersData]) => {
-        setGroup(groupData?.group ?? groupData);
-        setMembers(membersData?.members ?? membersData ?? []);
-        setHistory(groupData?.rotationHistory ?? []);
+      .then(([groupData, membersData, gradesData]) => {
+        setGroup(groupData?.data ?? null);
+        setMembers(
+          (membersData?.data ?? []).map(
+            (m: { id: string; studentProfileId: string; studentProfile: { firstName: string; lastName: string; studentId: string } }) => ({
+              id: m.id,
+              studentProfileId: m.studentProfileId,
+              firstName: m.studentProfile.firstName,
+              lastName: m.studentProfile.lastName,
+              studentId: m.studentProfile.studentId,
+            })
+          )
+        );
+        const gradesList: StudentGrades[] = gradesData?.data ?? [];
+        setGrades(new Map(gradesList.map((g) => [g.studentProfileId, g])));
       })
-      .catch(() => { setGroup(null); setMembers([]); })
+      .catch(() => { setGroup(null); setMembers([]); setGrades(new Map()); })
       .finally(() => setLoading(false));
   }, [id]);
 
   React.useEffect(() => { fetchGroup(); }, [fetchGroup]);
 
   React.useEffect(() => {
-    if (!addOpen) return;
+    if (!addOpen || !group) return;
     fetch(`/api/admin/users?role=STUDENT&status=ACTIVE&limit=100`)
       .then((r) => r.json())
       .then((d) => {
-        const memberIds = new Set(members.map((m) => m.id));
-        setAvailable((d?.users ?? []).filter((u: AvailableStudent) => !memberIds.has(u.id)));
+        const memberIds = new Set(members.map((m) => m.studentProfileId));
+        const users: Array<{ studentProfile?: { id: string; firstName: string; lastName: string; gradeLevel: string; gender: string }; email: string }> = d?.data ?? [];
+        const students = users
+          .filter(
+            (u) =>
+              u.studentProfile &&
+              !memberIds.has(u.studentProfile.id) &&
+              u.studentProfile.gradeLevel === group.gradeLevel &&
+              u.studentProfile.gender === group.gender
+          )
+          .map((u) => ({
+            id: u.studentProfile!.id,
+            firstName: u.studentProfile!.firstName,
+            lastName: u.studentProfile!.lastName,
+            email: u.email,
+          }));
+        setAvailable(students);
       })
       .catch(() => setAvailable([]));
-  }, [addOpen, members]);
+  }, [addOpen, members, group]);
 
   const filteredMembers = members.filter(
-    (m) => !memberSearch || m.name.toLowerCase().includes(memberSearch.toLowerCase()) || m.email.toLowerCase().includes(memberSearch.toLowerCase())
+    (m) =>
+      !memberSearch ||
+      `${m.firstName} ${m.lastName}`.toLowerCase().includes(memberSearch.toLowerCase()) ||
+      m.studentId.toLowerCase().includes(memberSearch.toLowerCase())
   );
   const filteredAvailable = available.filter(
-    (s) => !addSearch || s.name.toLowerCase().includes(addSearch.toLowerCase()) || s.email.toLowerCase().includes(addSearch.toLowerCase())
+    (s) =>
+      !addSearch ||
+      `${s.firstName} ${s.lastName}`.toLowerCase().includes(addSearch.toLowerCase()) ||
+      s.email.toLowerCase().includes(addSearch.toLowerCase())
   );
 
   const handleAddMember = async (student: AvailableStudent) => {
@@ -125,14 +225,19 @@ export default function StudentGroupDetailPage() {
       const res = await fetch(`/api/admin/student-groups/${id}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId: student.id }),
+        body: JSON.stringify({ studentProfileId: student.id }),
       });
-      if (!res.ok) throw new Error();
-      toast({ title: "Member added", description: `${student.name} joined the group.` });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to add member");
+      toast({ title: "Member added", description: `${student.firstName} ${student.lastName} joined the group.` });
       fetchGroup();
       setAvailable((prev) => prev.filter((s) => s.id !== student.id));
-    } catch {
-      toast({ title: "Failed to add member", variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Failed to add member",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
     } finally {
       setAddLoading(false);
     }
@@ -142,15 +247,141 @@ export default function StudentGroupDetailPage() {
     if (!removeTarget) return;
     setRemoveLoading(true);
     try {
-      const res = await fetch(`/api/admin/student-groups/${id}/members?studentId=${removeTarget.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const res = await fetch(`/api/admin/student-groups/${id}/members`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentProfileId: removeTarget.studentProfileId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to remove member");
       toast({ title: "Member removed" });
       setRemoveTarget(null);
       fetchGroup();
-    } catch {
-      toast({ title: "Failed to remove member", variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Failed to remove member",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
     } finally {
       setRemoveLoading(false);
+    }
+  };
+
+  const handleToggleGroupActive = async (nextActive: boolean) => {
+    setGroupActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/student-groups/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to update group");
+      toast({ title: nextActive ? "Group restored" : "Group removed" });
+      setRemoveGroupOpen(false);
+      fetchGroup();
+    } catch (e) {
+      toast({
+        title: nextActive ? "Failed to restore group" : "Failed to remove group",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setGroupActionLoading(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!group || deleteConfirmText !== group.name) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/admin/student-groups/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to permanently delete group");
+      toast({ title: "Group permanently deleted" });
+      router.push("/admin/groups");
+    } catch (e) {
+      toast({
+        title: "Failed to delete group",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const openReopenDialog = (assignment: RotationAssignment) => {
+    setReopenTarget(assignment);
+    setReopenSelectedStudents(new Set());
+    setReopenTeacherEnabled(false);
+    setReopenReason("");
+  };
+
+  const toggleReopenStudent = (studentProfileId: string) => {
+    setReopenSelectedStudents((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentProfileId)) next.delete(studentProfileId);
+      else next.add(studentProfileId);
+      return next;
+    });
+  };
+
+  const allMembersSelected = members.length > 0 && reopenSelectedStudents.size === members.length;
+
+  const toggleSelectAllMembers = () => {
+    setReopenSelectedStudents(allMembersSelected ? new Set() : new Set(members.map((m) => m.studentProfileId)));
+  };
+
+  const handleReopen = async () => {
+    const instance = reopenTarget?.historicalClassInstances[0];
+    if (!instance || !reopenReason.trim()) return;
+    setReopenLoading(true);
+    try {
+      const res = await fetch(`/api/admin/regrade-grants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          historicalClassInstanceId: instance.id,
+          teacherRegradeEnabled: reopenTeacherEnabled,
+          applyToAllCurrentStudents: allMembersSelected,
+          studentProfileIds: allMembersSelected ? undefined : [...reopenSelectedStudents],
+          reason: reopenReason.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to reopen class");
+      toast({ title: "Class reopened", description: `Rotation ${reopenTarget!.rotationNumber} is now reopened for regrading.` });
+      setReopenTarget(null);
+      fetchGroup();
+    } catch (e) {
+      toast({
+        title: "Failed to reopen class",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setReopenLoading(false);
+    }
+  };
+
+  const handleCloseGrant = async (grantId: string) => {
+    setClosingGrantId(grantId);
+    try {
+      const res = await fetch(`/api/admin/regrade-grants/${grantId}/close`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to close grant");
+      toast({ title: "Regrade access closed" });
+      fetchGroup();
+    } catch (e) {
+      toast({
+        title: "Failed to close grant",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setClosingGrantId(null);
     }
   };
 
@@ -178,6 +409,8 @@ export default function StudentGroupDetailPage() {
     );
   }
 
+  const activeAssignment = group.groupRotationAssignments.find((a) => a.status === "ACTIVE");
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <Link
@@ -195,16 +428,54 @@ export default function StudentGroupDetailPage() {
             <Users className="h-6 w-6 text-violet-600" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-semibold text-gray-900">{group.name}</h1>
+            <h1 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              {group.name}
+              {!group.isActive && (
+                <span className="text-xs font-medium rounded-full border border-gray-200 bg-gray-100 text-gray-500 px-2 py-0.5">Removed</span>
+              )}
+            </h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              Grade {group.gradeLevel} · {group.gender.charAt(0) + group.gender.slice(1).toLowerCase()} · {group.memberCount} {group.memberCount === 1 ? "student" : "students"}
+              Grade {GRADE_LABELS[group.gradeLevel] ?? group.gradeLevel} · {GENDER_LABELS[group.gender] ?? group.gender} · {group.schoolYear.name} · {group._count.memberships} {group._count.memberships === 1 ? "student" : "students"}
             </p>
           </div>
-          {group.currentAssignment && (
+          {group.isActive ? (
+            <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => setRemoveGroupOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Remove group
+            </Button>
+          ) : (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs"
+                onClick={() => handleToggleGroupActive(true)}
+                loading={groupActionLoading}
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                Restore group
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+                onClick={() => { setDeleteGroupOpen(true); setDeleteConfirmText(""); }}
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Delete permanently
+              </Button>
+            </div>
+          )}
+          {activeAssignment && (
             <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-sm">
               <p className="text-xs text-blue-500 font-medium uppercase tracking-wide mb-0.5">Current rotation</p>
-              <p className="text-blue-800 font-medium">{group.currentAssignment.teacherName}</p>
-              <p className="text-blue-600 text-xs">{group.currentAssignment.activity} · {group.currentAssignment.rotationName}</p>
+              <p className="text-blue-800 font-medium">
+                {activeAssignment.carouselPosition.teacherClassAssignment.teacherProfile.firstName}{" "}
+                {activeAssignment.carouselPosition.teacherClassAssignment.teacherProfile.lastName}
+              </p>
+              <p className="text-blue-600 text-xs">
+                {activeAssignment.carouselPosition.teacherClassAssignment.activityTemplate.name} · Rotation {activeAssignment.rotationNumber}
+              </p>
             </div>
           )}
         </div>
@@ -232,30 +503,89 @@ export default function StudentGroupDetailPage() {
           </div>
         ) : (
           <ul role="list" className="divide-y divide-gray-100">
-            {filteredMembers.map((member) => (
-              <li key={member.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
-                <div className="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-medium text-gray-600">{member.name.charAt(0).toUpperCase()}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{member.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{member.email}</p>
-                </div>
-                <button
-                  onClick={() => setRemoveTarget(member)}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-                  aria-label={`Remove ${member.name} from group`}
-                >
-                  <UserMinus className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
+            {filteredMembers.map((member) => {
+              const isExpanded = expandedStudentId === member.studentProfileId;
+              const studentGrades = grades.get(member.studentProfileId);
+              return (
+                <li key={member.id}>
+                  <div
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => setExpandedStudentId(isExpanded ? null : member.studentProfileId)}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isExpanded}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpandedStudentId(isExpanded ? null : member.studentProfileId); } }}
+                  >
+                    {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />}
+                    <div className="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-medium text-gray-600">{member.firstName.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{member.firstName} {member.lastName}</p>
+                      <p className="text-xs text-gray-500 truncate">{member.studentId}</p>
+                    </div>
+                    <span className="text-xs text-gray-400 tabular-nums">
+                      {studentGrades?.classes.length ?? 0} {studentGrades?.classes.length === 1 ? "class" : "classes"} graded
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setRemoveTarget(member); }}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                      aria-label={`Remove ${member.firstName} ${member.lastName} from group`}
+                    >
+                      <UserMinus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {isExpanded && (
+                    <div className="px-5 pb-4 bg-gray-50/50">
+                      {!studentGrades || studentGrades.classes.length === 0 ? (
+                        <p className="text-xs text-gray-400 py-3 pl-7">No grades recorded yet this year.</p>
+                      ) : (
+                        <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white ml-7">
+                          <table className="w-full text-left min-w-[560px]">
+                            <thead>
+                              <tr className="border-b border-gray-100 bg-gray-50">
+                                <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Rotation</th>
+                                <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Class</th>
+                                <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Teacher</th>
+                                <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide text-center">S1</th>
+                                <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide text-center">S2</th>
+                                <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide text-center">S3</th>
+                                <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide text-center">S4</th>
+                                <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide text-center">Grade</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {studentGrades.classes.map((c) => (
+                                <tr key={`${c.rotationNumber}-${c.activityName}`} className="hover:bg-gray-50">
+                                  <td className="px-3 py-2 text-xs text-gray-500 tabular-nums">{c.rotationNumber}</td>
+                                  <td className="px-3 py-2 text-sm text-gray-900">{c.activityName}</td>
+                                  <td className="px-3 py-2 text-sm text-gray-600">{c.teacherName}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard1Score ?? "—"}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard2Score ?? "—"}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard3Score ?? "—"}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard4Score ?? "—"}</td>
+                                  <td className="px-3 py-2 text-center">
+                                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-800">
+                                      {c.letterGrade ?? "—"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
 
       {/* Rotation history */}
-      {history.length > 0 && (
+      {group.groupRotationAssignments.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
             <Clock className="h-4 w-4 text-gray-400" aria-hidden="true" />
@@ -269,19 +599,59 @@ export default function StudentGroupDetailPage() {
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teacher</th>
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity</th>
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Period</th>
+                  <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Regrade access</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {history.map((h) => (
-                  <tr key={h.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3 text-sm font-medium text-gray-900">{h.rotationName}</td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{h.teacherName}</td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{h.activity}</td>
-                    <td className="px-5 py-3 text-xs text-gray-500 tabular-nums">
-                      {formatDate(h.startDate)} – {formatDate(h.endDate)}
-                    </td>
-                  </tr>
-                ))}
+                {group.groupRotationAssignments.map((h) => {
+                  const instance = h.historicalClassInstances[0];
+                  const openGrants = instance?.regradeGrants ?? [];
+                  return (
+                    <tr key={h.id} className="hover:bg-gray-50 transition-colors align-top">
+                      <td className="px-5 py-3 text-sm font-medium text-gray-900">Rotation {h.rotationNumber}</td>
+                      <td className="px-5 py-3 text-sm text-gray-700">
+                        {h.carouselPosition.teacherClassAssignment.teacherProfile.firstName}{" "}
+                        {h.carouselPosition.teacherClassAssignment.teacherProfile.lastName}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-gray-700">{h.carouselPosition.teacherClassAssignment.activityTemplate.name}</td>
+                      <td className="px-5 py-3 text-xs text-gray-500 tabular-nums">
+                        {formatDate(h.startDate)} – {formatDate(h.endDate)}
+                      </td>
+                      <td className="px-5 py-3 text-xs text-gray-500">{h.status}</td>
+                      <td className="px-5 py-3">
+                        {instance?.status === "LOCKED" ? (
+                          <div className="space-y-1.5">
+                            {openGrants.map((grant) => (
+                              <div key={grant.id} className="flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[11px] font-medium">
+                                  <Unlock className="h-3 w-3" aria-hidden="true" />
+                                  {grant.teacherRegradeEnabled ? "Teacher" : ""}
+                                  {grant.teacherRegradeEnabled && grant._count.studentGrants > 0 ? " + " : ""}
+                                  {grant._count.studentGrants > 0 ? `${grant._count.studentGrants} student${grant._count.studentGrants !== 1 ? "s" : ""}` : ""}
+                                </span>
+                                <button
+                                  onClick={() => handleCloseGrant(grant.id)}
+                                  disabled={closingGrantId === grant.id}
+                                  className="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                                  aria-label="Close regrade access"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                            <Button size="sm" variant="outline" className="text-xs" onClick={() => openReopenDialog(h)}>
+                              <Unlock className="h-3.5 w-3.5" aria-hidden="true" />
+                              Reopen
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -299,20 +669,20 @@ export default function StudentGroupDetailPage() {
           <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
             {filteredAvailable.length === 0 ? (
               <div className="py-8 text-center text-sm text-gray-400">
-                {addSearch ? "No students match your search." : "All students are already in this group."}
+                {addSearch ? "No students match your search." : "All eligible students are already in this group."}
               </div>
             ) : (
               <ul role="list" className="divide-y divide-gray-100">
                 {filteredAvailable.map((student) => (
                   <li key={student.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors">
                     <div className="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-medium text-gray-600">{student.name.charAt(0).toUpperCase()}</span>
+                      <span className="text-xs font-medium text-gray-600">{student.firstName.charAt(0).toUpperCase()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{student.name}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{student.firstName} {student.lastName}</p>
                       <p className="text-xs text-gray-500 truncate">{student.email}</p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => handleAddMember(student)} disabled={addLoading} aria-label={`Add ${student.name}`}>
+                    <Button size="sm" variant="outline" onClick={() => handleAddMember(student)} disabled={addLoading} aria-label={`Add ${student.firstName} ${student.lastName}`}>
                       Add
                     </Button>
                   </li>
@@ -336,11 +706,147 @@ export default function StudentGroupDetailPage() {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600 py-2">
-            Remove <strong>{removeTarget?.name}</strong> from <strong>{group.name}</strong>? Their grade history is preserved.
+            Remove <strong>{removeTarget?.firstName} {removeTarget?.lastName}</strong> from <strong>{group.name}</strong>? Their grade history is preserved.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRemoveTarget(null)} disabled={removeLoading}>Cancel</Button>
             <Button variant="destructive" onClick={handleRemoveMember} loading={removeLoading}>Remove</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove group confirm */}
+      <Dialog open={removeGroupOpen} onOpenChange={(o) => !o && setRemoveGroupOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Remove group
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 py-2">
+            Remove <strong>{group.name}</strong>? It will no longer appear in active rotations or new
+            carousel assignments, but its members and grade history are preserved. You can restore it
+            at any time.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoveGroupOpen(false)} disabled={groupActionLoading}>Cancel</Button>
+            <Button variant="destructive" onClick={() => handleToggleGroupActive(false)} loading={groupActionLoading}>Remove group</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Permanent delete confirm */}
+      <Dialog open={deleteGroupOpen} onOpenChange={(o) => { if (!o) { setDeleteGroupOpen(false); setDeleteConfirmText(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              Permanently delete group
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-gray-600">
+              This permanently deletes <strong>{group.name}</strong> and cannot be undone. Only groups
+              with no rotation or grade history can be deleted this way — groups with real history
+              must stay archived instead.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-group-confirm">
+                Type <strong className="font-mono">{group.name}</strong> to confirm
+              </Label>
+              <Input
+                id="delete-group-confirm"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteGroupOpen(false); setDeleteConfirmText(""); }} disabled={deleteLoading}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteGroup}
+              disabled={deleteConfirmText !== group.name}
+              loading={deleteLoading}
+            >
+              Delete permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reopen for regrading */}
+      <Dialog open={!!reopenTarget} onOpenChange={(o) => !o && setReopenTarget(null)}>
+        <DialogContent className="max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              Reopen Rotation {reopenTarget?.rotationNumber} — {reopenTarget?.carouselPosition.teacherClassAssignment.activityTemplate.name}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500 -mt-2 mb-2">
+            This class is locked. Choose what to reopen — access stays open until you close it again.
+          </p>
+
+          <div className="flex items-center gap-2 mb-3">
+            <Checkbox
+              id="reopen-teacher"
+              checked={reopenTeacherEnabled}
+              onCheckedChange={(v) => setReopenTeacherEnabled(v === true)}
+            />
+            <Label htmlFor="reopen-teacher" className="text-sm font-normal cursor-pointer">
+              Allow {reopenTarget?.carouselPosition.teacherClassAssignment.teacherProfile.firstName} to regrade this class
+            </Label>
+          </div>
+
+          <div className="flex items-center justify-between mb-1.5">
+            <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Students who can resubmit</Label>
+            <button onClick={toggleSelectAllMembers} className="text-xs text-primary-600 hover:text-primary-700 font-medium">
+              {allMembersSelected ? "Clear all" : "Select all"}
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg mb-3 max-h-52">
+            {members.length === 0 ? (
+              <div className="py-6 text-center text-sm text-gray-400">No current members in this group.</div>
+            ) : (
+              <ul role="list" className="divide-y divide-gray-100">
+                {members.map((m) => (
+                  <li key={m.studentProfileId} className="flex items-center gap-2.5 px-3 py-2">
+                    <Checkbox
+                      id={`reopen-student-${m.studentProfileId}`}
+                      checked={reopenSelectedStudents.has(m.studentProfileId)}
+                      onCheckedChange={() => toggleReopenStudent(m.studentProfileId)}
+                    />
+                    <Label htmlFor={`reopen-student-${m.studentProfileId}`} className="text-sm font-normal cursor-pointer flex-1">
+                      {m.firstName} {m.lastName} <span className="text-gray-400">· {m.studentId}</span>
+                    </Label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="reopen-reason">Reason</Label>
+            <Textarea
+              id="reopen-reason"
+              placeholder="Why is this being reopened?"
+              value={reopenReason}
+              onChange={(e) => setReopenReason(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <DialogFooter className="mt-3">
+            <Button variant="outline" onClick={() => setReopenTarget(null)} disabled={reopenLoading}>Cancel</Button>
+            <Button
+              onClick={handleReopen}
+              loading={reopenLoading}
+              disabled={!reopenReason.trim() || (!reopenTeacherEnabled && reopenSelectedStudents.size === 0)}
+            >
+              Reopen
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

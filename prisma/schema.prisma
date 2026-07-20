@@ -86,6 +86,7 @@ enum AuditAction {
   // Groups
   STUDENT_GROUP_CREATED
   STUDENT_GROUP_UPDATED
+  STUDENT_GROUP_DELETED
   STUDENT_GROUP_MEMBERSHIP_ADDED
   STUDENT_GROUP_MEMBERSHIP_REMOVED
   // Carousel / rotation
@@ -119,6 +120,16 @@ enum AuditAction {
   ATL_RECORD_CREATED
   ATL_RECORD_UPDATED
   GRADE_SNAPSHOT_CREATED
+  // Teachers & classes
+  ACTIVITY_TEMPLATE_CREATED
+  ACTIVITY_TEMPLATE_UPDATED
+  TEACHER_CLASS_ASSIGNMENT_CREATED
+  TEACHER_CLASS_ASSIGNMENT_UPDATED
+  // Regrade grants
+  REGRADE_GRANT_OPENED
+  REGRADE_GRANT_CLOSED
+  REGRADE_GRANT_BULK_OPENED
+  REGRADE_GRANT_BULK_CLOSED
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +164,8 @@ model User {
   rotationHistoriesExecuted RotationHistory[] @relation("RotationExecutor")
   rotationHistoriesReversed RotationHistory[] @relation("RotationReverser")
   parentStudentLinksCreated ParentStudentLink[]
+  regradeGrantsOpened    ClassRegradeGrant[] @relation("RegradeGrantOpener")
+  regradeGrantsClosed    ClassRegradeGrant[] @relation("RegradeGrantCloser")
 
   @@index([email])
   @@index([role])
@@ -229,7 +242,9 @@ model StudentProfile {
   atlRecords            ApproachToLearningRecord[]
   gradeSnapshots        GradeCalculationSnapshot[]
   studentSkillRatings   StudentSkillSelfRating[]
+  studentPromptRatings  StudentPromptRating[]
   studentStd4Ratings    StudentStandard4SelfRating[]
+  regradeGrantMemberships ClassRegradeGrantStudent[]
 
   @@index([gradeLevel])
   @@index([gender])
@@ -363,8 +378,10 @@ model StudentGroup {
 
   schoolYear               SchoolYear                @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
   memberships              StudentGroupMembership[]
+  carouselPositions        CarouselPosition[]
   groupRotationAssignments GroupRotationAssignment[]
   historicalClassInstances HistoricalClassInstance[]
+  rotationHistories        RotationHistory[]
 
   @@unique([schoolYearId, name])
   @@index([schoolYearId])
@@ -438,19 +455,25 @@ model CarouselPlan {
   @@index([isActive])
 }
 
+// Each position belongs to exactly one student group's own carousel — groups
+// no longer share a single round-robin. The same TeacherClassAssignment can
+// (and often does) appear in multiple groups' position lists.
 model CarouselPosition {
   id                      String @id @default(uuid()) @db.Uuid
   carouselPlanId          String @db.Uuid
+  studentGroupId          String @db.Uuid
   positionOrder           Int
   teacherClassAssignmentId String @db.Uuid
 
   carouselPlan          CarouselPlan           @relation(fields: [carouselPlanId], references: [id], onDelete: Cascade)
+  studentGroup          StudentGroup           @relation(fields: [studentGroupId], references: [id], onDelete: Restrict)
   teacherClassAssignment TeacherClassAssignment @relation(fields: [teacherClassAssignmentId], references: [id], onDelete: Restrict)
 
   groupRotationAssignments GroupRotationAssignment[]
 
-  @@unique([carouselPlanId, positionOrder])
+  @@unique([studentGroupId, positionOrder])
   @@index([carouselPlanId])
+  @@index([studentGroupId])
   @@index([teacherClassAssignmentId])
 }
 
@@ -483,9 +506,16 @@ model GroupRotationAssignment {
   @@index([status])
 }
 
+// One row per group per rotation event — rotations are now per-group, so a
+// single "rotate selected groups" action produces one row for each group
+// rotated, each recording that group's own before/after activity.
 model RotationHistory {
   id             String    @id @default(uuid()) @db.Uuid
   carouselPlanId String    @db.Uuid
+  studentGroupId String    @db.Uuid
+  rotationNumber Int
+  fromActivityName String?
+  toActivityName    String
   executedAt     DateTime  @default(now())
   executedBy     String    @db.Uuid
   notes          String?
@@ -494,10 +524,12 @@ model RotationHistory {
   reversalReason String?
 
   carouselPlan CarouselPlan @relation(fields: [carouselPlanId], references: [id], onDelete: Restrict)
+  studentGroup StudentGroup @relation(fields: [studentGroupId], references: [id], onDelete: Restrict)
   executor     User         @relation("RotationExecutor", fields: [executedBy], references: [id], onDelete: Restrict)
   reverser     User?        @relation("RotationReverser", fields: [reversedBy], references: [id], onDelete: SetNull)
 
   @@index([carouselPlanId])
+  @@index([studentGroupId])
   @@index([executedBy])
 }
 
@@ -533,6 +565,7 @@ model HistoricalClassInstance {
   teacherAssessments       TeacherAssessment[]
   atlRecords               ApproachToLearningRecord[]
   gradeSnapshots           GradeCalculationSnapshot[]
+  regradeGrants            ClassRegradeGrant[]
 
   @@unique([groupRotationAssignmentId, studentGroupId, teacherClassAssignmentId])
   @@index([schoolYearId])
@@ -540,6 +573,45 @@ model HistoricalClassInstance {
   @@index([teacherClassAssignmentId])
   @@index([status])
   @@index([termId])
+}
+
+// ---------------------------------------------------------------------------
+// Regrade Grants — admin-controlled reopening of a LOCKED class instance for
+// specific students' resubmission and/or the teacher's regrading, with no
+// time limit. Deliberately does NOT touch HistoricalClassInstance.status —
+// that stays LOCKED — so a group never ends up with two simultaneously
+// ACTIVE instances (the bug the old, unused reopen-to-ACTIVE endpoint had).
+// ---------------------------------------------------------------------------
+
+model ClassRegradeGrant {
+  id                        String    @id @default(uuid()) @db.Uuid
+  historicalClassInstanceId String    @db.Uuid
+  teacherRegradeEnabled     Boolean   @default(false)
+  reason                    String
+  openedBy                  String    @db.Uuid
+  openedAt                  DateTime  @default(now())
+  closedBy                  String?   @db.Uuid
+  closedAt                  DateTime?
+
+  historicalClassInstance HistoricalClassInstance    @relation(fields: [historicalClassInstanceId], references: [id], onDelete: Cascade)
+  opener                  User                       @relation("RegradeGrantOpener", fields: [openedBy], references: [id], onDelete: Restrict)
+  closer                  User?                      @relation("RegradeGrantCloser", fields: [closedBy], references: [id], onDelete: SetNull)
+  studentGrants           ClassRegradeGrantStudent[]
+
+  @@index([historicalClassInstanceId])
+  @@index([closedAt])
+}
+
+model ClassRegradeGrantStudent {
+  id               String @id @default(uuid()) @db.Uuid
+  grantId          String @db.Uuid
+  studentProfileId String @db.Uuid
+
+  grant          ClassRegradeGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([grantId, studentProfileId])
+  @@index([studentProfileId])
 }
 
 // ---------------------------------------------------------------------------
@@ -596,8 +668,10 @@ model PromptDefinition {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  rubricVersion    RubricVersion    @relation(fields: [rubricVersionId], references: [id], onDelete: Cascade)
-  writtenResponses WrittenResponse[]
+  rubricVersion        RubricVersion         @relation(fields: [rubricVersionId], references: [id], onDelete: Cascade)
+  writtenResponses     WrittenResponse[]
+  teacherPromptScores  TeacherPromptScore[]
+  studentPromptRatings StudentPromptRating[]
 
   @@unique([rubricVersionId, standardNumber, displayOrder])
   @@index([rubricVersionId])
@@ -619,6 +693,11 @@ model StudentSubmission {
   honorCodeVersion            String?
   submittedAt                 DateTime?
   reassessmentSubmittedAt     DateTime?
+  // Number of the current live attempt (1 = original submission, 2+ = a
+  // resubmission). Earlier attempts are frozen in SubmissionHistoryEntry
+  // rows; the "live" WrittenResponse/self-rating rows always mirror this
+  // latest attempt.
+  latestAttemptNumber         Int              @default(1)
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 
@@ -627,7 +706,9 @@ model StudentSubmission {
 
   writtenResponses         WrittenResponse[]
   studentSkillSelfRatings  StudentSkillSelfRating[]
+  studentPromptRatings     StudentPromptRating[]
   studentStandard4Ratings  StudentStandard4SelfRating[]
+  historyEntries           SubmissionHistoryEntry[]
 
   @@unique([studentProfileId, historicalClassInstanceId, standardNumber])
   @@index([studentProfileId])
@@ -636,19 +717,35 @@ model StudentSubmission {
   @@index([standardNumber])
 }
 
+// A frozen snapshot of everything a student had submitted for one attempt,
+// captured right before a resubmission overwrites the "live" rows. Lets a
+// teacher browse the full history of every past attempt, not just the
+// current one.
+model SubmissionHistoryEntry {
+  id                  String   @id @default(uuid()) @db.Uuid
+  studentSubmissionId String   @db.Uuid
+  attemptNumber       Int
+  submittedAt         DateTime
+  snapshotData        Json
+
+  studentSubmission StudentSubmission @relation(fields: [studentSubmissionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentSubmissionId, attemptNumber])
+  @@index([studentSubmissionId])
+}
+
 model WrittenResponse {
   id                  String    @id @default(uuid()) @db.Uuid
   studentSubmissionId String    @db.Uuid
   promptDefinitionId  String    @db.Uuid
   responseText        String
-  isReassessment      Boolean   @default(false)
   submittedAt         DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
   studentSubmission StudentSubmission @relation(fields: [studentSubmissionId], references: [id], onDelete: Cascade)
   promptDefinition  PromptDefinition  @relation(fields: [promptDefinitionId], references: [id], onDelete: Restrict)
 
-  @@unique([studentSubmissionId, promptDefinitionId, isReassessment])
+  @@unique([studentSubmissionId, promptDefinitionId])
   @@index([studentSubmissionId])
   @@index([promptDefinitionId])
 }
@@ -670,6 +767,28 @@ model StudentSkillSelfRating {
   @@index([studentSubmissionId])
   @@index([studentProfileId])
   @@index([skillDefinitionId])
+}
+
+// Student self-score on a Standard 2/3 concept question. Informational only —
+// displayed on both student and teacher views, but the teacher's
+// TeacherPromptScore always wins for grade calculation.
+model StudentPromptRating {
+  id                  String   @id @default(uuid()) @db.Uuid
+  studentSubmissionId String   @db.Uuid
+  studentProfileId    String   @db.Uuid
+  promptDefinitionId  String   @db.Uuid
+  rating              Int      // 1–4
+  ratedAt             DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  studentSubmission StudentSubmission @relation(fields: [studentSubmissionId], references: [id], onDelete: Cascade)
+  studentProfile    StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
+  promptDefinition  PromptDefinition  @relation(fields: [promptDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([studentSubmissionId, promptDefinitionId])
+  @@index([studentSubmissionId])
+  @@index([studentProfileId])
+  @@index([promptDefinitionId])
 }
 
 model StudentStandard4SelfRating {
@@ -709,6 +828,7 @@ model TeacherAssessment {
   studentProfile          StudentProfile          @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
 
   teacherSkillScores      TeacherSkillScore[]
+  teacherPromptScores     TeacherPromptScore[]
   teacherStandard4Ratings TeacherStandard4Rating[]
 
   @@unique([teacherProfileId, historicalClassInstanceId, studentProfileId, standardNumber])
@@ -734,6 +854,25 @@ model TeacherSkillScore {
   @@index([skillDefinitionId])
 }
 
+// Per-question teacher score for a Standard 2/3/4 concept question — the
+// teacher grades the student's WrittenResponse against the rubric shown on
+// hover, one score per prompt, aggregated via calculateStandard234.
+model TeacherPromptScore {
+  id                  String   @id @default(uuid()) @db.Uuid
+  teacherAssessmentId String   @db.Uuid
+  promptDefinitionId  String   @db.Uuid
+  score               Int      // 1–4
+  scoredAt            DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  teacherAssessment TeacherAssessment @relation(fields: [teacherAssessmentId], references: [id], onDelete: Cascade)
+  promptDefinition  PromptDefinition  @relation(fields: [promptDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([teacherAssessmentId, promptDefinitionId])
+  @@index([teacherAssessmentId])
+  @@index([promptDefinitionId])
+}
+
 model TeacherStandard4Rating {
   id                  String   @id @default(uuid()) @db.Uuid
   teacherAssessmentId String   @db.Uuid
@@ -756,12 +895,13 @@ model ApproachToLearningRecord {
   studentProfileId          String    @db.Uuid
   historicalClassInstanceId String    @db.Uuid
   teacherProfileId          String    @db.Uuid
-  responsiblePrepared       Decimal   @db.Decimal(4, 2)
-  respectfulWorks           Decimal   @db.Decimal(4, 2)
-  effortTeacherScore        Decimal   @db.Decimal(4, 2)
-  effortStudentScore        Decimal   @db.Decimal(4, 2)
+  // Teacher-only ratings (1-4) — no student self-rating counterpart.
+  responsiblePrepared      Decimal?  @db.Decimal(4, 2)
+  respectfulWorks          Decimal?  @db.Decimal(4, 2)
+  effortTeacherScore        Decimal?  @db.Decimal(4, 2)
+  effortStudentScore        Decimal?  @db.Decimal(4, 2)
   daysLateUnprepared        Int       @default(0)
-  calculatedScore           Decimal   @db.Decimal(5, 2)
+  calculatedScore           Decimal?  @db.Decimal(5, 2)
   recordedAt                DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 
@@ -788,6 +928,7 @@ model GradeCalculationSnapshot {
   standard2Score            Decimal? @db.Decimal(5, 2)
   standard3Score            Decimal? @db.Decimal(5, 2)
   standard4Score            Decimal? @db.Decimal(5, 2)
+  atlScore                  Decimal? @db.Decimal(5, 2)
   overallAverage            Decimal? @db.Decimal(5, 2)
   letterGrade               String?
   calculatedAt              DateTime @default(now())

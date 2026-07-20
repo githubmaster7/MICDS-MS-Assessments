@@ -9,6 +9,7 @@ import {
   validateCarouselRotation,
   previewNextRotation,
   computeNextRotationAssignments,
+  computeUpcomingSequence,
   validateStudentGroupIntegrity,
   type CarouselPlan,
   type CarouselPosition,
@@ -139,7 +140,7 @@ describe('validateCarouselRotation', () => {
     expect(result.errors.some((e) => e.toLowerCase().includes('order'))).toBe(true)
   })
 
-  it('warns about empty positions (no group assigned there)', () => {
+  it('does not warn about empty positions (no group assigned there) — expected when groups < positions', () => {
     const plan = makePlan()
     const positions = [
       makePosition('pos-1', 1),
@@ -152,8 +153,8 @@ describe('validateCarouselRotation', () => {
       makeAssignment('a-2', 'group-2', 'pos-2'),
     ]
     const result = validateCarouselRotation({ plan, positions, currentAssignments, studentGroups: groups })
-    expect(result.isValid).toBe(true) // warnings do not make it invalid
-    expect(result.warnings.some((w) => w.includes('pos-3'))).toBe(true)
+    expect(result.isValid).toBe(true)
+    expect(result.warnings.some((w) => w.includes('pos-3'))).toBe(false)
   })
 
   it('ignores inactive groups when checking assignment coverage', () => {
@@ -178,7 +179,7 @@ describe('previewNextRotation', () => {
     state.currentAssignments = state.currentAssignments.slice(0, 2)
     const preview = previewNextRotation(state)
     expect(preview.isValid).toBe(false)
-    expect(preview.errors ?? preview.warnings.length).toBeTruthy()
+    expect(preview.warnings.length).toBeGreaterThan(0)
   })
 
   it('correctly maps next position for each group (3-group rotation)', () => {
@@ -265,6 +266,44 @@ describe('computeNextRotationAssignments', () => {
     const positions = Array.from(result.values())
     const uniquePositions = new Set(positions)
     expect(uniquePositions.size).toBe(positions.length)
+  })
+})
+
+// ─── computeUpcomingSequence ──────────────────────────────────────────────────
+
+describe('computeUpcomingSequence', () => {
+  it('walks forward from the current position for the requested count', () => {
+    const state = makeState(9)
+    const result = computeUpcomingSequence(state.positions, 'pos-5', 4)
+    expect(result).toEqual(['pos-6', 'pos-7', 'pos-8', 'pos-9'])
+  })
+
+  it('wraps around past the last position', () => {
+    const state = makeState(9)
+    const result = computeUpcomingSequence(state.positions, 'pos-8', 4)
+    expect(result).toEqual(['pos-9', 'pos-1', 'pos-2', 'pos-3'])
+  })
+
+  it('reflects a reordered positions array immediately', () => {
+    const state = makeState(4)
+    // Swap pos-3 and pos-4's order, simulating an admin reorder.
+    const reordered = state.positions.map((p) => {
+      if (p.id === 'pos-3') return { ...p, positionOrder: 4 }
+      if (p.id === 'pos-4') return { ...p, positionOrder: 3 }
+      return p
+    })
+    const result = computeUpcomingSequence(reordered, 'pos-2', 2)
+    expect(result).toEqual(['pos-4', 'pos-3'])
+  })
+
+  it('returns an empty array when count is 0', () => {
+    const state = makeState(3)
+    expect(computeUpcomingSequence(state.positions, 'pos-1', 0)).toEqual([])
+  })
+
+  it('throws if the current position is not found', () => {
+    const state = makeState(3)
+    expect(() => computeUpcomingSequence(state.positions, 'nonexistent', 1)).toThrow()
   })
 })
 

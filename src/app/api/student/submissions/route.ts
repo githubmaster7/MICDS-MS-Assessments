@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { auditSubmission, AuditAction } from '@/lib/audit'
 import { Role, SubmissionStatus, RotationStatus } from '@prisma/client'
 import { z } from 'zod'
+import { hasOpenStudentRegradeGrant } from '@/lib/authorization'
 import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 const HONOR_CODE_VERSION = '2024-v1'
@@ -57,14 +58,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   })
   if (!studentProfile) return NextResponse.json({ error: 'Student profile not found.' }, { status: 404 })
 
-  // Verify the class instance exists and is not locked
+  // Verify the class instance exists and is the student's current active class
   const instance = await db.historicalClassInstance.findUnique({
     where: { id: instanceId },
     select: { id: true, status: true, studentGroupId: true },
   })
   if (!instance) return NextResponse.json({ error: 'Class instance not found.' }, { status: 404 })
-  if (instance.status === RotationStatus.LOCKED) {
-    return NextResponse.json({ error: 'This class instance is locked and no longer accepting submissions.' }, { status: 409 })
+  if (instance.status !== RotationStatus.ACTIVE) {
+    const reopened = await hasOpenStudentRegradeGrant(studentProfile.id, instanceId)
+    if (!reopened) {
+      return NextResponse.json(
+        { error: 'This class instance is not currently active and is not accepting submissions.' },
+        { status: 409 },
+      )
+    }
   }
 
   // Verify student is a member of the class instance's group

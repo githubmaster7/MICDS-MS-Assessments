@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { emailVerifyLimiter, checkRateLimit, ipRateLimitKey } from '@/lib/rate-limit'
 import { createAuditLog, AuditAction } from '@/lib/audit'
 import { AccountStatus } from '@prisma/client'
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ message: 'Email address already verified.' })
   }
 
-  await db.$transaction(async (tx: typeof db) => {
+  await db.$transaction(async (tx: TxClient) => {
     await tx.emailVerificationToken.update({
       where: { id: record.id },
       data: { usedAt: new Date() },

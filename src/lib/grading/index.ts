@@ -19,3 +19,5 @@ export {
 
 export type { ATLInput, ATLResult } from './approach-to-learning'
 export { calculateDaysLateScore, calculateApproachToLearning } from './approach-to-learning'
+
+export { countWordChanges, isRevised } from './resubmission'

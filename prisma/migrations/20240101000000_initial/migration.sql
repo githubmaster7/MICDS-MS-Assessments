@@ -792,6 +792,7 @@ CREATE TABLE "GradeCalculationSnapshot" (
   "standard2Score"            DECIMAL(5,2),
   "standard3Score"            DECIMAL(5,2),
   "standard4Score"            DECIMAL(5,2),
+  "atlScore"                  DECIMAL(5,2),
   "overallAverage"            DECIMAL(5,2),
   "letterGrade"               TEXT,
   "calculatedAt"              TIMESTAMPTZ  NOT NULL DEFAULT now(),

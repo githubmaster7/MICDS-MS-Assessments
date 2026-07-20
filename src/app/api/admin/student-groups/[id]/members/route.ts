@@ -6,6 +6,7 @@ import { createAuditLog, AuditAction } from '@/lib/audit'
 import { Role } from '@prisma/client'
 import { z } from 'zod'
 import { ipRateLimitKey } from '@/lib/rate-limit'
+import { canEnrollStudent } from '@/lib/enrollment'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -76,12 +77,23 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   const { studentProfileId } = parsed.data
 
   const [group, studentProfile] = await Promise.all([
-    db.studentGroup.findUnique({ where: { id }, select: { id: true, name: true, schoolYearId: true } }),
-    db.studentProfile.findUnique({ where: { id: studentProfileId }, select: { id: true, firstName: true, lastName: true } }),
+    db.studentGroup.findUnique({
+      where: { id },
+      select: { id: true, name: true, schoolYearId: true, gradeLevel: true, gender: true },
+    }),
+    db.studentProfile.findUnique({
+      where: { id: studentProfileId },
+      select: { id: true, firstName: true, lastName: true, gradeLevel: true, gender: true },
+    }),
   ])
 
   if (!group) return NextResponse.json({ error: 'Student group not found.' }, { status: 404 })
   if (!studentProfile) return NextResponse.json({ error: 'Student profile not found.' }, { status: 404 })
+
+  const enrollment = canEnrollStudent(studentProfile, group)
+  if (!enrollment.allowed) {
+    return NextResponse.json({ error: enrollment.reason ?? 'Student is not eligible for this group.' }, { status: 400 })
+  }
 
   // Check if already a member
   const existing = await db.studentGroupMembership.findUnique({

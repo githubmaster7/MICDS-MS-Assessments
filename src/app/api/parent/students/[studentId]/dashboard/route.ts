@@ -89,7 +89,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
 
   // De-dupe: latest snapshot per instance
   const seenInstances = new Set<string>()
-  const latestSnapshots = snapshots.filter((s: { historicalClassInstanceId: string; historicalClassInstance: { teacherClassAssignment: { activityTemplate: { name: string } }; groupRotationAssignment: { rotationNumber: number; startDate: Date; endDate: Date }; status: string }; standard1Score: unknown; standard2Score: unknown; standard3Score: unknown; standard4Score: unknown; overallAverage: unknown; letterGrade: string | null; atlScore: unknown; calculatedAt: Date }) => {
+  const latestSnapshots = snapshots.filter((s) => {
     if (seenInstances.has(s.historicalClassInstanceId)) return false
     seenInstances.add(s.historicalClassInstanceId)
     return true
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
             activeRotation: currentMembership.studentGroup.groupRotationAssignments[0] ?? null,
           }
         : null,
-      gradeHistory: latestSnapshots.map((s: { historicalClassInstanceId: string; historicalClassInstance: { teacherClassAssignment: { activityTemplate: { name: string } }; groupRotationAssignment: { rotationNumber: number; startDate: Date; endDate: Date }; status: string }; standard1Score: unknown; standard2Score: unknown; standard3Score: unknown; standard4Score: unknown; overallAverage: unknown; letterGrade: string | null; atlScore: unknown; calculatedAt: Date }) => ({
+      gradeHistory: latestSnapshots.map((s) => ({
         instanceId: s.historicalClassInstanceId,
         activity: s.historicalClassInstance.teacherClassAssignment.activityTemplate.name,
         rotationNumber: s.historicalClassInstance.groupRotationAssignment.rotationNumber,
@@ -130,6 +130,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
         standard2Score: s.standard2Score,
         standard3Score: s.standard3Score,
         standard4Score: s.standard4Score,
+        atlScore: s.atlScore,
         overallAverage: s.overallAverage,
         letterGrade: s.letterGrade,
         calculatedAt: s.calculatedAt,

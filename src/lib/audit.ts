@@ -1,4 +1,4 @@
-import { AuditAction, Role } from '@prisma/client'
+import { AuditAction, Prisma, Role } from '@prisma/client'
 import { db } from '@/lib/db'
 
 // Re-export so callers can import AuditAction from here without needing @prisma/client directly
@@ -36,8 +36,8 @@ export async function createAuditLog(params: CreateAuditLogParams): Promise<void
         targetType:  params.targetType,
         targetId:    params.targetId    ?? null,
         targetLabel: params.targetLabel ?? null,
-        beforeValue: params.beforeValue ?? undefined,
-        afterValue:  params.afterValue  ?? undefined,
+        beforeValue: (params.beforeValue ?? undefined) as Prisma.InputJsonValue | undefined,
+        afterValue:  (params.afterValue  ?? undefined) as Prisma.InputJsonValue | undefined,
         reason:      params.reason      ?? null,
         ipAddress:   params.ipAddress   ?? null,
         userAgent:   params.userAgent   ?? null,
@@ -70,7 +70,7 @@ export async function auditGradeChange(opts: {
     action:      AuditAction.TEACHER_ASSESSMENT_UPDATED,
     targetType:  'TeacherAssessment',
     targetId:    opts.studentProfileId,
-    targetLabel: `Standard ${opts.standardNumber} — student ${opts.studentProfileId}`,
+    targetLabel: `Standard ${opts.standardNumber} — student ${opts.studentProfileId} — instance ${opts.historicalClassInstanceId}`,
     beforeValue: opts.before,
     afterValue:  opts.after,
     ipAddress:   opts.ipAddress,
@@ -87,7 +87,7 @@ export async function auditRotation(opts: {
   actorRole:      Role
   carouselPlanId: string
   planName:       string
-  action:         AuditAction.ROTATION_ADVANCED | AuditAction.ROTATION_REVERSED
+  action:         typeof AuditAction.ROTATION_ADVANCED | typeof AuditAction.ROTATION_REVERSED
   notes?:         string
   ipAddress?:     string
   userAgent?:     string
@@ -116,6 +116,7 @@ export async function auditApproval(opts: {
   targetEmail:   string
   approved:      boolean
   reason?:       string
+  afterValue?:   Record<string, unknown>
   ipAddress?:    string
   userAgent?:    string
 }): Promise<void> {
@@ -129,6 +130,7 @@ export async function auditApproval(opts: {
     targetId:    opts.targetUserId,
     targetLabel: opts.targetEmail,
     reason:      opts.reason,
+    afterValue:  opts.afterValue,
     ipAddress:   opts.ipAddress,
     userAgent:   opts.userAgent,
   })
@@ -165,7 +167,7 @@ export async function auditClassInstance(opts: {
   actorId:                  string
   actorRole:                Role
   historicalClassInstanceId: string
-  action:                   AuditAction.CLASS_INSTANCE_LOCKED | AuditAction.CLASS_INSTANCE_REOPENED
+  action:                   typeof AuditAction.CLASS_INSTANCE_LOCKED | typeof AuditAction.CLASS_INSTANCE_REOPENED
   reason?:                  string
   ipAddress?:               string
   userAgent?:               string
@@ -183,6 +185,45 @@ export async function auditClassInstance(opts: {
 }
 
 // ---------------------------------------------------------------------------
+// Typed helper: regrade grant open / close
+// ---------------------------------------------------------------------------
+
+export async function auditRegradeGrant(opts: {
+  actorId:                  string
+  actorRole:                Role
+  grantId:                  string
+  historicalClassInstanceId: string
+  action:                   'OPENED' | 'CLOSED' | 'BULK_OPENED' | 'BULK_CLOSED'
+  reason?:                  string
+  teacherRegradeEnabled?:   boolean
+  studentCount?:            number
+  ipAddress?:               string
+  userAgent?:               string
+}): Promise<void> {
+  const actionMap = {
+    OPENED: AuditAction.REGRADE_GRANT_OPENED,
+    CLOSED: AuditAction.REGRADE_GRANT_CLOSED,
+    BULK_OPENED: AuditAction.REGRADE_GRANT_BULK_OPENED,
+    BULK_CLOSED: AuditAction.REGRADE_GRANT_BULK_CLOSED,
+  } as const
+
+  await createAuditLog({
+    actorId:     opts.actorId,
+    actorRole:   opts.actorRole,
+    action:      actionMap[opts.action],
+    targetType:  'ClassRegradeGrant',
+    targetId:    opts.grantId,
+    reason:      opts.reason,
+    afterValue:
+      opts.teacherRegradeEnabled !== undefined || opts.studentCount !== undefined
+        ? { historicalClassInstanceId: opts.historicalClassInstanceId, teacherRegradeEnabled: opts.teacherRegradeEnabled, studentCount: opts.studentCount }
+        : undefined,
+    ipAddress:   opts.ipAddress,
+    userAgent:   opts.userAgent,
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Typed helper: student submission
 // ---------------------------------------------------------------------------
 
@@ -192,9 +233,9 @@ export async function auditSubmission(opts: {
   studentSubmissionId:      string
   studentProfileId:         string
   action:
-    | AuditAction.STUDENT_SUBMISSION_CREATED
-    | AuditAction.STUDENT_SUBMISSION_UPDATED
-    | AuditAction.STUDENT_SUBMISSION_SUBMITTED
+    | typeof AuditAction.STUDENT_SUBMISSION_CREATED
+    | typeof AuditAction.STUDENT_SUBMISSION_UPDATED
+    | typeof AuditAction.STUDENT_SUBMISSION_SUBMITTED
   before?:                  Record<string, unknown> | null
   after?:                   Record<string, unknown>
   ipAddress?:               string
@@ -223,7 +264,7 @@ export async function auditAtlRecord(opts: {
   actorRole:                Role
   studentProfileId:         string
   historicalClassInstanceId: string
-  action:                   AuditAction.ATL_RECORD_CREATED | AuditAction.ATL_RECORD_UPDATED
+  action:                   typeof AuditAction.ATL_RECORD_CREATED | typeof AuditAction.ATL_RECORD_UPDATED
   before?:                  Record<string, unknown> | null
   after?:                   Record<string, unknown>
   ipAddress?:               string

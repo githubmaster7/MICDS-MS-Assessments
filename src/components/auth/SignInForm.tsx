@@ -29,7 +29,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 export function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  // "/" does server-side role-based redirection (admin/teacher/student/parent
+  // dashboards), so it's the correct landing spot when no explicit
+  // callbackUrl was carried over from a protected-route redirect.
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const errorParam = searchParams.get("error");
 
   const [email, setEmail] = React.useState("");

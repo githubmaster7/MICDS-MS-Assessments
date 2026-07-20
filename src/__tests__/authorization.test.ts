@@ -16,6 +16,8 @@ jest.mock('@/lib/db', () => {
     studentGroupMembership: { findMany: jest.fn() },
     groupRotationAssignment: { findFirst: jest.fn() },
     historicalClassInstance: { findUnique: jest.fn() },
+    classRegradeGrant: { findFirst: jest.fn() },
+    classRegradeGrantStudent: { findFirst: jest.fn() },
   }
   return { db: mockDb }
 })
@@ -24,6 +26,7 @@ jest.mock('@/lib/db', () => {
 import {
   canViewStudent,
   canTeacherGrade,
+  hasOpenStudentRegradeGrant,
   isClassInstanceLocked,
   requireStudentOwnership,
 } from '@/lib/authorization'
@@ -39,6 +42,8 @@ const mockDb = db as unknown as {
   studentGroupMembership: { findMany: jest.Mock }
   groupRotationAssignment: { findFirst: jest.Mock }
   historicalClassInstance: { findUnique: jest.Mock }
+  classRegradeGrant: { findFirst: jest.Mock }
+  classRegradeGrantStudent: { findFirst: jest.Mock }
 }
 
 // Prisma enums — mirror the values from the stub / @prisma/client
@@ -179,12 +184,35 @@ describe('canTeacherGrade', () => {
     expect(result).toBe(true)
   })
 
-  it('teacher cannot grade a locked instance', async () => {
+  it('teacher cannot grade a locked instance with no open regrade grant', async () => {
     mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
     mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
       status: RotationStatus.LOCKED,
       teacherClassAssignment: { teacherProfileId: 'tp-1', isActive: true },
     })
+    mockDb.classRegradeGrant.findFirst.mockResolvedValueOnce(null)
+    const result = await canTeacherGrade('teacher-user-1', 'instance-1')
+    expect(result).toBe(false)
+  })
+
+  it('teacher CAN grade a locked instance when an open teacher-regrade grant exists', async () => {
+    mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
+    mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
+      status: RotationStatus.LOCKED,
+      teacherClassAssignment: { teacherProfileId: 'tp-1', isActive: true },
+    })
+    mockDb.classRegradeGrant.findFirst.mockResolvedValueOnce({ id: 'grant-1' })
+    const result = await canTeacherGrade('teacher-user-1', 'instance-1')
+    expect(result).toBe(true)
+  })
+
+  it('an open grant does not let a teacher grade someone else\'s locked instance', async () => {
+    mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
+    mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
+      status: RotationStatus.LOCKED,
+      teacherClassAssignment: { teacherProfileId: 'tp-OTHER', isActive: true },
+    })
+    mockDb.classRegradeGrant.findFirst.mockResolvedValueOnce({ id: 'grant-1' })
     const result = await canTeacherGrade('teacher-user-1', 'instance-1')
     expect(result).toBe(false)
   })
@@ -219,6 +247,22 @@ describe('canTeacherGrade', () => {
     mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
     mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce(null)
     const result = await canTeacherGrade('teacher-user-1', 'nonexistent-instance')
+    expect(result).toBe(false)
+  })
+})
+
+// ─── hasOpenStudentRegradeGrant ───────────────────────────────────────────────
+
+describe('hasOpenStudentRegradeGrant', () => {
+  it('returns true when an open grant covers this student and instance', async () => {
+    mockDb.classRegradeGrantStudent.findFirst.mockResolvedValueOnce({ id: 'grant-student-1' })
+    const result = await hasOpenStudentRegradeGrant('student-1', 'instance-1')
+    expect(result).toBe(true)
+  })
+
+  it('returns false when no matching open grant exists', async () => {
+    mockDb.classRegradeGrantStudent.findFirst.mockResolvedValueOnce(null)
+    const result = await hasOpenStudentRegradeGrant('student-1', 'instance-1')
     expect(result).toBe(false)
   })
 })

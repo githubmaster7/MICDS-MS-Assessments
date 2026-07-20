@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
 import { z } from 'zod'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { sendVerificationEmail } from '@/lib/email'
 import { signupLimiter, checkRateLimit, ipRateLimitKey } from '@/lib/rate-limit'
 import { createAuditLog, AuditAction } from '@/lib/audit'
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   let userId: string
   try {
-    const result = await db.$transaction(async (tx: typeof db) => {
+    const result = await db.$transaction(async (tx: TxClient) => {
       const user = await tx.user.create({
         data: {
           email,

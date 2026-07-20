@@ -6,56 +6,12 @@
  *   - Student gender must match the group's gender.
  *   - A "mixed gender" group is not permitted.
  *   - Grade mismatch is rejected.
+ *
+ * Exercises the real implementation in src/lib/enrollment.ts — the same
+ * function the student-group membership API route calls server-side.
  */
 
-// ─── Types mirroring the domain model ────────────────────────────────────────
-
-type GradeLevel = 'GRADE_6' | 'GRADE_7' | 'GRADE_8'
-type Gender = 'MALE' | 'FEMALE'
-
-interface StudentProfile {
-  gradeLevel: GradeLevel
-  gender: Gender
-}
-
-interface StudentGroup {
-  gradeLevel: GradeLevel
-  gender: Gender
-}
-
-// ─── Enrollment rule implementation (inline for test isolation) ───────────────
-//
-// This mirrors what the API routes / server actions enforce.  The logic is
-// simple enough that keeping it here avoids a DB dependency and lets the tests
-// describe the rules precisely.
-
-function canEnrollStudent(
-  student: StudentProfile,
-  group: StudentGroup
-): { allowed: boolean; reason?: string } {
-  if (student.gradeLevel !== group.gradeLevel) {
-    return {
-      allowed: false,
-      reason: `Grade mismatch: student is ${student.gradeLevel} but group is ${group.gradeLevel}`,
-    }
-  }
-  if (student.gender !== group.gender) {
-    return {
-      allowed: false,
-      reason: `Gender mismatch: student is ${student.gender} but group is ${group.gender}`,
-    }
-  }
-  return { allowed: true }
-}
-
-function validateGroupCreation(group: { gender: Gender }): { valid: boolean; reason?: string } {
-  // Groups must have a single defined gender — no 'MIXED' value is allowed in this domain.
-  // The Gender type already enforces MALE | FEMALE so this tests the runtime guard.
-  if (group.gender !== 'MALE' && group.gender !== 'FEMALE') {
-    return { valid: false, reason: 'Group gender must be MALE or FEMALE' }
-  }
-  return { valid: true }
-}
+import { canEnrollStudent, validateGroupCreation, type Gender, type GradeLevel } from '@/lib/enrollment'
 
 // ─── Grade level tests ────────────────────────────────────────────────────────
 

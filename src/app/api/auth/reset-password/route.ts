@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { emailVerifyLimiter, checkRateLimit, ipRateLimitKey } from '@/lib/rate-limit'
 import { createAuditLog, AuditAction } from '@/lib/audit'
 
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const passwordHash = await bcrypt.hash(password, 12)
 
-  await db.$transaction(async (tx: typeof db) => {
+  await db.$transaction(async (tx: TxClient) => {
     await tx.passwordResetToken.update({
       where: { id: record.id },
       data: { usedAt: new Date() },

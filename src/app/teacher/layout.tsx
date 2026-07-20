@@ -16,7 +16,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-60 bg-slate-800 text-white flex flex-col shrink-0">
+      <aside className="w-60 h-screen sticky top-0 bg-slate-800 text-white flex flex-col shrink-0">
         <div className="p-4 border-b border-slate-700">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded bg-slate-600 flex items-center justify-center font-bold text-sm">PE</div>

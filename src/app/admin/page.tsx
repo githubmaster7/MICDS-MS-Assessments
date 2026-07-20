@@ -111,18 +111,19 @@ export default function AdminDashboardPage() {
 
   React.useEffect(() => {
     Promise.all([
-      fetch("/api/admin/signup-requests?status=PENDING&limit=1").then((r) =>
+      fetch("/api/admin/signup-requests?status=PENDING_ADMIN_APPROVAL&limit=1").then((r) =>
         r.json()
       ),
-      fetch("/api/admin/users?limit=1").then((r) => r.json()),
+      fetch("/api/admin/users?status=ACTIVE&limit=1").then((r) => r.json()),
       fetch("/api/admin/student-groups?limit=1").then((r) => r.json()),
+      fetch("/api/admin/classes?status=ACTIVE").then((r) => r.json()),
     ])
-      .then(([signups, users, groups]) => {
+      .then(([signups, users, groups, classes]) => {
         setStats({
-          pendingSignups: signups?.total ?? 0,
-          activeUsers: users?.total ?? 0,
-          studentGroups: groups?.total ?? 0,
-          activeRotations: 0,
+          pendingSignups: signups?.pagination?.total ?? 0,
+          activeUsers: users?.pagination?.total ?? 0,
+          studentGroups: groups?.pagination?.total ?? 0,
+          activeRotations: classes?.data?.length ?? 0,
         });
       })
       .catch(() =>
@@ -137,7 +138,26 @@ export default function AdminDashboardPage() {
 
     fetch("/api/admin/audit-logs?limit=8")
       .then((r) => r.json())
-      .then((d) => setAuditLogs(d?.logs ?? []))
+      .then((d) => {
+        const raw: Array<{
+          id: string;
+          actor?: { email: string } | null;
+          action: string;
+          targetType: string;
+          targetLabel?: string | null;
+          createdAt: string;
+        }> = d?.data ?? [];
+        setAuditLogs(
+          raw.map((entry) => ({
+            id: entry.id,
+            actor: entry.actor?.email ?? "System",
+            action: entry.action,
+            target: entry.targetType,
+            targetLabel: entry.targetLabel ?? undefined,
+            createdAt: entry.createdAt,
+          }))
+        );
+      })
       .catch(() => setAuditLogs([]))
       .finally(() => setLogsLoading(false));
   }, []);
@@ -278,8 +298,19 @@ export default function AdminDashboardPage() {
               className="w-full justify-between"
               size="sm"
             >
-              <Link href="/admin/users?role=STUDENT">
+              <Link href="/admin/students">
                 View All Students
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="w-full justify-between"
+              size="sm"
+            >
+              <Link href="/admin/classes">
+                View All Classes
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </Button>

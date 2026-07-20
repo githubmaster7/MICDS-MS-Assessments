@@ -63,7 +63,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         emailVerifiedAt: true,
         createdAt: true,
         updatedAt: true,
-        studentProfile: { select: { id: true, firstName: true, lastName: true } },
+        studentProfile: { select: { id: true, firstName: true, lastName: true, gradeLevel: true, gender: true } },
         teacherProfile: { select: { id: true, firstName: true, lastName: true } },
         parentProfile: { select: { id: true, firstName: true, lastName: true } },
       },

@@ -1,16 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { sendApprovalEmail } from '@/lib/email'
-import { auditApproval, createAuditLog, AuditAction } from '@/lib/audit'
-import { Role, AccountStatus } from '@prisma/client'
+import { auditApproval } from '@/lib/audit'
+import { Role, AccountStatus, GradeLevel, Gender, Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { ipRateLimitKey } from '@/lib/rate-limit'
+import { ipRateLimitKey, adminApprovalLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
-const ApproveSchema = z.object({
-  role: z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'] as const),
-})
+const ApproveSchema = z
+  .object({
+    role: z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'] as const),
+    note: z.string().trim().max(2000).optional(),
+    firstName: z.string().trim().min(1).max(100).optional(),
+    lastName: z.string().trim().min(1).max(100).optional(),
+    gradeLevel: z.enum(['GRADE_6', 'GRADE_7', 'GRADE_8'] as const).optional(),
+    gender: z.enum(['MALE', 'FEMALE'] as const).optional(),
+    studentId: z.string().trim().min(1).max(50).optional(),
+    employeeId: z.string().trim().min(1).max(50).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === 'ADMIN') return
+    if (!data.firstName) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['firstName'], message: 'First name is required.' })
+    }
+    if (!data.lastName) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['lastName'], message: 'Last name is required.' })
+    }
+    if (data.role === 'STUDENT') {
+      if (!data.gradeLevel) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['gradeLevel'], message: 'Grade level is required.' })
+      }
+      if (!data.gender) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['gender'], message: 'Gender is required.' })
+      }
+      if (!data.studentId) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['studentId'], message: 'Student ID is required.' })
+      }
+    }
+    if (data.role === 'TEACHER' && !data.employeeId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['employeeId'], message: 'Employee ID is required.' })
+    }
+  })
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -23,6 +54,14 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   }
   if (session.user.role !== Role.ADMIN) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+  }
+
+  const rl = await checkRateLimit(adminApprovalLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
   }
 
   const { id } = await params
@@ -42,7 +81,7 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
     )
   }
 
-  const { role } = parsed.data
+  const { role, note, firstName, lastName, gradeLevel, gender, studentId, employeeId } = parsed.data
 
   const signupRequest = await db.signupRequest.findUnique({
     where: { id },
@@ -97,23 +136,65 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
     }
   }
 
-  void profileLinkData // Profile link info is available for extended use
+  try {
+    await db.$transaction(async (tx: TxClient) => {
+      await tx.user.update({
+        where: { id: signupRequest.userId },
+        data: { status: AccountStatus.ACTIVE, role: role as Role },
+      })
 
-  await db.$transaction(async (tx: typeof db) => {
-    await tx.user.update({
-      where: { id: signupRequest.userId },
-      data: { status: AccountStatus.ACTIVE, role: role as Role },
-    })
+      await tx.signupRequest.update({
+        where: { id },
+        data: {
+          status: AccountStatus.ACTIVE,
+          reviewedBy: session.user.id,
+          reviewedAt: new Date(),
+          adminNote: note ?? undefined,
+        },
+      })
 
-    await tx.signupRequest.update({
-      where: { id },
-      data: {
-        status: AccountStatus.ACTIVE,
-        reviewedBy: session.user.id,
-        reviewedAt: new Date(),
-      },
+      // Create the role-specific profile if this user doesn't already have one
+      // (e.g. pre-linked by email match above, from an earlier seed/import).
+      if (role === Role.STUDENT && !profileLinkData.studentProfileId) {
+        await tx.studentProfile.create({
+          data: {
+            userId: signupRequest.userId,
+            firstName: firstName!,
+            lastName: lastName!,
+            gradeLevel: gradeLevel as GradeLevel,
+            gender: gender as Gender,
+            studentId: studentId!,
+          },
+        })
+      } else if (role === Role.TEACHER && !profileLinkData.teacherProfileId) {
+        await tx.teacherProfile.create({
+          data: {
+            userId: signupRequest.userId,
+            firstName: firstName!,
+            lastName: lastName!,
+            employeeId: employeeId!,
+          },
+        })
+      } else if (role === Role.PARENT && !profileLinkData.parentProfileId) {
+        await tx.parentProfile.create({
+          data: {
+            userId: signupRequest.userId,
+            firstName: firstName!,
+            lastName: lastName!,
+          },
+        })
+      }
     })
-  })
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      const target = Array.isArray(err.meta?.target) ? err.meta.target.join(', ') : 'field'
+      return NextResponse.json(
+        { error: `That ${target} is already in use by another profile. Please use a different value.` },
+        { status: 409 },
+      )
+    }
+    throw err
+  }
 
   await auditApproval({
     actorId: session.user.id,
@@ -121,17 +202,6 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
     targetUserId: signupRequest.userId,
     targetEmail: userEmail,
     approved: true,
-    ipAddress: ip,
-    userAgent,
-  })
-
-  await createAuditLog({
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    action: AuditAction.SIGNUP_REQUEST_APPROVED,
-    targetType: 'SignupRequest',
-    targetId: id,
-    targetLabel: userEmail,
     afterValue: { role, status: AccountStatus.ACTIVE },
     ipAddress: ip,
     userAgent,

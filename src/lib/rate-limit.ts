@@ -49,6 +49,13 @@ export const rotationLimiter = new RateLimiterMemory({
   duration:    60 * 60,
 })
 
+/** 30 signup approve/reject actions per minute per admin */
+export const adminApprovalLimiter = new RateLimiterMemory({
+  keyPrefix:   'admin_approval',
+  points:      30,
+  duration:    60,
+})
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

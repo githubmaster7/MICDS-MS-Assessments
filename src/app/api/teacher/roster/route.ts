@@ -17,7 +17,7 @@ type Snapshot = {
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
-  if (session.user.role !== Role.TEACHER && session.user.role !== Role.ADMIN) {
+  if (session.user.role !== Role.TEACHER) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
   }
 
@@ -37,7 +37,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   let studentGroupId: string
 
   if (groupId) {
-    // Verify teacher is/was assigned to this group
+    // Verify the teacher is (or was) assigned to this group — current or
+    // historical read-only access only, never an arbitrary group.
+    const owns = await db.groupRotationAssignment.findFirst({
+      where: {
+        studentGroupId: groupId,
+        carouselPosition: { teacherClassAssignment: { teacherProfileId: teacherProfile.id } },
+      },
+      select: { id: true },
+    })
+    if (!owns) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
     studentGroupId = groupId
   } else {
     // Find current active assignment
@@ -82,6 +91,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // If instanceId provided, attach per-student grade snapshot
   if (instanceId) {
+    // Verify the teacher owns the class instance before exposing its grades.
+    const instanceOwned = await db.historicalClassInstance.findFirst({
+      where: { id: instanceId, teacherClassAssignment: { teacherProfileId: teacherProfile.id } },
+      select: { id: true },
+    })
+    if (!instanceOwned) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+
     const studentIds = (memberships as Membership[]).map((m) => m.studentProfile.id)
     const snapshots = await db.gradeCalculationSnapshot.findMany({
       where: {

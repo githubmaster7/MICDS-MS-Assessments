@@ -16,7 +16,6 @@ import {
   calculateDaysLateScore,
   calculateApproachToLearning,
   type ATLInput,
-  type ATLResult,
 } from '@/lib/grading/approach-to-learning'
 
 // ─── calculateDaysLateScore ───────────────────────────────────────────────────

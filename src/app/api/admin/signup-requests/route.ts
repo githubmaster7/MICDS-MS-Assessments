@@ -16,13 +16,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { searchParams } = req.nextUrl
   const statusFilter = searchParams.get('status') as AccountStatus | null
+  const search = searchParams.get('search')?.trim()
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const pageSize = Math.min(
     PAGINATION_DEFAULTS.MAX_PAGE_SIZE,
     parseInt(searchParams.get('pageSize') ?? String(PAGINATION_DEFAULTS.PAGE_SIZE), 10),
   )
 
-  const where: { status?: AccountStatus } = {}
+  const where: { status?: AccountStatus; user?: { email: { contains: string; mode: 'insensitive' } } } = {}
   if (
     statusFilter &&
     Object.values(AccountStatus).includes(statusFilter)
@@ -31,6 +32,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   } else {
     // Default to pending approval
     where.status = AccountStatus.PENDING_ADMIN_APPROVAL
+  }
+  if (search) {
+    where.user = { email: { contains: search, mode: 'insensitive' } }
   }
 
   const [total, requests] = await Promise.all([
@@ -61,8 +65,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }),
   ])
 
+  const data = requests.map((r) => ({
+    id: r.id,
+    email: r.user.email,
+    requestedRole: r.requestedRole,
+    status: r.status,
+    createdAt: r.createdAt,
+    adminNote: r.adminNote,
+    reviewedAt: r.reviewedAt,
+    reviewer: r.reviewer ? { email: r.reviewer.email } : null,
+  }))
+
   return NextResponse.json({
-    data: requests,
+    data,
     pagination: {
       total,
       page,

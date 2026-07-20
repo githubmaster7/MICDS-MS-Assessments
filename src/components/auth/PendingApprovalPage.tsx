@@ -23,8 +23,8 @@ export function PendingApprovalPage() {
       // Re-fetch the session to see if status changed
       const res = await fetch("/api/auth/session");
       const data = await res.json();
-      if (data?.user?.status === "APPROVED") {
-        router.push("/dashboard");
+      if (data?.user?.status === "ACTIVE") {
+        router.push("/");
         router.refresh();
       }
     } finally {
@@ -33,7 +33,7 @@ export function PendingApprovalPage() {
   };
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: "/auth/signin" });
+    await signOut({ callbackUrl: "/login" });
   };
 
   return (

@@ -18,6 +18,9 @@ import {
   LogOut,
   Menu,
   Bell,
+  ClipboardList,
+  Layers,
+  Unlock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Student Groups", href: "/admin/groups", icon: Group },
+  { label: "All Students", href: "/admin/students", icon: ClipboardList },
   {
     label: "Teachers & Classes",
     href: "/admin/teachers",
@@ -48,6 +52,8 @@ const NAV_ITEMS: NavItem[] = [
     href: "/admin/carousel",
     icon: RotateCcw,
   },
+  { label: "All Classes", href: "/admin/classes", icon: Layers },
+  { label: "Reopen Grading", href: "/admin/reopen-grading", icon: Unlock },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
   { label: "School Settings", href: "/admin/settings", icon: Settings },
 ];
@@ -176,7 +182,7 @@ function NavSidebar({
               </p>
             </div>
             <button
-              onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+              onClick={() => signOut({ callbackUrl: "/login" })}
               className="text-gray-400 hover:text-gray-600 p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               aria-label="Sign out"
             >
@@ -185,7 +191,7 @@ function NavSidebar({
           </div>
         ) : (
           <button
-            onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+            onClick={() => signOut({ callbackUrl: "/login" })}
             className="flex w-full items-center justify-center p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             aria-label="Sign out"
           >
@@ -207,10 +213,10 @@ export default function AdminLayout({
   const [pendingCount, setPendingCount] = React.useState(0);
 
   React.useEffect(() => {
-    fetch("/api/admin/signup-requests?status=PENDING&limit=1")
+    fetch("/api/admin/signup-requests?status=PENDING_ADMIN_APPROVAL&limit=1")
       .then((r) => r.json())
       .then((d) => {
-        if (typeof d?.total === "number") setPendingCount(d.total);
+        if (typeof d?.pagination?.total === "number") setPendingCount(d.pagination.total);
       })
       .catch(() => {});
   }, []);
