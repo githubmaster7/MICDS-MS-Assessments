@@ -47,7 +47,20 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, loading, disabled, children, ...props }, ref) => {
+  ({ className, variant, size, loading, disabled, asChild, children, ...props }, ref) => {
+    // asChild merges the button's styling/props onto its single child (e.g. a
+    // Next.js <Link>) instead of wrapping it in a real <button> — wrapping
+    // would nest one interactive element inside another and break navigation
+    // semantics. loading/aria-busy don't apply to an arbitrary child element,
+    // so that combination isn't supported.
+    if (asChild && React.isValidElement(children)) {
+      const child = children as React.ReactElement<{ className?: string }>;
+      return React.cloneElement(child, {
+        className: cn(buttonVariants({ variant, size, className }), child.props.className),
+        ...props,
+      });
+    }
+
     return (
       <button
         className={cn(buttonVariants({ variant, size, className }))}

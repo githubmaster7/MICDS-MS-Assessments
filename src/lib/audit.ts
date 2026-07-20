@@ -207,12 +207,24 @@ export async function auditRegradeGrant(opts: {
     BULK_CLOSED: AuditAction.REGRADE_GRANT_BULK_CLOSED,
   } as const
 
+  const instance = await db.historicalClassInstance.findUnique({
+    where: { id: opts.historicalClassInstanceId },
+    select: {
+      studentGroup: { select: { name: true } },
+      teacherClassAssignment: { select: { activityTemplate: { select: { name: true } } } },
+    },
+  })
+  const targetLabel = instance
+    ? `${instance.teacherClassAssignment.activityTemplate.name} — ${instance.studentGroup.name}`
+    : undefined
+
   await createAuditLog({
     actorId:     opts.actorId,
     actorRole:   opts.actorRole,
     action:      actionMap[opts.action],
     targetType:  'ClassRegradeGrant',
     targetId:    opts.grantId,
+    targetLabel,
     reason:      opts.reason,
     afterValue:
       opts.teacherRegradeEnabled !== undefined || opts.studentCount !== undefined
