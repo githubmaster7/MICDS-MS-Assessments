@@ -12,7 +12,7 @@ const UpdateActivityTemplateSchema = z.object({
   description: z.string().max(500).optional().nullable(),
   isActive: z.boolean().optional(),
   gender: z.enum(['MALE', 'FEMALE'] as const).nullable().optional(),
-  gradeLevel: z.enum(['GRADE_6', 'GRADE_7', 'GRADE_8'] as const).nullable().optional(),
+  gradeLevel: z.enum(['GRADE_5', 'GRADE_6', 'GRADE_7', 'GRADE_8'] as const).nullable().optional(),
 })
 
 interface RouteParams {

@@ -28,6 +28,15 @@ export const emailVerifyLimiter = new RateLimiterMemory({
   duration:    60 * 60,
 })
 
+/** 20 public student-search lookups per minute per IP — unauthenticated, used
+ *  by the parent signup form's child picker, so kept tight to deter scraping
+ *  the student roster. */
+export const publicStudentSearchLimiter = new RateLimiterMemory({
+  keyPrefix:   'public_student_search',
+  points:      20,
+  duration:    60,
+})
+
 /** 100 general API calls per minute per user/IP */
 export const apiLimiter = new RateLimiterMemory({
   keyPrefix:   'api',

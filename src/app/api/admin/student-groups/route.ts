@@ -11,7 +11,7 @@ import { ipRateLimitKey } from '@/lib/rate-limit'
 const CreateGroupSchema = z.object({
   schoolYearId: z.string().uuid(),
   name: z.string().min(1).max(100),
-  gradeLevel: z.enum(['GRADE_6', 'GRADE_7', 'GRADE_8'] as const),
+  gradeLevel: z.enum(['GRADE_5', 'GRADE_6', 'GRADE_7', 'GRADE_8'] as const),
   gender: z.enum(['MALE', 'FEMALE'] as const),
   description: z.string().max(500).optional(),
 })

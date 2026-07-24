@@ -61,6 +61,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             email: true,
           },
         },
+        requestedStudentLinks: {
+          select: {
+            studentProfile: {
+              select: { id: true, firstName: true, lastName: true, studentId: true, gradeLevel: true },
+            },
+          },
+        },
       },
     }),
   ])
@@ -74,6 +81,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     adminNote: r.adminNote,
     reviewedAt: r.reviewedAt,
     reviewer: r.reviewer ? { email: r.reviewer.email } : null,
+    requestedStudents: r.requestedStudentLinks.map((l) => l.studentProfile),
   }))
 
   return NextResponse.json({

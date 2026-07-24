@@ -9,20 +9,34 @@ import { createAuditLog, AuditAction } from '@/lib/audit'
 import { ALLOWED_EMAIL_DOMAIN } from '@/lib/constants'
 import { AccountStatus, Role } from '@prisma/client'
 
-const SignupSchema = z.object({
-  email: z
-    .string()
-    .email('Invalid email address.')
-    .transform((v) => v.toLowerCase().trim()),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters.')
-    .max(128, 'Password is too long.'),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  requestedRole: z.enum(['TEACHER', 'STUDENT', 'PARENT'] as const, {
-    errorMap: () => ({ message: 'Invalid role.' }),
-  }),
-})
+const SignupSchema = z
+  .object({
+    email: z
+      .string()
+      .email('Invalid email address.')
+      .transform((v) => v.toLowerCase().trim()),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters.')
+      .max(128, 'Password is too long.'),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    requestedRole: z.enum(['TEACHER', 'STUDENT', 'PARENT'] as const, {
+      errorMap: () => ({ message: 'Invalid role.' }),
+    }),
+    // Parent signups must name at least one child at signup time — the admin
+    // reviews and confirms this list before it's turned into real
+    // ParentStudentLink rows at approval.
+    studentProfileIds: z.array(z.string().uuid()).max(10).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.requestedRole === 'PARENT' && (!data.studentProfileIds || data.studentProfileIds.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['studentProfileIds'],
+        message: 'Select at least one child.',
+      })
+    }
+  })
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // Rate limit by IP
@@ -53,7 +67,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     )
   }
 
-  const { email, password, requestedRole } = parsed.data
+  const { email, password, requestedRole, studentProfileIds } = parsed.data
 
   // Server-side domain enforcement
   const domain = email.split('@')[1]
@@ -63,6 +77,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { error: 'Registration is not available for this email address.' },
       { status: 400 },
     )
+  }
+
+  // A parent must name real, existing students — not arbitrary IDs.
+  let verifiedStudentIds: string[] = []
+  if (requestedRole === 'PARENT' && studentProfileIds && studentProfileIds.length > 0) {
+    const matches = await db.studentProfile.findMany({
+      where: { id: { in: studentProfileIds } },
+      select: { id: true },
+    })
+    verifiedStudentIds = matches.map((m) => m.id)
+    if (verifiedStudentIds.length !== studentProfileIds.length) {
+      return NextResponse.json(
+        { error: 'One or more selected students could not be found. Please search again.' },
+        { status: 400 },
+      )
+    }
   }
 
   // Check for existing user — return generic message to prevent enumeration
@@ -101,13 +131,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         },
       })
 
-      await tx.signupRequest.create({
+      const signupRequest = await tx.signupRequest.create({
         data: {
           userId: user.id,
           requestedRole: requestedRole as Role,
           status: AccountStatus.PENDING_EMAIL_VERIFICATION,
         },
       })
+
+      if (verifiedStudentIds.length > 0) {
+        await tx.signupRequestStudentLink.createMany({
+          data: verifiedStudentIds.map((studentProfileId) => ({
+            signupRequestId: signupRequest.id,
+            studentProfileId,
+          })),
+        })
+      }
 
       return user
     })

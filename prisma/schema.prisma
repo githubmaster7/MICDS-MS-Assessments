@@ -32,6 +32,7 @@ enum Gender {
 }
 
 enum GradeLevel {
+  GRADE_5
   GRADE_6
   GRADE_7
   GRADE_8
@@ -214,8 +215,28 @@ model SignupRequest {
   user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviewer User? @relation("SignupReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
 
+  requestedStudentLinks SignupRequestStudentLink[]
+
   @@index([status])
   @@index([reviewedBy])
+}
+
+// A parent signup request names the student(s) they claim to be the
+// guardian of, at signup time — the admin reviews this list (and may
+// deselect any that shouldn't be confirmed) before approval actually
+// creates the corresponding ParentStudentLink rows.
+model SignupRequestStudentLink {
+  id               String   @id @default(uuid()) @db.Uuid
+  signupRequestId  String   @db.Uuid
+  studentProfileId String   @db.Uuid
+  createdAt        DateTime @default(now())
+
+  signupRequest  SignupRequest  @relation(fields: [signupRequestId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([signupRequestId, studentProfileId])
+  @@index([signupRequestId])
+  @@index([studentProfileId])
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +257,7 @@ model StudentProfile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   parentLinks           ParentStudentLink[]
+  signupRequestLinks    SignupRequestStudentLink[]
   groupMemberships      StudentGroupMembership[]
   submissions           StudentSubmission[]
   teacherAssessments    TeacherAssessment[]

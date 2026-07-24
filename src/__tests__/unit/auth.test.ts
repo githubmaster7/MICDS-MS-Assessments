@@ -62,7 +62,7 @@ describe('validateMicdsEmail', () => {
 })
 
 describe('enrollment validation', () => {
-  type GradeLevel = 'GRADE_6' | 'GRADE_7' | 'GRADE_8'
+  type GradeLevel = 'GRADE_5' | 'GRADE_6' | 'GRADE_7' | 'GRADE_8'
   type Gender = 'MALE' | 'FEMALE'
 
   function canEnrollStudent(

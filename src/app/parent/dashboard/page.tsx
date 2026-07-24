@@ -2,8 +2,19 @@ import { Metadata } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { RotationStatus } from '@prisma/client'
+import Link from 'next/link'
+import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution } from '@/lib/analytics/score-distribution'
+import { StandardDistributionGrid, ScoreDistributionChart } from '@/components/student/ScoreDistributionChart'
 
 export const metadata: Metadata = { title: 'Parent Dashboard' }
+
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  ACTIVE: { label: 'Active', className: 'bg-blue-50 text-blue-700 border-blue-100' },
+  COMPLETED: { label: 'Completed', className: 'bg-gray-100 text-gray-600 border-gray-200' },
+  LOCKED: { label: 'Locked', className: 'bg-gray-100 text-gray-600 border-gray-200' },
+  UPCOMING: { label: 'Upcoming', className: 'bg-slate-50 text-slate-500 border-slate-200' },
+}
 
 export default async function ParentDashboard({
   searchParams,
@@ -97,6 +108,91 @@ export default async function ParentDashboard({
   const currentTeacher = currentActivity?.teacherProfile
   const scoreVal = (d: unknown) => d != null ? Number(d) : null
 
+  // Full class history — every rotation this student's group has ever been
+  // scheduled into, past and future, mirroring the student's own "My
+  // Classes" page but scoped to the selected child and linking to the
+  // parent's read-only class detail view instead.
+  const memberships = await db.studentGroupMembership.findMany({
+    where: { studentProfileId: student.id },
+    select: { studentGroupId: true },
+  })
+  const groupIds = [...new Set(memberships.map((m) => m.studentGroupId))]
+
+  const instances = await db.historicalClassInstance.findMany({
+    where: { studentGroupId: { in: groupIds } },
+    include: {
+      studentGroup: { select: { name: true } },
+      teacherClassAssignment: {
+        include: {
+          activityTemplate: { select: { name: true } },
+          teacherProfile: { select: { firstName: true, lastName: true } },
+        },
+      },
+      groupRotationAssignment: { select: { rotationNumber: true, startDate: true, endDate: true } },
+    },
+    orderBy: { groupRotationAssignment: { rotationNumber: 'asc' } },
+  })
+
+  const upcomingRotations = await db.groupRotationAssignment.findMany({
+    where: { studentGroupId: { in: groupIds }, status: RotationStatus.UPCOMING },
+    include: {
+      studentGroup: { select: { name: true } },
+      carouselPosition: {
+        include: {
+          teacherClassAssignment: {
+            include: {
+              activityTemplate: { select: { name: true } },
+              teacherProfile: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { rotationNumber: 'asc' },
+  })
+
+  const historySnapshots = await db.gradeCalculationSnapshot.findMany({
+    where: { studentProfileId: student.id, historicalClassInstanceId: { in: instances.map((i) => i.id) } },
+    orderBy: { calculatedAt: 'desc' },
+    select: { historicalClassInstanceId: true, letterGrade: true },
+  })
+  const latestSnapshotByInstance = new Map<string, (typeof historySnapshots)[number]>()
+  for (const s of historySnapshots) {
+    if (!latestSnapshotByInstance.has(s.historicalClassInstanceId)) {
+      latestSnapshotByInstance.set(s.historicalClassInstanceId, s)
+    }
+  }
+
+  const historyRows = [
+    ...instances.map((inst) => ({
+      id: inst.id,
+      rotationNumber: inst.groupRotationAssignment.rotationNumber,
+      activity: inst.teacherClassAssignment.activityTemplate.name,
+      teacher: `${inst.teacherClassAssignment.teacherProfile.firstName} ${inst.teacherClassAssignment.teacherProfile.lastName}`,
+      group: inst.studentGroup.name,
+      startDate: inst.groupRotationAssignment.startDate,
+      endDate: inst.groupRotationAssignment.endDate,
+      status: inst.status as string,
+      letterGrade: latestSnapshotByInstance.get(inst.id)?.letterGrade ?? null,
+      href: `/parent/class/${inst.id}?studentId=${student.id}` as string | null,
+    })),
+    ...upcomingRotations.map((rot) => ({
+      id: rot.id,
+      rotationNumber: rot.rotationNumber,
+      activity: rot.carouselPosition.teacherClassAssignment.activityTemplate.name,
+      teacher: `${rot.carouselPosition.teacherClassAssignment.teacherProfile.firstName} ${rot.carouselPosition.teacherClassAssignment.teacherProfile.lastName}`,
+      group: rot.studentGroup.name,
+      startDate: rot.startDate,
+      endDate: rot.endDate,
+      status: 'UPCOMING',
+      letterGrade: null as string | null,
+      href: null,
+    })),
+  ].sort((a, b) => a.rotationNumber - b.rotationNumber)
+
+  const scoreDistribution = await getStudentStandardItemDistribution(student.id)
+  const atlDistribution = await getStudentApproachToLearningDistribution(student.id)
+
   return (
     <div className="p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
@@ -153,21 +249,84 @@ export default async function ParentDashboard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {[
-          { num: 1, name: 'Movement Skills', score: scoreVal(currentSnapshot?.standard1Score) },
-          { num: 2, name: 'Movement Concepts & Sport Strategies', score: scoreVal(currentSnapshot?.standard2Score) },
-          { num: 3, name: 'Health, Fitness & Nutrition', score: scoreVal(currentSnapshot?.standard3Score) },
-          { num: 4, name: 'Teamwork & Leadership', score: scoreVal(currentSnapshot?.standard4Score) },
-        ].map(({ num, name, score }) => (
-          <div key={num} className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="text-xs font-medium text-gray-400 mb-1">Standard {num}</div>
-            <div className="font-semibold text-gray-900 text-sm mb-2">{name}</div>
-            <div className={`text-3xl font-bold ${score ? 'text-gray-900' : 'text-gray-300'}`}>
-              {score?.toString() ?? '—'}
-            </div>
+      <div className="mb-6">
+        <h2 className="font-semibold text-gray-900 mb-1">Score Distribution — All Classes</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Every score {student.firstName}&apos;s teachers have given, by standard, pooled across all classes.
+          Hover a slice (or a legend row) to see which classes contributed it.
+        </p>
+        <StandardDistributionGrid distribution={scoreDistribution} />
+      </div>
+
+      <div className="mb-6">
+        <h2 className="font-semibold text-gray-900 mb-1">Approach to Learning</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Teachers&apos; ratings of classroom habits, pooled across all classes. Informational only — does not affect the letter grade.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <ScoreDistributionChart buckets={atlDistribution.responsiblePrepared} title="Responsible & Prepared for Class" />
           </div>
-        ))}
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <ScoreDistributionChart buckets={atlDistribution.respectfulWorks} title="Respectful and Works Well with Others" />
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <ScoreDistributionChart buckets={atlDistribution.effortTeacherScore} title="Puts Forth Effort to Learn" />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="font-semibold text-gray-900 mb-1">Class History</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Open a class to see {student.firstName}&apos;s own answers and comments alongside the teacher&apos;s score and feedback.
+        </p>
+        {historyRows.length === 0 ? (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm">
+            No classes scheduled yet.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {historyRows.map((row) => {
+              const meta = STATUS_META[row.status] ?? STATUS_META.UPCOMING
+              const content = (
+                <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-4 hover:border-purple-300 hover:shadow-sm transition-all">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs text-gray-400 tabular-nums">Class {row.rotationNumber}</span>
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.className}`}>
+                        {meta.label}
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-gray-900">{row.activity}</h3>
+                    <p className="text-sm text-gray-500">
+                      {row.teacher} · {row.group}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(row.startDate).toLocaleDateString()} – {new Date(row.endDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {row.letterGrade ? (
+                      <div className="text-2xl font-bold text-gray-900">{row.letterGrade}</div>
+                    ) : (
+                      <div className="text-sm text-gray-300">
+                        {row.status === 'UPCOMING' ? 'N/A' : 'No grade yet'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+              return row.href ? (
+                <Link key={row.id} href={row.href}>
+                  {content}
+                </Link>
+              ) : (
+                <div key={row.id}>{content}</div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -18,6 +18,16 @@ import {
 } from "@/components/ui/select";
 import { ROLES } from "@/lib/constants";
 
+interface StudentOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  gradeLevel: string;
+  studentId: string;
+}
+
+const GRADE_LABELS: Record<string, string> = { GRADE_5: "5", GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
+
 const signUpSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters").max(80),
@@ -53,6 +63,37 @@ export function SignUpForm() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
 
+  const [childSearch, setChildSearch] = React.useState("");
+  const [childResults, setChildResults] = React.useState<StudentOption[]>([]);
+  const [childSearchLoading, setChildSearchLoading] = React.useState(false);
+  const [selectedChildren, setSelectedChildren] = React.useState<StudentOption[]>([]);
+  const [childrenError, setChildrenError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (formData.role !== ROLES.PARENT || childSearch.trim().length < 2) {
+      setChildResults([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      setChildSearchLoading(true);
+      fetch(`/api/auth/signup/students?search=${encodeURIComponent(childSearch.trim())}`)
+        .then((r) => r.json())
+        .then((d) => setChildResults(d?.data ?? []))
+        .catch(() => setChildResults([]))
+        .finally(() => setChildSearchLoading(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [formData.role, childSearch]);
+
+  const addChild = (student: StudentOption) => {
+    setSelectedChildren((prev) => (prev.some((c) => c.id === student.id) ? prev : [...prev, student]));
+    setChildrenError(null);
+  };
+
+  const removeChild = (id: string) => {
+    setSelectedChildren((prev) => prev.filter((c) => c.id !== id));
+  };
+
   const setField = (field: keyof SignUpData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -83,6 +124,10 @@ export function SignUpForm() {
     e.preventDefault();
     setServerError(null);
     if (!validate()) return;
+    if (formData.role === ROLES.PARENT && selectedChildren.length === 0) {
+      setChildrenError("Select at least one child.");
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -93,6 +138,8 @@ export function SignUpForm() {
           email: formData.email?.trim().toLowerCase(),
           requestedRole: formData.role,
           password: formData.password,
+          studentProfileIds:
+            formData.role === ROLES.PARENT ? selectedChildren.map((c) => c.id) : undefined,
         }),
       });
 
@@ -215,6 +262,78 @@ export function SignUpForm() {
             </p>
           )}
         </div>
+
+        {formData.role === ROLES.PARENT && (
+          <div className="space-y-1.5">
+            <Label htmlFor="child-search">Your child(ren)</Label>
+            <p className="text-xs text-gray-500 -mt-1 mb-1.5">
+              Search for your child by name or student ID. An administrator will confirm this before your account is approved.
+            </p>
+            <Input
+              id="child-search"
+              type="text"
+              placeholder="Search by name or student ID…"
+              value={childSearch}
+              onChange={(e) => setChildSearch(e.target.value)}
+              disabled={isLoading}
+            />
+            {childSearch.trim().length >= 2 && (
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
+                {childSearchLoading ? (
+                  <div className="p-3 text-center text-xs text-gray-400">Searching…</div>
+                ) : childResults.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-gray-400">No students match.</div>
+                ) : (
+                  childResults.map((s) => {
+                    const alreadyAdded = selectedChildren.some((c) => c.id === s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={alreadyAdded}
+                        onClick={() => addChild(s)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <span>
+                          <span className="font-medium text-gray-900">{s.firstName} {s.lastName}</span>
+                          <span className="text-gray-400 ml-1.5">
+                            Grade {GRADE_LABELS[s.gradeLevel] ?? s.gradeLevel} · {s.studentId}
+                          </span>
+                        </span>
+                        <span className="text-xs text-primary-600 font-medium shrink-0">
+                          {alreadyAdded ? "Added" : "Add"}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+            {selectedChildren.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {selectedChildren.map((c) => (
+                  <span
+                    key={c.id}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 pl-2.5 pr-1.5 py-1 text-xs text-gray-700"
+                  >
+                    {c.firstName} {c.lastName}
+                    <button
+                      type="button"
+                      onClick={() => removeChild(c.id)}
+                      className="rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                      aria-label={`Remove ${c.firstName} ${c.lastName}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {childrenError && (
+              <p className="text-xs text-red-600">{childrenError}</p>
+            )}
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="signup-password">Password</Label>

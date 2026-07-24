@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db, type TxClient } from '@/lib/db'
 import { sendApprovalEmail } from '@/lib/email'
-import { auditApproval } from '@/lib/audit'
+import { auditApproval, auditParentLink } from '@/lib/audit'
 import { Role, AccountStatus, GradeLevel, Gender, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { ipRateLimitKey, adminApprovalLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
@@ -14,10 +14,14 @@ const ApproveSchema = z
     note: z.string().trim().max(2000).optional(),
     firstName: z.string().trim().min(1).max(100).optional(),
     lastName: z.string().trim().min(1).max(100).optional(),
-    gradeLevel: z.enum(['GRADE_6', 'GRADE_7', 'GRADE_8'] as const).optional(),
+    gradeLevel: z.enum(['GRADE_5', 'GRADE_6', 'GRADE_7', 'GRADE_8'] as const).optional(),
     gender: z.enum(['MALE', 'FEMALE'] as const).optional(),
     studentId: z.string().trim().min(1).max(50).optional(),
     employeeId: z.string().trim().min(1).max(50).optional(),
+    // Which of the children the parent requested at signup the admin is
+    // actually confirming — a subset (or all) of the signup request's
+    // requestedStudentLinks, verified server-side below.
+    confirmedStudentProfileIds: z.array(z.string().uuid()).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.role === 'ADMIN') return
@@ -40,6 +44,9 @@ const ApproveSchema = z
     }
     if (data.role === 'TEACHER' && !data.employeeId) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['employeeId'], message: 'Employee ID is required.' })
+    }
+    if (data.role === 'PARENT' && (!data.confirmedStudentProfileIds || data.confirmedStudentProfileIds.length === 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['confirmedStudentProfileIds'], message: 'Confirm at least one child.' })
     }
   })
 
@@ -81,7 +88,7 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
     )
   }
 
-  const { role, note, firstName, lastName, gradeLevel, gender, studentId, employeeId } = parsed.data
+  const { role, note, firstName, lastName, gradeLevel, gender, studentId, employeeId, confirmedStudentProfileIds } = parsed.data
 
   const signupRequest = await db.signupRequest.findUnique({
     where: { id },
@@ -89,11 +96,22 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
       user: {
         select: { id: true, email: true, status: true, role: true },
       },
+      requestedStudentLinks: { select: { studentProfileId: true } },
     },
   })
 
   if (!signupRequest) {
     return NextResponse.json({ error: 'Signup request not found.' }, { status: 404 })
+  }
+
+  if (role === Role.PARENT && confirmedStudentProfileIds) {
+    const requestedIds = new Set(signupRequest.requestedStudentLinks.map((l) => l.studentProfileId))
+    if (confirmedStudentProfileIds.some((sid) => !requestedIds.has(sid))) {
+      return NextResponse.json(
+        { error: 'One or more confirmed students were not part of the original request.' },
+        { status: 400 },
+      )
+    }
   }
 
   if (signupRequest.status !== AccountStatus.PENDING_ADMIN_APPROVAL) {
@@ -136,6 +154,8 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
     }
   }
 
+  let resolvedParentProfileId = profileLinkData.parentProfileId as string | undefined
+
   try {
     await db.$transaction(async (tx: TxClient) => {
       await tx.user.update({
@@ -176,12 +196,24 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
           },
         })
       } else if (role === Role.PARENT && !profileLinkData.parentProfileId) {
-        await tx.parentProfile.create({
+        const created = await tx.parentProfile.create({
           data: {
             userId: signupRequest.userId,
             firstName: firstName!,
             lastName: lastName!,
           },
+        })
+        resolvedParentProfileId = created.id
+      }
+
+      if (role === Role.PARENT && resolvedParentProfileId && confirmedStudentProfileIds?.length) {
+        await tx.parentStudentLink.createMany({
+          data: confirmedStudentProfileIds.map((studentProfileId) => ({
+            parentProfileId: resolvedParentProfileId!,
+            studentProfileId,
+            createdBy: session.user.id,
+          })),
+          skipDuplicates: true,
         })
       }
     })
@@ -206,6 +238,30 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
     ipAddress: ip,
     userAgent,
   })
+
+  // The approval itself already committed above — a hiccup logging the
+  // per-child audit entries must never surface as an approval failure.
+  if (role === Role.PARENT && resolvedParentProfileId && confirmedStudentProfileIds?.length) {
+    try {
+      const links = await db.parentStudentLink.findMany({
+        where: { parentProfileId: resolvedParentProfileId, studentProfileId: { in: confirmedStudentProfileIds } },
+      })
+      for (const link of links) {
+        await auditParentLink({
+          actorId: session.user.id,
+          actorRole: session.user.role,
+          linkId: link.id,
+          parentProfileId: link.parentProfileId,
+          studentProfileId: link.studentProfileId,
+          action: 'CREATED',
+          ipAddress: ip,
+          userAgent,
+        })
+      }
+    } catch (err) {
+      console.error('[approve] Failed to audit-log parent-student links:', err)
+    }
+  }
 
   try {
     await sendApprovalEmail(userEmail, role)

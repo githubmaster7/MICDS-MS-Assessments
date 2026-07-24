@@ -56,6 +56,7 @@ interface SchoolYear {
 }
 
 const GRADE_LEVELS = [
+  { value: "GRADE_5", label: "5" },
   { value: "GRADE_6", label: "6" },
   { value: "GRADE_7", label: "7" },
   { value: "GRADE_8", label: "8" },

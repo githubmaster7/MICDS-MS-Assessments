@@ -21,6 +21,7 @@ import {
   ClipboardList,
   Layers,
   Unlock,
+  UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Student Groups", href: "/admin/groups", icon: Group },
   { label: "All Students", href: "/admin/students", icon: ClipboardList },
+  { label: "Parents", href: "/admin/parents", icon: UserRound },
   {
     label: "Teachers & Classes",
     href: "/admin/teachers",

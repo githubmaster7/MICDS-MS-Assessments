@@ -11,7 +11,7 @@ const CreateActivityTemplateSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   gender: z.enum(['MALE', 'FEMALE'] as const).optional(),
-  gradeLevel: z.enum(['GRADE_6', 'GRADE_7', 'GRADE_8'] as const).optional(),
+  gradeLevel: z.enum(['GRADE_5', 'GRADE_6', 'GRADE_7', 'GRADE_8'] as const).optional(),
 })
 
 export async function GET(req: NextRequest): Promise<NextResponse> {

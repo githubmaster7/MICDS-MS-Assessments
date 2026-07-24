@@ -11,7 +11,7 @@
  * in isolation.
  */
 
-export type GradeLevel = 'GRADE_6' | 'GRADE_7' | 'GRADE_8'
+export type GradeLevel = 'GRADE_5' | 'GRADE_6' | 'GRADE_7' | 'GRADE_8'
 export type Gender = 'MALE' | 'FEMALE'
 
 export interface EnrollmentStudent {

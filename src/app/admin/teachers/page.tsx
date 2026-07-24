@@ -38,7 +38,7 @@ interface ActivityTemplate {
   name: string;
   description: string | null;
   gender: "MALE" | "FEMALE" | null;
-  gradeLevel: "GRADE_6" | "GRADE_7" | "GRADE_8" | null;
+  gradeLevel: "GRADE_5" | "GRADE_6" | "GRADE_7" | "GRADE_8" | null;
   isActive: boolean;
   _count: { teacherClassAssignments: number };
 }
@@ -71,7 +71,7 @@ interface ReassignConflict {
   yourActivityName: string;
 }
 
-const GRADE_LABELS: Record<string, string> = { GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
+const GRADE_LABELS: Record<string, string> = { GRADE_5: "5", GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
 const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
 
 function GenderBadge({ gender }: { gender: string | null }) {
@@ -499,6 +499,7 @@ export default function AdminTeachersPage() {
                   <SelectTrigger id="class-grade"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ANY">Any grade</SelectItem>
+                    <SelectItem value="GRADE_5">Grade 5</SelectItem>
                     <SelectItem value="GRADE_6">Grade 6</SelectItem>
                     <SelectItem value="GRADE_7">Grade 7</SelectItem>
                     <SelectItem value="GRADE_8">Grade 8</SelectItem>
@@ -582,6 +583,7 @@ export default function AdminTeachersPage() {
                   <SelectTrigger id="reassign-class-grade"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ANY">Any grade</SelectItem>
+                    <SelectItem value="GRADE_5">Grade 5</SelectItem>
                     <SelectItem value="GRADE_6">Grade 6</SelectItem>
                     <SelectItem value="GRADE_7">Grade 7</SelectItem>
                     <SelectItem value="GRADE_8">Grade 8</SelectItem>

@@ -297,6 +297,41 @@ export async function auditAtlRecord(opts: {
 }
 
 // ---------------------------------------------------------------------------
+// Typed helper: parent-student link create / remove
+// ---------------------------------------------------------------------------
+
+export async function auditParentLink(opts: {
+  actorId:          string
+  actorRole:        Role
+  linkId:           string
+  parentProfileId:  string
+  studentProfileId: string
+  action:           'CREATED' | 'REMOVED'
+  ipAddress?:       string
+  userAgent?:       string
+}): Promise<void> {
+  const [parent, student] = await Promise.all([
+    db.parentProfile.findUnique({ where: { id: opts.parentProfileId }, select: { firstName: true, lastName: true } }),
+    db.studentProfile.findUnique({ where: { id: opts.studentProfileId }, select: { firstName: true, lastName: true } }),
+  ])
+  const targetLabel = parent && student
+    ? `${parent.firstName} ${parent.lastName} → ${student.firstName} ${student.lastName}`
+    : undefined
+
+  await createAuditLog({
+    actorId:     opts.actorId,
+    actorRole:   opts.actorRole,
+    action:      opts.action === 'CREATED' ? AuditAction.PARENT_STUDENT_LINK_CREATED : AuditAction.PARENT_STUDENT_LINK_REMOVED,
+    targetType:  'ParentStudentLink',
+    targetId:    opts.linkId,
+    targetLabel,
+    afterValue:  { parentProfileId: opts.parentProfileId, studentProfileId: opts.studentProfileId },
+    ipAddress:   opts.ipAddress,
+    userAgent:   opts.userAgent,
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Typed helper: grade snapshot
 // ---------------------------------------------------------------------------
 

@@ -33,6 +33,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { ROLES } from "@/lib/constants";
 
+interface RequestedStudent {
+  id: string;
+  firstName: string;
+  lastName: string;
+  studentId: string;
+  gradeLevel: string;
+}
+
 interface SignupRequest {
   id: string;
   email: string;
@@ -42,7 +50,10 @@ interface SignupRequest {
   adminNote?: string | null;
   reviewedAt?: string | null;
   reviewer?: { email: string } | null;
+  requestedStudents?: RequestedStudent[];
 }
+
+const GRADE_LABELS: Record<string, string> = { GRADE_5: "5", GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
 
 const TAB_TO_STATUS: Record<string, string> = {
   PENDING: "PENDING_ADMIN_APPROVAL",
@@ -190,6 +201,7 @@ export default function SignupRequestsPage() {
   const [approveGender, setApproveGender] = React.useState("");
   const [approveStudentId, setApproveStudentId] = React.useState("");
   const [approveEmployeeId, setApproveEmployeeId] = React.useState("");
+  const [confirmedChildIds, setConfirmedChildIds] = React.useState<string[]>([]);
   const [approveError, setApproveError] = React.useState("");
   const [approveLoading, setApproveLoading] = React.useState(false);
 
@@ -205,9 +217,16 @@ export default function SignupRequestsPage() {
       setApproveGender("");
       setApproveStudentId("");
       setApproveEmployeeId("");
+      setConfirmedChildIds((approveTarget.requestedStudents ?? []).map((s) => s.id));
       setApproveError("");
     }
   }, [approveTarget]);
+
+  const toggleConfirmedChild = (id: string) => {
+    setConfirmedChildIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    );
+  };
 
   const approveFormValid =
     effectiveApproveRole === "ADMIN" ||
@@ -217,7 +236,8 @@ export default function SignupRequestsPage() {
         (approveGradeLevel !== "" &&
           approveGender !== "" &&
           approveStudentId.trim() !== "")) &&
-      (effectiveApproveRole !== "TEACHER" || approveEmployeeId.trim() !== ""));
+      (effectiveApproveRole !== "TEACHER" || approveEmployeeId.trim() !== "") &&
+      (effectiveApproveRole !== "PARENT" || confirmedChildIds.length > 0));
 
   const [rejectTarget, setRejectTarget] = React.useState<SignupRequest | null>(
     null
@@ -274,6 +294,8 @@ export default function SignupRequestsPage() {
             gender: approveGender || undefined,
             studentId: approveStudentId.trim() || undefined,
             employeeId: approveEmployeeId.trim() || undefined,
+            confirmedStudentProfileIds:
+              effectiveApproveRole === "PARENT" ? confirmedChildIds : undefined,
           }),
         }
       );
@@ -528,6 +550,7 @@ export default function SignupRequestsPage() {
                           <SelectValue placeholder="Select grade" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="GRADE_5">Grade 5</SelectItem>
                           <SelectItem value="GRADE_6">Grade 6</SelectItem>
                           <SelectItem value="GRADE_7">Grade 7</SelectItem>
                           <SelectItem value="GRADE_8">Grade 8</SelectItem>
@@ -566,6 +589,40 @@ export default function SignupRequestsPage() {
                     value={approveEmployeeId}
                     onChange={(e) => setApproveEmployeeId(e.target.value)}
                   />
+                </div>
+              )}
+
+              {effectiveApproveRole === "PARENT" && (
+                <div className="space-y-1.5">
+                  <Label>Requested children</Label>
+                  <p className="text-xs text-gray-500 -mt-1 mb-1.5">
+                    Confirm which of the students this parent named at signup should actually be linked. Uncheck any that shouldn&apos;t be approved.
+                  </p>
+                  {(approveTarget?.requestedStudents ?? []).length === 0 ? (
+                    <p className="text-sm text-red-600">
+                      This request has no linked children on file — approving will not grant access to any student.
+                    </p>
+                  ) : (
+                    <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
+                      {approveTarget?.requestedStudents?.map((s) => (
+                        <label
+                          key={s.id}
+                          className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={confirmedChildIds.includes(s.id)}
+                            onChange={() => toggleConfirmedChild(s.id)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="font-medium text-gray-900">{s.firstName} {s.lastName}</span>
+                          <span className="text-gray-400">
+                            Grade {GRADE_LABELS[s.gradeLevel] ?? s.gradeLevel} · {s.studentId}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

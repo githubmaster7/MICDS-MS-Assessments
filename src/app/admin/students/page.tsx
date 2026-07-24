@@ -32,6 +32,7 @@ interface StudentRow {
 }
 
 const GRADE_LABELS: Record<string, string> = {
+  GRADE_5: "5th Grade",
   GRADE_6: "6th Grade",
   GRADE_7: "7th Grade",
   GRADE_8: "8th Grade",
@@ -128,6 +129,7 @@ export default function AdminAllStudentsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All grades</SelectItem>
+            <SelectItem value="GRADE_5">5th Grade</SelectItem>
             <SelectItem value="GRADE_6">6th Grade</SelectItem>
             <SelectItem value="GRADE_7">7th Grade</SelectItem>
             <SelectItem value="GRADE_8">8th Grade</SelectItem>

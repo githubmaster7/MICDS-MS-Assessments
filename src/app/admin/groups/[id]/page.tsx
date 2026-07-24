@@ -107,7 +107,7 @@ interface StudentGrades {
   classes: ClassGrade[];
 }
 
-const GRADE_LABELS: Record<string, string> = { GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
+const GRADE_LABELS: Record<string, string> = { GRADE_5: "5", GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
 const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
 
 function formatDate(iso: string) {
