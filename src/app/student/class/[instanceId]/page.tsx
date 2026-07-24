@@ -12,12 +12,12 @@ export const metadata: Metadata = { title: 'Class Detail' }
 export default async function StudentClassDetailPage({
   params,
 }: {
-  params: { instanceId: string }
+  params: Promise<{ instanceId: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session?.user || session.user.role !== Role.STUDENT) return notFound()
 
-  const { instanceId } = params
+  const { instanceId } = await params
 
   // Get the student profile
   const studentProfile = await db.studentProfile.findUnique({

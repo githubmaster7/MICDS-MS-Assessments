@@ -10,11 +10,11 @@ import { hasOpenStudentRegradeGrant } from '@/lib/authorization'
 
 export const metadata: Metadata = { title: 'Submit Work' }
 
-export default async function SubmitPage({ params }: { params: { instanceId: string } }) {
+export default async function SubmitPage({ params }: { params: Promise<{ instanceId: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user || session.user.role !== Role.STUDENT) return notFound()
 
-  const { instanceId } = params
+  const { instanceId } = await params
 
   const student = await db.studentProfile.findUnique({ where: { userId: session.user.id } })
   if (!student) return <div className="p-6 text-gray-500">Student profile not found.</div>
