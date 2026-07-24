@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { calculateStandard1 } from '@/lib/grading/standard1'
 import { calculateStandard234 } from '@/lib/grading/standards234'
 import { calculateApproachToLearning, calculateDaysLateScore } from '@/lib/grading/approach-to-learning'
@@ -148,30 +148,6 @@ export function GradingInterface({
   const [error, setError] = useState<string | null>(null)
   const [historyStandard, setHistoryStandard] = useState<1 | 2 | 3 | 4 | null>(null)
   const [gradeHistoryStandard, setGradeHistoryStandard] = useState<1 | 2 | 3 | 4 | null>(null)
-  const [canEdit, setCanEdit] = useState(true)
-
-  // Poll for whether this class instance is still gradable, so a teacher
-  // already in this view sees Save get disabled (or re-enabled) live if an
-  // admin locks/reopens the class, without needing to reload the page.
-  useEffect(() => {
-    let cancelled = false
-    async function checkStatus() {
-      try {
-        const res = await fetch(`/api/teacher/class-status?instanceId=${instanceId}`)
-        if (!res.ok || cancelled) return
-        const json = await res.json()
-        if (!cancelled) setCanEdit(json?.data?.canEdit ?? true)
-      } catch {
-        // Network hiccups shouldn't disable grading — only an explicit false does.
-      }
-    }
-    checkStatus()
-    const interval = setInterval(checkStatus, 18000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [instanceId])
 
   const fundamentalSkills = skillDefinitions.filter((s) => s.skillType === 'FUNDAMENTAL')
   const specificSkills = skillDefinitions.filter((s) => s.skillType === 'SPECIFIC')
@@ -448,19 +424,13 @@ export function GradingInterface({
               )}
               <button
                 onClick={() => handleSave(selected.id)}
-                disabled={saving || !canEdit}
+                disabled={saving}
                 className="px-4 py-2 bg-blue-700 text-white rounded-lg text-sm hover:bg-blue-800 disabled:opacity-50"
               >
                 {saving ? 'Saving…' : saved === selected.id ? '✓ Saved' : 'Save'}
               </button>
             </div>
           </div>
-
-          {!canEdit && (
-            <div className="mx-4 mt-3 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg">
-              This class has been closed by an administrator. Grades can no longer be saved.
-            </div>
-          )}
 
           {error && (
             <div className="mx-4 mt-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">

@@ -6,7 +6,6 @@ import { SubmissionForm } from '@/components/student/SubmissionForm'
 import { notFound } from 'next/navigation'
 import { Role, RotationStatus } from '@prisma/client'
 import { getStudentStandardItemDistribution } from '@/lib/analytics/score-distribution'
-import { hasOpenStudentRegradeGrant } from '@/lib/authorization'
 
 export const metadata: Metadata = { title: 'Submit Work' }
 
@@ -40,8 +39,7 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
     return <div className="p-6 text-red-500">You are not in this class.</div>
   }
 
-  const isOpen =
-    instance.status === RotationStatus.ACTIVE || (await hasOpenStudentRegradeGrant(student.id, instanceId))
+  const isOpen = instance.status === RotationStatus.ACTIVE
   if (!isOpen) {
     return (
       <div className="p-6">

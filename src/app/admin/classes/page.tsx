@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Layers, AlertTriangle, Lock, Unlock, Clock, CheckCircle2 } from "lucide-react";
+import { Layers, AlertTriangle, Lock, Clock, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -15,8 +15,6 @@ interface ClassRow {
   id: string;
   status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "LOCKED";
   lockedAt: string | null;
-  reopenedAt: string | null;
-  reopenReason: string | null;
   group: { id: string; name: string; gradeLevel: string; gender: string };
   activity: { id: string; name: string };
   teacher: { id: string; firstName: string; lastName: string };
@@ -173,11 +171,6 @@ export default function AdminAllClassesPage() {
                           <Icon className="h-3 w-3" aria-hidden="true" />
                           {meta.label}
                         </span>
-                        {c.status === "LOCKED" && c.reopenedAt && (
-                          <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
-                            <Unlock className="h-2.5 w-2.5" aria-hidden="true" /> Previously reopened
-                          </p>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-center text-xs text-gray-500 tabular-nums">
                         {c.snapshotCount} graded / {c.submissionCount} submitted

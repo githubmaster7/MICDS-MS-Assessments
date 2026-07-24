@@ -131,7 +131,10 @@ async function isTeacherCurrentlyAssigned(
  *
  * A teacher "can grade" a class instance when:
  *   - Their TeacherClassAssignment matches the instance's teacherClassAssignmentId
- *   - The class instance is not locked
+ *   - The class instance is currently ACTIVE
+ *
+ * Once a class instance locks (on rotation), grading is permanently closed —
+ * there is no override, admin or otherwise.
  */
 export async function canTeacherGrade(
   teacherId: string,
@@ -155,38 +158,10 @@ export async function canTeacherGrade(
 
   if (!instance) return false
   // Teachers may only grade the class instance that is their CURRENT,
-  // active rotation — never a future (UPCOMING) one — unless an admin has
-  // explicitly reopened a locked instance for teacher regrading via a
-  // ClassRegradeGrant (never by flipping status back to ACTIVE, which would
-  // risk two simultaneously-ACTIVE instances for the same group).
-  if (instance.status !== RotationStatus.ACTIVE) {
-    const openGrant = await db.classRegradeGrant.findFirst({
-      where: { historicalClassInstanceId: classInstanceId, teacherRegradeEnabled: true, closedAt: null },
-      select: { id: true },
-    })
-    if (!openGrant) return false
-  }
+  // active rotation — never a future (UPCOMING) one, and never a LOCKED one.
+  if (instance.status !== RotationStatus.ACTIVE) return false
   if (!instance.teacherClassAssignment.isActive) return false
   return instance.teacherClassAssignment.teacherProfileId === teacherProfile.id
-}
-
-/**
- * Returns true if a specific student has an open (unclosed) regrade grant
- * covering the given class instance — i.e. an admin has explicitly
- * reopened this locked class for this student's resubmission.
- */
-export async function hasOpenStudentRegradeGrant(
-  studentProfileId: string,
-  classInstanceId: string,
-): Promise<boolean> {
-  const grantStudent = await db.classRegradeGrantStudent.findFirst({
-    where: {
-      studentProfileId,
-      grant: { historicalClassInstanceId: classInstanceId, closedAt: null },
-    },
-    select: { id: true },
-  })
-  return grantStudent !== null
 }
 
 /**

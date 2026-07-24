@@ -1,5 +1,4 @@
 import { Metadata } from 'next'
-import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -28,10 +27,6 @@ export default async function TeacherHistoryPage() {
       teacherAssessments: {
         select: { id: true },
       },
-      regradeGrants: {
-        where: { teacherRegradeEnabled: true, closedAt: null },
-        select: { id: true },
-      },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -56,16 +51,7 @@ export default async function TeacherHistoryPage() {
                 <div className="text-right">
                   <div className="text-sm text-gray-600">{inst.studentGroup.memberships.length} students</div>
                   <div className="text-xs text-gray-400">{inst.teacherAssessments.length} grades recorded</div>
-                  {inst.regradeGrants.length > 0 ? (
-                    <Link
-                      href={`/teacher/grade/students?instanceId=${inst.id}`}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs mt-1 hover:bg-amber-200 transition-colors"
-                    >
-                      🔓 Regrade
-                    </Link>
-                  ) : (
-                    <span className="inline-flex px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs mt-1">🔒 Locked</span>
-                  )}
+                  <span className="inline-flex px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs mt-1">🔒 Locked</span>
                 </div>
               </div>
             </div>

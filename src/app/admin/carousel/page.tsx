@@ -11,16 +11,12 @@ import {
   Undo2,
   CalendarDays,
   Save,
-  Unlock,
-  Lock,
   Plus,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -59,17 +55,6 @@ interface RotationRecord {
   isReverted: boolean;
   revertedByEmail: string | null;
   revertReason: string | null;
-}
-
-interface OpenGrantSummary {
-  id: string;
-  teacherRegradeEnabled: boolean;
-  historicalClassInstance: {
-    studentGroup: { name: string };
-    groupRotationAssignment: { rotationNumber: number };
-    teacherClassAssignment: { activityTemplate: { name: string } };
-  };
-  studentGrants: Array<{ studentProfile: { id: string; firstName: string; lastName: string } }>;
 }
 
 interface GroupPreviewRow {
@@ -148,18 +133,6 @@ export default function CarouselPage() {
   const [earlyRotation, setEarlyRotation] = React.useState<EarlyRotationInfo | null>(null);
   const [earlyRotationChecking, setEarlyRotationChecking] = React.useState(false);
   const [overrideEarlyRotation, setOverrideEarlyRotation] = React.useState(false);
-
-  const [reopenAllOpen, setReopenAllOpen] = React.useState(false);
-  const [reopenAllTeacherEnabled, setReopenAllTeacherEnabled] = React.useState(true);
-  const [reopenAllReason, setReopenAllReason] = React.useState("");
-  const [reopenAllConfirmText, setReopenAllConfirmText] = React.useState("");
-  const [reopenAllLoading, setReopenAllLoading] = React.useState(false);
-
-  const [lockAllOpen, setLockAllOpen] = React.useState(false);
-  const [lockAllConfirmText, setLockAllConfirmText] = React.useState("");
-  const [lockAllLoading, setLockAllLoading] = React.useState(false);
-  const [lockAllOpenGrants, setLockAllOpenGrants] = React.useState<OpenGrantSummary[]>([]);
-  const [lockAllFetching, setLockAllFetching] = React.useState(false);
 
   const [setupGroup, setSetupGroup] = React.useState<{ id: string; name: string } | null>(null);
   const [setupOptions, setSetupOptions] = React.useState<AssignmentOption[]>([]);
@@ -396,60 +369,6 @@ export default function CarouselPage() {
     }
   };
 
-  const handleReopenAll = async () => {
-    if (reopenAllConfirmText !== "REOPEN" || !reopenAllReason.trim()) return;
-    setReopenAllLoading(true);
-    try {
-      const res = await fetch("/api/admin/regrade-grants/bulk-all", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherRegradeEnabled: reopenAllTeacherEnabled, reason: reopenAllReason.trim() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to reopen groups.");
-      toast({ title: data?.data?.message ?? "Groups reopened" });
-      setReopenAllOpen(false);
-      setReopenAllConfirmText("");
-      setReopenAllReason("");
-    } catch (e) {
-      toast({ title: "Failed to reopen groups", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
-    } finally {
-      setReopenAllLoading(false);
-    }
-  };
-
-  const openLockAllDialog = async () => {
-    setLockAllOpen(true);
-    setLockAllConfirmText("");
-    setLockAllFetching(true);
-    try {
-      const res = await fetch("/api/admin/regrade-grants?status=open");
-      const data = await res.json().catch(() => ({}));
-      setLockAllOpenGrants(data?.data ?? []);
-    } catch {
-      setLockAllOpenGrants([]);
-    } finally {
-      setLockAllFetching(false);
-    }
-  };
-
-  const handleLockAll = async () => {
-    if (lockAllConfirmText !== "LOCK") return;
-    setLockAllLoading(true);
-    try {
-      const res = await fetch("/api/admin/regrade-grants/close-all", { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to lock groups.");
-      toast({ title: data?.data?.message ?? "Groups locked" });
-      setLockAllOpen(false);
-      setLockAllConfirmText("");
-    } catch (e) {
-      toast({ title: "Failed to lock groups", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
-    } finally {
-      setLockAllLoading(false);
-    }
-  };
-
   const openSetupDialog = async (group: { id: string; name: string }) => {
     setSetupGroup(group);
     setSetupSelected([]);
@@ -524,22 +443,6 @@ export default function CarouselPage() {
           <Button onClick={() => openConfirmRotate(allGroupIds)} disabled={!planId || allGroupIds.length === 0}>
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
             Rotate all
-          </Button>
-          <Button
-            variant="outline"
-            className="text-amber-700 border-amber-200 hover:bg-amber-50"
-            onClick={() => { setReopenAllOpen(true); setReopenAllTeacherEnabled(true); setReopenAllReason(""); setReopenAllConfirmText(""); }}
-          >
-            <Unlock className="h-4 w-4" aria-hidden="true" />
-            Reopen ALL groups
-          </Button>
-          <Button
-            variant="outline"
-            className="text-red-700 border-red-200 hover:bg-red-50"
-            onClick={openLockAllDialog}
-          >
-            <Lock className="h-4 w-4" aria-hidden="true" />
-            Lock ALL groups
           </Button>
         </div>
       </div>
@@ -910,133 +813,6 @@ export default function CarouselPage() {
             >
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
               Rotate now
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reopen ALL groups modal */}
-      <Dialog open={reopenAllOpen} onOpenChange={(o) => { if (!o) { setReopenAllOpen(false); setReopenAllConfirmText(""); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
-              Reopen ALL groups for regrading
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-gray-600">
-              For every active group, this reopens the most recently locked class for its full current
-              roster — access stays open until you close it group-by-group later. Groups with no locked
-              class history are skipped.
-            </p>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="reopen-all-teacher"
-                checked={reopenAllTeacherEnabled}
-                onCheckedChange={(v) => setReopenAllTeacherEnabled(v === true)}
-              />
-              <Label htmlFor="reopen-all-teacher" className="text-sm font-normal cursor-pointer">
-                Also allow each class&apos;s teacher to regrade
-              </Label>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reopen-all-reason">Reason</Label>
-              <Textarea
-                id="reopen-all-reason"
-                placeholder="Why is this being reopened?"
-                value={reopenAllReason}
-                onChange={(e) => setReopenAllReason(e.target.value)}
-                rows={2}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reopen-all-confirm">
-                Type <strong className="font-mono tracking-wider">REOPEN</strong> to confirm
-              </Label>
-              <Input
-                id="reopen-all-confirm"
-                placeholder="REOPEN"
-                value={reopenAllConfirmText}
-                onChange={(e) => setReopenAllConfirmText(e.target.value)}
-                className="font-mono"
-                autoComplete="off"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setReopenAllOpen(false); setReopenAllConfirmText(""); }} disabled={reopenAllLoading}>Cancel</Button>
-            <Button
-              variant="destructive"
-              onClick={handleReopenAll}
-              disabled={reopenAllConfirmText !== "REOPEN" || !reopenAllReason.trim()}
-              loading={reopenAllLoading}
-            >
-              <Unlock className="h-4 w-4" aria-hidden="true" />
-              Reopen all now
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Lock ALL groups modal */}
-      <Dialog open={lockAllOpen} onOpenChange={(o) => { if (!o) { setLockAllOpen(false); setLockAllConfirmText(""); } }}>
-        <DialogContent className="max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-500" aria-hidden="true" />
-              Lock ALL groups
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-600 -mt-2">
-            This immediately closes every currently open regrade grant, across every group —
-            teachers lose regrade access and students lose resubmit access right away.
-          </p>
-          <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
-            {lockAllFetching ? (
-              <div className="space-y-2 p-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-            ) : lockAllOpenGrants.length === 0 ? (
-              <div className="py-6 text-center text-sm text-gray-400">No open regrade grants right now.</div>
-            ) : (
-              <ul role="list" className="divide-y divide-gray-100">
-                {lockAllOpenGrants.map((grant) => (
-                  <li key={grant.id} className="px-3 py-2.5 text-sm">
-                    <div className="font-medium text-gray-900">
-                      {grant.historicalClassInstance.studentGroup.name} · Rotation {grant.historicalClassInstance.groupRotationAssignment.rotationNumber} · {grant.historicalClassInstance.teacherClassAssignment.activityTemplate.name}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      {grant.teacherRegradeEnabled ? "Teacher regrade enabled" : ""}
-                      {grant.teacherRegradeEnabled && grant.studentGrants.length > 0 ? " · " : ""}
-                      {grant.studentGrants.length > 0 ? `${grant.studentGrants.length} student${grant.studentGrants.length !== 1 ? "s" : ""} can resubmit` : ""}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="space-y-1.5 pt-1">
-            <Label htmlFor="lock-all-confirm">
-              Type <strong className="font-mono tracking-wider">LOCK</strong> to confirm
-            </Label>
-            <Input
-              id="lock-all-confirm"
-              placeholder="LOCK"
-              value={lockAllConfirmText}
-              onChange={(e) => setLockAllConfirmText(e.target.value)}
-              className="font-mono"
-              autoComplete="off"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setLockAllOpen(false); setLockAllConfirmText(""); }} disabled={lockAllLoading}>Cancel</Button>
-            <Button
-              variant="destructive"
-              onClick={handleLockAll}
-              disabled={lockAllConfirmText !== "LOCK" || lockAllOpenGrants.length === 0}
-              loading={lockAllLoading}
-            >
-              <Lock className="h-4 w-4" aria-hidden="true" />
-              Lock all now
             </Button>
           </DialogFooter>
         </DialogContent>

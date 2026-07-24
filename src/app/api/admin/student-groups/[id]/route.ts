@@ -48,16 +48,6 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
               },
             },
           },
-          historicalClassInstances: {
-            select: {
-              id: true,
-              status: true,
-              regradeGrants: {
-                where: { closedAt: null },
-                select: { id: true, teacherRegradeEnabled: true, _count: { select: { studentGrants: true } } },
-              },
-            },
-          },
         },
       },
     },

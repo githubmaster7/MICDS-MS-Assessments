@@ -20,7 +20,6 @@ import {
   Bell,
   ClipboardList,
   Layers,
-  Unlock,
   UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -55,7 +54,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: RotateCcw,
   },
   { label: "All Classes", href: "/admin/classes", icon: Layers },
-  { label: "Reopen Grading", href: "/admin/reopen-grading", icon: Unlock },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
   { label: "School Settings", href: "/admin/settings", icon: Settings },
 ];

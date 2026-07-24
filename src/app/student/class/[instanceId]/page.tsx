@@ -5,7 +5,6 @@ import { db } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import { Role, RotationStatus } from '@prisma/client'
 import Link from 'next/link'
-import { hasOpenStudentRegradeGrant } from '@/lib/authorization'
 
 export const metadata: Metadata = { title: 'Class Detail' }
 
@@ -107,9 +106,7 @@ export default async function StudentClassDetailPage({
   const teacher = inst.teacherClassAssignment.teacherProfile
   const rotation = inst.groupRotationAssignment
 
-  const canSubmit =
-    instance.status === RotationStatus.ACTIVE ||
-    (await hasOpenStudentRegradeGrant(studentProfile.id, instanceId))
+  const canSubmit = instance.status === RotationStatus.ACTIVE
 
   const gradeColorClass: Record<string, string> = {
     A: 'bg-emerald-600',

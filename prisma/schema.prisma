@@ -160,13 +160,10 @@ model User {
   // Admin actions
   signupRequestsReviewed SignupRequest[] @relation("SignupReviewer")
   classInstancesLocked   HistoricalClassInstance[] @relation("ClassLocker")
-  classInstancesReopened HistoricalClassInstance[] @relation("ClassReopener")
   carouselPlansCreated   CarouselPlan[]
   rotationHistoriesExecuted RotationHistory[] @relation("RotationExecutor")
   rotationHistoriesReversed RotationHistory[] @relation("RotationReverser")
   parentStudentLinksCreated ParentStudentLink[]
-  regradeGrantsOpened    ClassRegradeGrant[] @relation("RegradeGrantOpener")
-  regradeGrantsClosed    ClassRegradeGrant[] @relation("RegradeGrantCloser")
 
   @@index([email])
   @@index([role])
@@ -266,7 +263,6 @@ model StudentProfile {
   studentSkillRatings   StudentSkillSelfRating[]
   studentPromptRatings  StudentPromptRating[]
   studentStd4Ratings    StudentStandard4SelfRating[]
-  regradeGrantMemberships ClassRegradeGrantStudent[]
 
   @@index([gradeLevel])
   @@index([gender])
@@ -569,9 +565,6 @@ model HistoricalClassInstance {
   status                   RotationStatus @default(UPCOMING)
   lockedAt                 DateTime?
   lockedBy                 String?   @db.Uuid
-  reopenedAt               DateTime?
-  reopenedBy               String?   @db.Uuid
-  reopenReason             String?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
@@ -581,13 +574,11 @@ model HistoricalClassInstance {
   schoolYear              SchoolYear              @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
   term                    Term?                   @relation(fields: [termId], references: [id], onDelete: SetNull)
   locker                  User?                   @relation("ClassLocker", fields: [lockedBy], references: [id], onDelete: SetNull)
-  reopener                User?                   @relation("ClassReopener", fields: [reopenedBy], references: [id], onDelete: SetNull)
 
   studentSubmissions       StudentSubmission[]
   teacherAssessments       TeacherAssessment[]
   atlRecords               ApproachToLearningRecord[]
   gradeSnapshots           GradeCalculationSnapshot[]
-  regradeGrants            ClassRegradeGrant[]
 
   @@unique([groupRotationAssignmentId, studentGroupId, teacherClassAssignmentId])
   @@index([schoolYearId])
@@ -595,45 +586,6 @@ model HistoricalClassInstance {
   @@index([teacherClassAssignmentId])
   @@index([status])
   @@index([termId])
-}
-
-// ---------------------------------------------------------------------------
-// Regrade Grants — admin-controlled reopening of a LOCKED class instance for
-// specific students' resubmission and/or the teacher's regrading, with no
-// time limit. Deliberately does NOT touch HistoricalClassInstance.status —
-// that stays LOCKED — so a group never ends up with two simultaneously
-// ACTIVE instances (the bug the old, unused reopen-to-ACTIVE endpoint had).
-// ---------------------------------------------------------------------------
-
-model ClassRegradeGrant {
-  id                        String    @id @default(uuid()) @db.Uuid
-  historicalClassInstanceId String    @db.Uuid
-  teacherRegradeEnabled     Boolean   @default(false)
-  reason                    String
-  openedBy                  String    @db.Uuid
-  openedAt                  DateTime  @default(now())
-  closedBy                  String?   @db.Uuid
-  closedAt                  DateTime?
-
-  historicalClassInstance HistoricalClassInstance    @relation(fields: [historicalClassInstanceId], references: [id], onDelete: Cascade)
-  opener                  User                       @relation("RegradeGrantOpener", fields: [openedBy], references: [id], onDelete: Restrict)
-  closer                  User?                      @relation("RegradeGrantCloser", fields: [closedBy], references: [id], onDelete: SetNull)
-  studentGrants           ClassRegradeGrantStudent[]
-
-  @@index([historicalClassInstanceId])
-  @@index([closedAt])
-}
-
-model ClassRegradeGrantStudent {
-  id               String @id @default(uuid()) @db.Uuid
-  grantId          String @db.Uuid
-  studentProfileId String @db.Uuid
-
-  grant          ClassRegradeGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
-  studentProfile StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-
-  @@unique([grantId, studentProfileId])
-  @@index([studentProfileId])
 }
 
 // ---------------------------------------------------------------------------

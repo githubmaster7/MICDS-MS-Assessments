@@ -49,8 +49,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       id: true,
       status: true,
       lockedAt: true,
-      reopenedAt: true,
-      reopenReason: true,
       studentGroup: { select: { id: true, name: true, gradeLevel: true, gender: true } },
       teacherClassAssignment: {
         select: {
@@ -104,8 +102,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     id: ci.id,
     status: ci.status,
     lockedAt: ci.lockedAt,
-    reopenedAt: ci.reopenedAt,
-    reopenReason: ci.reopenReason,
     group: ci.studentGroup,
     activity: ci.teacherClassAssignment.activityTemplate,
     teacher: ci.teacherClassAssignment.teacherProfile,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { HonorCodeCheckbox } from './HonorCodeCheckbox'
 import { StandardDistributionGrid, type ScoreBucket } from './ScoreDistributionChart'
 import { cn } from '@/lib/utils'
@@ -198,31 +198,6 @@ export function SubmissionForm({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isOpen, setIsOpen] = useState(true)
-
-  // Poll for whether this class is still open for submission, so a
-  // student already filling out this form sees access revoked (or
-  // restored) live if an admin locks/reopens the class, without needing
-  // to reload the page.
-  useEffect(() => {
-    let cancelled = false
-    async function checkStatus() {
-      try {
-        const res = await fetch(`/api/student/class-status?instanceId=${instanceId}`)
-        if (!res.ok || cancelled) return
-        const data = await res.json()
-        if (!cancelled) setIsOpen(data?.data?.isOpen ?? true)
-      } catch {
-        // Network hiccups shouldn't disable the form — only an explicit false does.
-      }
-    }
-    checkStatus()
-    const interval = setInterval(checkStatus, 18000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [instanceId])
 
   function setResponse(std: number, order: number, val: string) {
     setResponses((prev) => ({
@@ -573,18 +548,12 @@ export function SubmissionForm({
         </p>
       )}
 
-      {!isOpen && (
-        <p role="alert" className="text-sm text-amber-800 bg-amber-50 rounded-xl px-4 py-3 border border-amber-200">
-          This class has been closed by an administrator. Your changes can no longer be saved.
-        </p>
-      )}
-
       {/* Buttons */}
       <div className="flex flex-col sm:flex-row gap-3">
         {!allVisitedStandardsFinalized && (
           <button
             onClick={() => handleSubmit(true)}
-            disabled={saving || !isOpen}
+            disabled={saving}
             className="flex-1 py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:border-slate-300 disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving…' : 'Save Draft'}
@@ -592,14 +561,14 @@ export function SubmissionForm({
         )}
         <button
           onClick={() => handleSubmit(false)}
-          disabled={!honorCode || saving || !isOpen}
+          disabled={!honorCode || saving}
           className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? 'Submitting…' : anyFinalized ? 'Resubmit Work' : 'Submit Work'}
         </button>
       </div>
 
-      {isOpen && !honorCode && (
+      {!honorCode && (
         <p className="text-xs text-slate-400 text-center">
           Check the Honor Code above to enable submission.
         </p>

@@ -6,7 +6,6 @@ import { auditSubmission, AuditAction } from '@/lib/audit'
 import { Role, SubmissionStatus, RotationStatus } from '@prisma/client'
 import { z } from 'zod'
 import { isRevised } from '@/lib/grading/resubmission'
-import { hasOpenStudentRegradeGrant } from '@/lib/authorization'
 import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 interface RouteParams {
@@ -137,22 +136,17 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   })
   if (!studentProfile) return NextResponse.json({ error: 'Student profile not found.' }, { status: 404 })
 
-  // Only the currently active class instance accepts submission edits —
-  // unless an admin has explicitly reopened this instance for this
-  // student's resubmission via a ClassRegradeGrant.
+  // Only the currently active class instance accepts submission edits.
   const instance = await db.historicalClassInstance.findUnique({
     where: { id: instanceId },
     select: { id: true, status: true },
   })
   if (!instance) return NextResponse.json({ error: 'Class instance not found.' }, { status: 404 })
   if (instance.status !== RotationStatus.ACTIVE) {
-    const reopened = await hasOpenStudentRegradeGrant(studentProfile.id, instanceId)
-    if (!reopened) {
-      return NextResponse.json(
-        { error: 'This class instance is not currently active.' },
-        { status: 409 },
-      )
-    }
+    return NextResponse.json(
+      { error: 'This class instance is not currently active.' },
+      { status: 409 },
+    )
   }
 
   // Find the existing submission, including its current live answers/scores

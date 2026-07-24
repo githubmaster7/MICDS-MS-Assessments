@@ -20,15 +20,10 @@ export default async function MassGradingPage({
   // A teacher can have more than one simultaneously-ACTIVE class when they
   // teach multiple groups at once — fetch all of them so "Year at a Glance"
   // can be viewed for any of them, not just whichever one comes back first.
-  // Also include any LOCKED class an admin has reopened for this teacher's
-  // regrading, matching /teacher/grade/students.
   const availableInstances = await db.historicalClassInstance.findMany({
     where: {
       teacherClassAssignment: { teacherProfileId: teacher.id },
-      OR: [
-        { status: 'ACTIVE' },
-        { status: 'LOCKED', regradeGrants: { some: { teacherRegradeEnabled: true, closedAt: null } } },
-      ],
+      status: 'ACTIVE',
     },
     select: {
       id: true,
@@ -45,7 +40,7 @@ export default async function MassGradingPage({
     return (
       <div className="p-6">
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-gray-500">
-          No active class assignment, and no locked class currently reopened for you.
+          No active class assignment found.
         </div>
       </div>
     )
@@ -161,7 +156,6 @@ export default async function MassGradingPage({
               }`}
             >
               {inst.teacherClassAssignment.activityTemplate.name} · {inst.studentGroup.name}
-              {inst.status === 'LOCKED' && ' 🔓'}
             </Link>
           ))}
         </div>

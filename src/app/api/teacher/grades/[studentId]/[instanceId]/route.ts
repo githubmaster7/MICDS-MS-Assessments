@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { auditGradeChange, auditGradeSnapshot, AuditAction, createAuditLog } from '@/lib/audit'
 import { canTeacherGrade } from '@/lib/authorization'
-import { Role, RotationStatus } from '@prisma/client'
+import { Role } from '@prisma/client'
 import { z } from 'zod'
 import { calculateStandard1 } from '@/lib/grading/standard1'
 import { calculateStandard234 } from '@/lib/grading/standards234'
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   // Allow read even if locked; only block mutations
   const instance = await db.historicalClassInstance.findUnique({
     where: { id: instanceId },
-    select: { id: true, status: true, teacherClassAssignment: { select: { teacherProfileId: true } } },
+    select: { id: true, teacherClassAssignment: { select: { teacherProfileId: true } } },
   })
   if (!instance) return NextResponse.json({ error: 'Class instance not found.' }, { status: 404 })
 
@@ -71,14 +71,6 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   if (instance.teacherClassAssignment.teacherProfileId !== teacherProfile.id) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
   }
-
-  const regradeGrantActive =
-    instance.status !== RotationStatus.ACTIVE
-      ? (await db.classRegradeGrant.findFirst({
-          where: { historicalClassInstanceId: instanceId, teacherRegradeEnabled: true, closedAt: null },
-          select: { id: true },
-        })) !== null
-      : false
 
   const [assessments, snapshot, gradeHistoryLogs, submissions] = await Promise.all([
     db.teacherAssessment.findMany({
@@ -203,7 +195,6 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
       assessments,
       snapshot,
       canEdit: canGrade,
-      regradeGrantActive,
       gradeHistory,
       studentHistory,
       submissionStatus,

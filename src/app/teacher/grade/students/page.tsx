@@ -24,16 +24,13 @@ export default async function GradeStudentsPage({
 
   // A teacher can have more than one simultaneously-ACTIVE class when they
   // teach multiple groups at once (each group rotates independently) — fetch
-  // all of them so none are silently hidden from grading. Also include any
-  // LOCKED class an admin has reopened for this teacher's regrading, so a
-  // regrade grant is actually reachable through the UI, not just the API.
+  // all of them so none are silently hidden from grading. A LOCKED class is
+  // never reachable here — once a rotation locks it, grading is closed for
+  // good.
   const availableInstances = await db.historicalClassInstance.findMany({
     where: {
       teacherClassAssignment: { teacherProfileId: teacher.id },
-      OR: [
-        { status: 'ACTIVE' },
-        { status: 'LOCKED', regradeGrants: { some: { teacherRegradeEnabled: true, closedAt: null } } },
-      ],
+      status: 'ACTIVE',
     },
     include: {
       studentGroup: {
@@ -62,7 +59,7 @@ export default async function GradeStudentsPage({
     return (
       <div className="p-6">
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-gray-500">
-          No active class assignment found. You can only grade your currently assigned group, or a locked class an admin has reopened for you.
+          No active class assignment found. You can only grade your currently assigned group.
         </div>
       </div>
     )
@@ -263,12 +260,7 @@ export default async function GradeStudentsPage({
     <div className="p-6 max-w-7xl">
       <div className="mb-6 flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            Grade Students
-            {activeInstance.status === 'LOCKED' && (
-              <span className="text-xs font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Reopened by admin</span>
-            )}
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">Grade Students</h1>
           <p className="text-gray-500 text-sm mt-1">
             {activeInstance.teacherClassAssignment.activityTemplate.name} · {activeInstance.studentGroup.name}
           </p>
@@ -293,7 +285,6 @@ export default async function GradeStudentsPage({
               }`}
             >
               {inst.teacherClassAssignment.activityTemplate.name} · {inst.studentGroup.name}
-              {inst.status === 'LOCKED' && ' 🔓'}
             </Link>
           ))}
         </div>

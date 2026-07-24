@@ -15,14 +15,10 @@ import {
   RotateCcw,
   ChevronDown,
   ChevronRight,
-  Unlock,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -32,18 +28,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-
-interface OpenRegradeGrant {
-  id: string;
-  teacherRegradeEnabled: boolean;
-  _count: { studentGrants: number };
-}
-
-interface HistoricalInstance {
-  id: string;
-  status: string;
-  regradeGrants: OpenRegradeGrant[];
-}
 
 interface RotationAssignment {
   id: string;
@@ -57,7 +41,6 @@ interface RotationAssignment {
       activityTemplate: { name: string };
     };
   };
-  historicalClassInstances: HistoricalInstance[];
 }
 
 interface GroupDetail {
@@ -143,13 +126,6 @@ export default function StudentGroupDetailPage() {
 
   const [grades, setGrades] = React.useState<Map<string, StudentGrades>>(new Map());
   const [expandedStudentId, setExpandedStudentId] = React.useState<string | null>(null);
-
-  const [reopenTarget, setReopenTarget] = React.useState<RotationAssignment | null>(null);
-  const [reopenSelectedStudents, setReopenSelectedStudents] = React.useState<Set<string>>(new Set());
-  const [reopenTeacherEnabled, setReopenTeacherEnabled] = React.useState(false);
-  const [reopenReason, setReopenReason] = React.useState("");
-  const [reopenLoading, setReopenLoading] = React.useState(false);
-  const [closingGrantId, setClosingGrantId] = React.useState<string | null>(null);
 
   const fetchGroup = React.useCallback(() => {
     setLoading(true);
@@ -309,79 +285,6 @@ export default function StudentGroupDetailPage() {
       });
     } finally {
       setDeleteLoading(false);
-    }
-  };
-
-  const openReopenDialog = (assignment: RotationAssignment) => {
-    setReopenTarget(assignment);
-    setReopenSelectedStudents(new Set());
-    setReopenTeacherEnabled(false);
-    setReopenReason("");
-  };
-
-  const toggleReopenStudent = (studentProfileId: string) => {
-    setReopenSelectedStudents((prev) => {
-      const next = new Set(prev);
-      if (next.has(studentProfileId)) next.delete(studentProfileId);
-      else next.add(studentProfileId);
-      return next;
-    });
-  };
-
-  const allMembersSelected = members.length > 0 && reopenSelectedStudents.size === members.length;
-
-  const toggleSelectAllMembers = () => {
-    setReopenSelectedStudents(allMembersSelected ? new Set() : new Set(members.map((m) => m.studentProfileId)));
-  };
-
-  const handleReopen = async () => {
-    const instance = reopenTarget?.historicalClassInstances[0];
-    if (!instance || !reopenReason.trim()) return;
-    setReopenLoading(true);
-    try {
-      const res = await fetch(`/api/admin/regrade-grants`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          historicalClassInstanceId: instance.id,
-          teacherRegradeEnabled: reopenTeacherEnabled,
-          applyToAllCurrentStudents: allMembersSelected,
-          studentProfileIds: allMembersSelected ? undefined : [...reopenSelectedStudents],
-          reason: reopenReason.trim(),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Failed to reopen class");
-      toast({ title: "Class reopened", description: `Rotation ${reopenTarget!.rotationNumber} is now reopened for regrading.` });
-      setReopenTarget(null);
-      fetchGroup();
-    } catch (e) {
-      toast({
-        title: "Failed to reopen class",
-        description: e instanceof Error ? e.message : undefined,
-        variant: "destructive",
-      });
-    } finally {
-      setReopenLoading(false);
-    }
-  };
-
-  const handleCloseGrant = async (grantId: string) => {
-    setClosingGrantId(grantId);
-    try {
-      const res = await fetch(`/api/admin/regrade-grants/${grantId}/close`, { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Failed to close grant");
-      toast({ title: "Regrade access closed" });
-      fetchGroup();
-    } catch (e) {
-      toast({
-        title: "Failed to close grant",
-        description: e instanceof Error ? e.message : undefined,
-        variant: "destructive",
-      });
-    } finally {
-      setClosingGrantId(null);
     }
   };
 
@@ -600,13 +503,10 @@ export default function StudentGroupDetailPage() {
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity</th>
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Period</th>
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Regrade access</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {group.groupRotationAssignments.map((h) => {
-                  const instance = h.historicalClassInstances[0];
-                  const openGrants = instance?.regradeGrants ?? [];
                   return (
                     <tr key={h.id} className="hover:bg-gray-50 transition-colors align-top">
                       <td className="px-5 py-3 text-sm font-medium text-gray-900">Rotation {h.rotationNumber}</td>
@@ -619,36 +519,6 @@ export default function StudentGroupDetailPage() {
                         {formatDate(h.startDate)} – {formatDate(h.endDate)}
                       </td>
                       <td className="px-5 py-3 text-xs text-gray-500">{h.status}</td>
-                      <td className="px-5 py-3">
-                        {instance?.status === "LOCKED" ? (
-                          <div className="space-y-1.5">
-                            {openGrants.map((grant) => (
-                              <div key={grant.id} className="flex items-center gap-1.5 flex-wrap">
-                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[11px] font-medium">
-                                  <Unlock className="h-3 w-3" aria-hidden="true" />
-                                  {grant.teacherRegradeEnabled ? "Teacher" : ""}
-                                  {grant.teacherRegradeEnabled && grant._count.studentGrants > 0 ? " + " : ""}
-                                  {grant._count.studentGrants > 0 ? `${grant._count.studentGrants} student${grant._count.studentGrants !== 1 ? "s" : ""}` : ""}
-                                </span>
-                                <button
-                                  onClick={() => handleCloseGrant(grant.id)}
-                                  disabled={closingGrantId === grant.id}
-                                  className="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
-                                  aria-label="Close regrade access"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ))}
-                            <Button size="sm" variant="outline" className="text-xs" onClick={() => openReopenDialog(h)}>
-                              <Unlock className="h-3.5 w-3.5" aria-hidden="true" />
-                              Reopen
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-300">—</span>
-                        )}
-                      </td>
                     </tr>
                   );
                 })}
@@ -777,79 +647,6 @@ export default function StudentGroupDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reopen for regrading */}
-      <Dialog open={!!reopenTarget} onOpenChange={(o) => !o && setReopenTarget(null)}>
-        <DialogContent className="max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>
-              Reopen Rotation {reopenTarget?.rotationNumber} — {reopenTarget?.carouselPosition.teacherClassAssignment.activityTemplate.name}
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-500 -mt-2 mb-2">
-            This class is locked. Choose what to reopen — access stays open until you close it again.
-          </p>
-
-          <div className="flex items-center gap-2 mb-3">
-            <Checkbox
-              id="reopen-teacher"
-              checked={reopenTeacherEnabled}
-              onCheckedChange={(v) => setReopenTeacherEnabled(v === true)}
-            />
-            <Label htmlFor="reopen-teacher" className="text-sm font-normal cursor-pointer">
-              Allow {reopenTarget?.carouselPosition.teacherClassAssignment.teacherProfile.firstName} to regrade this class
-            </Label>
-          </div>
-
-          <div className="flex items-center justify-between mb-1.5">
-            <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Students who can resubmit</Label>
-            <button onClick={toggleSelectAllMembers} className="text-xs text-primary-600 hover:text-primary-700 font-medium">
-              {allMembersSelected ? "Clear all" : "Select all"}
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg mb-3 max-h-52">
-            {members.length === 0 ? (
-              <div className="py-6 text-center text-sm text-gray-400">No current members in this group.</div>
-            ) : (
-              <ul role="list" className="divide-y divide-gray-100">
-                {members.map((m) => (
-                  <li key={m.studentProfileId} className="flex items-center gap-2.5 px-3 py-2">
-                    <Checkbox
-                      id={`reopen-student-${m.studentProfileId}`}
-                      checked={reopenSelectedStudents.has(m.studentProfileId)}
-                      onCheckedChange={() => toggleReopenStudent(m.studentProfileId)}
-                    />
-                    <Label htmlFor={`reopen-student-${m.studentProfileId}`} className="text-sm font-normal cursor-pointer flex-1">
-                      {m.firstName} {m.lastName} <span className="text-gray-400">· {m.studentId}</span>
-                    </Label>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="reopen-reason">Reason</Label>
-            <Textarea
-              id="reopen-reason"
-              placeholder="Why is this being reopened?"
-              value={reopenReason}
-              onChange={(e) => setReopenReason(e.target.value)}
-              rows={2}
-            />
-          </div>
-
-          <DialogFooter className="mt-3">
-            <Button variant="outline" onClick={() => setReopenTarget(null)} disabled={reopenLoading}>Cancel</Button>
-            <Button
-              onClick={handleReopen}
-              loading={reopenLoading}
-              disabled={!reopenReason.trim() || (!reopenTeacherEnabled && reopenSelectedStudents.size === 0)}
-            >
-              Reopen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
