@@ -1,7 +1,9 @@
 import { Metadata } from 'next'
 import { getServerSession } from 'next-auth'
+import { Lock } from 'lucide-react'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export const metadata: Metadata = { title: 'Teaching History' }
 
@@ -33,8 +35,10 @@ export default async function TeacherHistoryPage() {
 
   return (
     <div className="p-6 max-w-4xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Teaching History</h1>
-      <p className="text-sm text-gray-500 mb-4">Read-only. Completed rotations are locked.</p>
+      <PageHeader
+        title="Teaching History"
+        description="Read-only. Completed rotations are locked."
+      />
       {pastInstances.length === 0 ? (
         <div className="bg-gray-50 rounded-xl border border-gray-200 p-8 text-center text-gray-400">
           No completed classes yet.
@@ -51,7 +55,9 @@ export default async function TeacherHistoryPage() {
                 <div className="text-right">
                   <div className="text-sm text-gray-600">{inst.studentGroup.memberships.length} students</div>
                   <div className="text-xs text-gray-400">{inst.teacherAssessments.length} grades recorded</div>
-                  <span className="inline-flex px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs mt-1">🔒 Locked</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs mt-1">
+                    <Lock className="h-3 w-3" aria-hidden="true" /> Locked
+                  </span>
                 </div>
               </div>
             </div>

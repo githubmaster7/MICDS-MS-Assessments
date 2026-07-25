@@ -8,21 +8,21 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary-600 text-white shadow hover:bg-primary-700 active:bg-primary-800",
+          "bg-primary-600 text-role-fg shadow hover:bg-primary-700 active:bg-primary-800",
         destructive:
-          "bg-red-600 text-white shadow-sm hover:bg-red-700 active:bg-red-800",
+          "bg-danger-600 text-white shadow-sm hover:bg-danger-700 active:bg-danger-800",
         outline:
           "border border-gray-300 bg-white shadow-sm hover:bg-gray-50 hover:text-gray-900 text-gray-700",
         secondary:
-          "bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-200 active:bg-gray-300",
+          "bg-secondary-600 text-white shadow-sm hover:bg-secondary-700 active:bg-secondary-800",
         ghost:
           "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
         link:
-          "text-primary-600 underline-offset-4 hover:underline",
+          "text-primary-900 underline-offset-4 hover:underline",
         success:
-          "bg-green-600 text-white shadow-sm hover:bg-green-700 active:bg-green-800",
+          "bg-success-600 text-white shadow-sm hover:bg-success-700 active:bg-success-800",
         warning:
-          "bg-yellow-500 text-white shadow-sm hover:bg-yellow-600 active:bg-yellow-700",
+          "bg-warning-500 text-white shadow-sm hover:bg-warning-600 active:bg-warning-700",
       },
       size: {
         sm: "h-8 rounded-md px-3 text-xs",

@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface AuditLog {
   id: string;
@@ -106,7 +107,7 @@ function LogRow({ log }: { log: AuditLog }) {
 
   return (
     <>
-      <tr className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${expanded ? "bg-blue-50/40" : ""}`}>
+      <tr className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${expanded ? "bg-primary-50/40" : ""}`}>
         <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">{formatDate(log.createdAt)}</td>
         <td className="px-4 py-3">
           <p className="text-sm font-medium text-gray-900">{log.actor?.email ?? "System"}</p>
@@ -122,7 +123,7 @@ function LogRow({ log }: { log: AuditLog }) {
           {hasDetail && (
             <button
               onClick={() => setExpanded((e) => !e)}
-              className="flex items-center gap-1 text-xs text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+              className="flex items-center gap-1 text-xs text-primary-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
               aria-expanded={expanded}
               aria-label={expanded ? "Collapse detail" : "Expand detail"}
             >
@@ -133,7 +134,7 @@ function LogRow({ log }: { log: AuditLog }) {
         </td>
       </tr>
       {expanded && hasDetail && (
-        <tr className="border-b border-gray-100 bg-blue-50/20">
+        <tr className="border-b border-gray-100 bg-primary-50/20">
           <td colSpan={6} className="px-4 py-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {log.reason && (
@@ -233,16 +234,16 @@ export default function AuditLogsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-start justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Audit Logs</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Full history of administrative actions.</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleExport} loading={exporting}>
-          <Download className="h-3.5 w-3.5" aria-hidden="true" />
-          Export CSV
-        </Button>
-      </div>
+      <PageHeader
+        title="Audit Logs"
+        description="Full history of administrative actions."
+        actions={
+          <Button variant="outline" size="sm" onClick={handleExport} loading={exporting}>
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            Export CSV
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
@@ -252,7 +253,7 @@ export default function AuditLogsPage() {
           {hasFilters && (
             <button
               onClick={() => { setActorSearch(""); setActionType("ALL"); setTargetType("ALL"); setDateFrom(""); setDateTo(""); }}
-              className="ml-auto text-xs text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+              className="ml-auto text-xs text-primary-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
             >
               Clear all
             </button>
@@ -299,11 +300,11 @@ export default function AuditLogsPage() {
 
       <div className="text-xs text-gray-400 tabular-nums">{total.toLocaleString()} log{total !== 1 ? "s" : ""}</div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-primary-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[700px]">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
+              <tr className="border-b border-gray-100 bg-primary-50">
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Timestamp</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actor</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import Link from 'next/link'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 
 type ClassInst = {
@@ -99,11 +100,12 @@ export default async function StudentDashboard() {
 
   const scoreColor = (score: number | null) => {
     if (!score) return 'text-gray-400'
-    if (score >= 3.5) return 'text-emerald-600'
-    if (score >= 3) return 'text-green-600'
-    if (score >= 2.5) return 'text-yellow-600'
-    if (score >= 2) return 'text-orange-500'
-    return 'text-red-600'
+    if (score >= 4) return 'text-score-exceeding-text'
+    if (score >= 3.5) return 'text-score-achieving-text'
+    if (score >= 3) return 'text-score-achieving-text'
+    if (score >= 2.5) return 'text-score-developing-text'
+    if (score >= 2) return 'text-score-developing-text'
+    return 'text-score-incomplete-text'
   }
 
   // Teacher feedback for current class
@@ -113,12 +115,15 @@ export default async function StudentDashboard() {
 
   return (
     <div className="p-6 max-w-4xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">
-        Welcome, {student.firstName}!
-      </h1>
-      <p className="text-gray-500 text-sm mb-6">
-        {student.groupMemberships[0]?.studentGroup.name ?? 'No group assigned'} · Grade {student.gradeLevel.replace('GRADE_', '')}
-      </p>
+      <PageHeader
+        variant="primary"
+        title={<>Welcome, {student.firstName}!</>}
+        description={
+          <>
+            {student.groupMemberships[0]?.studentGroup.name ?? 'No group assigned'} · Grade {student.gradeLevel.replace('GRADE_', '')}
+          </>
+        }
+      />
 
       {/* Overall Grade hero */}
       <div className={`${gradeBg} text-white rounded-2xl p-6 mb-6 flex items-center gap-6`}>
@@ -169,7 +174,7 @@ export default async function StudentDashboard() {
           { num: 3, name: 'Health, Fitness & Nutrition', score: scoreVal(currentSnapshot?.standard3Score) },
           { num: 4, name: 'Teamwork & Leadership', score: scoreVal(currentSnapshot?.standard4Score) },
         ].map(({ num, name, score }) => (
-          <div key={num} className="bg-white rounded-xl border border-gray-200 p-5">
+          <div key={num} className="bg-white rounded-xl border border-primary-200 p-5">
             <div className="text-xs font-medium text-gray-400 mb-1">Standard {num}</div>
             <div className="font-semibold text-gray-900 text-sm mb-2">{name}</div>
             <div className={`text-3xl font-bold ${scoreColor(score)}`}>
@@ -177,7 +182,7 @@ export default async function StudentDashboard() {
             </div>
             {score && (
               <div className={`text-xs mt-1 ${scoreColor(score)}`}>
-                {score >= 3.5 ? 'Advanced' : score >= 3 ? 'Proficient' : score >= 2.5 ? 'Developing+' : score >= 2 ? 'Developing' : 'Beginning'}
+                {score >= 4 ? 'Exceeding' : score >= 3.5 ? 'Achieving+' : score >= 3 ? 'Achieving' : score >= 2.5 ? 'Developing+' : score >= 2 ? 'Developing' : 'Incomplete'}
               </div>
             )}
           </div>
@@ -186,11 +191,11 @@ export default async function StudentDashboard() {
 
       {/* Teacher feedback */}
       {visibleFeedback.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+        <div className="bg-white rounded-xl border border-primary-200 p-5 mb-6">
           <h2 className="font-semibold text-gray-900 mb-3">Teacher Feedback</h2>
           {visibleFeedback.map((a, i) => (
-            <div key={i} className="p-3 bg-blue-50 rounded-lg mb-2 text-sm text-gray-700">
-              <div className="text-xs text-blue-600 font-medium mb-1">Standard {a.standardNumber}</div>
+            <div key={i} className="p-3 bg-primary-50 rounded-lg mb-2 text-sm text-gray-700">
+              <div className="text-xs text-primary-900 font-medium mb-1">Standard {a.standardNumber}</div>
               {a.feedback}
             </div>
           ))}
@@ -198,7 +203,7 @@ export default async function StudentDashboard() {
       )}
 
       {/* Class history */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-white rounded-xl border border-primary-200 p-5">
         <h2 className="font-semibold text-gray-900 mb-3">My Classes This Year</h2>
         <div className="space-y-2">
           {(allInstances as ClassInst[]).map((inst) => {
@@ -206,7 +211,7 @@ export default async function StudentDashboard() {
             const isActive = inst.status === 'ACTIVE'
             const isUpcoming = inst.status === 'UPCOMING'
             return (
-              <div key={inst.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 text-sm">
+              <div key={inst.id} className="flex items-center justify-between p-3 rounded-lg bg-white border border-gray-100 text-sm">
                 <div>
                   <span className="font-medium">{inst.teacherClassAssignment.activityTemplate.name}</span>
                   <span className="text-gray-500 ml-2">
@@ -219,7 +224,7 @@ export default async function StudentDashboard() {
                   ) : snap?.letterGrade ? (
                     <span className="font-bold text-sm text-gray-700">{snap.letterGrade}</span>
                   ) : isActive ? (
-                    <span className="text-blue-600 text-xs">In Progress</span>
+                    <span className="text-primary-900 text-xs">In Progress</span>
                   ) : (
                     <span className="text-gray-400 text-xs">—</span>
                   )}

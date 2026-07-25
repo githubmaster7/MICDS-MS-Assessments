@@ -4,6 +4,7 @@ import * as React from "react";
 import { signOut } from "next-auth/react";
 import { LogOut, GraduationCap, Users2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const COMING_SOON_SECTIONS = [
   {
@@ -29,10 +30,7 @@ const COMING_SOON_SECTIONS = [
 export default function AdminSettingsPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">School Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Account and historical data.</p>
-      </div>
+      <PageHeader title="School Settings" description="Account and historical data." />
 
       <div className="bg-white border border-gray-200 rounded-lg p-5">
         <h2 className="text-sm font-semibold text-gray-900">Account</h2>

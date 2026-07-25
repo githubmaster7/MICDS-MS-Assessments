@@ -17,10 +17,10 @@ interface ColorDonutProps {
 }
 
 const SEGMENTS = [
-  { key: 'red' as const, label: 'Beginning', color: '#ef4444' },
-  { key: 'yellow' as const, label: 'Developing', color: '#eab308' },
-  { key: 'lightgreen' as const, label: 'Proficient', color: '#86efac' },
-  { key: 'brightgreen' as const, label: 'Advanced', color: '#22c55e' },
+  { key: 'red' as const, label: 'Incomplete', color: '#ff0000' },
+  { key: 'yellow' as const, label: 'Developing', color: '#d97706' },
+  { key: 'lightgreen' as const, label: 'Achieving', color: '#6aa84f' },
+  { key: 'brightgreen' as const, label: 'Exceeding', color: '#00ff00' },
 ]
 
 export function ColorDonut({ distribution, size = 64, strokeWidth = 10, className }: ColorDonutProps) {

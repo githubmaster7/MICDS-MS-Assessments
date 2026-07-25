@@ -137,7 +137,7 @@ export function PendingApprovalPage() {
             Questions?{" "}
             <Link
               href="mailto:pe@micds.org"
-              className="text-primary-600 hover:underline"
+              className="text-primary-900 hover:underline"
             >
               Contact the PE department
             </Link>

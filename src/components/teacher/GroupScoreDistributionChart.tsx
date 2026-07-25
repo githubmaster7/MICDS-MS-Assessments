@@ -19,17 +19,17 @@ export interface GroupScoreBucket {
 // group view: pooling every individual teacher-rated item for one standard
 // across every student in a single class instance.
 const SCORE_COLOR: Record<string, string> = {
-  '4': '#10b981',
-  '3': '#86efac',
-  '2': '#fef08a',
-  '1': '#f87171',
+  '4': '#00ff00',
+  '3': '#6aa84f',
+  '2': '#d97706',
+  '1': '#ff0000',
 }
 
 const SCORE_LABEL: Record<string, string> = {
   '4': 'Exceeding',
   '3': 'Achieving',
   '2': 'Developing',
-  '1': 'Beginning',
+  '1': 'Incomplete',
 }
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
@@ -50,8 +50,8 @@ export function GroupScoreDistributionChart({ buckets, title }: { buckets: Group
 
   if (total === 0) {
     return (
-      <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 text-center text-sm text-slate-400">
-        {title && <div className="font-semibold text-slate-500 mb-1">{title}</div>}
+      <div className="rounded-xl bg-gray-50 border border-primary-200 p-6 text-center text-sm text-gray-400">
+        {title && <div className="font-semibold text-gray-500 mb-1">{title}</div>}
         No graded items yet for this class.
       </div>
     )
@@ -71,7 +71,7 @@ export function GroupScoreDistributionChart({ buckets, title }: { buckets: Group
 
   return (
     <div>
-      {title && <h3 className="font-semibold text-slate-800 mb-3">{title}</h3>}
+      {title && <h3 className="font-semibold text-gray-800 mb-3">{title}</h3>}
       <div className="flex flex-col sm:flex-row items-center gap-6">
         <div className="relative shrink-0">
           <svg viewBox="0 0 200 200" width={200} height={200} role="img" aria-label={title ? `Distribution of ${title} scores across the class` : 'Distribution of scores across the class'}>
@@ -92,12 +92,12 @@ export function GroupScoreDistributionChart({ buckets, title }: { buckets: Group
             ))}
           </svg>
           {hoveredBucket && (
-            <div className="absolute inset-x-0 -bottom-2 translate-y-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-10 min-w-[180px]">
+            <div className="absolute inset-x-0 -bottom-2 trangray-y-full bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-10 min-w-[180px]">
               <div className="font-semibold mb-1">
                 {SCORE_LABEL[String(hoveredBucket.score)]} ({hoveredBucket.score}) — {hoveredBucket.total} total
               </div>
               {hoveredBucket.byStudent.map((c) => (
-                <div key={c.studentProfileId} className="flex justify-between gap-3 text-slate-200">
+                <div key={c.studentProfileId} className="flex justify-between gap-3 text-gray-200">
                   <span>{c.studentName}</span>
                   <span className="tabular-nums font-medium">{c.count}</span>
                 </div>
@@ -113,17 +113,17 @@ export function GroupScoreDistributionChart({ buckets, title }: { buckets: Group
               type="button"
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
-              className={`w-full flex items-center gap-2 text-sm px-2 py-1 rounded-lg transition-colors ${hovered === i ? 'bg-slate-100' : ''}`}
+              className={`w-full flex items-center gap-2 text-sm px-2 py-1 rounded-lg transition-colors ${hovered === i ? 'bg-gray-100' : ''}`}
             >
               <span
                 className="w-3 h-3 rounded-sm shrink-0"
                 style={{ backgroundColor: SCORE_COLOR[String(s.score)] }}
                 aria-hidden="true"
               />
-              <span className="text-slate-700 flex-1 text-left">
+              <span className="text-gray-700 flex-1 text-left">
                 {SCORE_LABEL[String(s.score)]} ({s.score})
               </span>
-              <span className="text-slate-400 tabular-nums">
+              <span className="text-gray-400 tabular-nums">
                 {s.total} · {Math.round((s.total / total) * 100)}%
               </span>
             </button>
@@ -149,7 +149,7 @@ export function GroupStandardDistributionGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {([1, 2, 3, 4] as const).map((std) => (
-        <div key={std} className="bg-white rounded-xl border border-slate-200 p-4">
+        <div key={std} className="bg-white rounded-xl border border-primary-200 p-4">
           <GroupScoreDistributionChart buckets={distributions[std]} title={STANDARD_NAMES[std]} />
         </div>
       ))}

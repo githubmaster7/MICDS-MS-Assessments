@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   UserPlus,
   UserMinus,
   AlertTriangle,
@@ -28,6 +26,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { ClassInstanceAnalyticsView } from "@/components/shared/ClassInstanceAnalyticsView";
+import { BarChart3 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface RotationAssignment {
   id: string;
@@ -41,6 +43,7 @@ interface RotationAssignment {
       activityTemplate: { name: string };
     };
   };
+  historicalClassInstances: { id: string }[];
 }
 
 interface GroupDetail {
@@ -92,12 +95,6 @@ interface StudentGrades {
 
 const GRADE_LABELS: Record<string, string> = { GRADE_5: "5", GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
 const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-  });
-}
 
 export default function StudentGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -316,32 +313,20 @@ export default function StudentGroupDetailPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <Link
-        href="/admin/groups"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        All groups
-      </Link>
-
-      {/* Group info */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-start gap-4 flex-wrap">
-          <div className="h-12 w-12 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
-            <Users className="h-6 w-6 text-violet-600" aria-hidden="true" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-              {group.name}
-              {!group.isActive && (
-                <span className="text-xs font-medium rounded-full border border-gray-200 bg-gray-100 text-gray-500 px-2 py-0.5">Removed</span>
-              )}
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Grade {GRADE_LABELS[group.gradeLevel] ?? group.gradeLevel} · {GENDER_LABELS[group.gender] ?? group.gender} · {group.schoolYear.name} · {group._count.memberships} {group._count.memberships === 1 ? "student" : "students"}
-            </p>
-          </div>
-          {group.isActive ? (
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            {group.name}
+            {!group.isActive && (
+              <span className="text-xs font-medium rounded-full border border-gray-200 bg-gray-100 text-gray-500 px-2 py-0.5">Removed</span>
+            )}
+          </span>
+        }
+        description={`Grade ${GRADE_LABELS[group.gradeLevel] ?? group.gradeLevel} · ${GENDER_LABELS[group.gender] ?? group.gender} · ${group.schoolYear.name} · ${group._count.memberships} ${group._count.memberships === 1 ? "student" : "students"}`}
+        backHref="/admin/groups"
+        backLabel="All groups"
+        actions={
+          group.isActive ? (
             <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => setRemoveGroupOpen(true)}>
               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               Remove group
@@ -368,21 +353,22 @@ export default function StudentGroupDetailPage() {
                 Delete permanently
               </Button>
             </div>
-          )}
-          {activeAssignment && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-sm">
-              <p className="text-xs text-blue-500 font-medium uppercase tracking-wide mb-0.5">Current rotation</p>
-              <p className="text-blue-800 font-medium">
-                {activeAssignment.carouselPosition.teacherClassAssignment.teacherProfile.firstName}{" "}
-                {activeAssignment.carouselPosition.teacherClassAssignment.teacherProfile.lastName}
-              </p>
-              <p className="text-blue-600 text-xs">
-                {activeAssignment.carouselPosition.teacherClassAssignment.activityTemplate.name} · Rotation {activeAssignment.rotationNumber}
-              </p>
-            </div>
-          )}
+          )
+        }
+      />
+
+      {activeAssignment && (
+        <div className="bg-primary-50 border border-primary-100 rounded-lg px-3 py-2 text-sm">
+          <p className="text-xs text-primary-900 font-medium uppercase tracking-wide mb-0.5">Current rotation</p>
+          <p className="text-primary-800 font-medium">
+            {activeAssignment.carouselPosition.teacherClassAssignment.teacherProfile.firstName}{" "}
+            {activeAssignment.carouselPosition.teacherClassAssignment.teacherProfile.lastName}
+          </p>
+          <p className="text-primary-900 text-xs">
+            {activeAssignment.carouselPosition.teacherClassAssignment.activityTemplate.name} · Rotation {activeAssignment.rotationNumber}
+          </p>
         </div>
-      </div>
+      )}
 
       {/* Members */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -439,14 +425,14 @@ export default function StudentGroupDetailPage() {
                     </button>
                   </div>
                   {isExpanded && (
-                    <div className="px-5 pb-4 bg-gray-50/50">
+                    <div className="px-5 pb-4">
                       {!studentGrades || studentGrades.classes.length === 0 ? (
                         <p className="text-xs text-gray-400 py-3 pl-7">No grades recorded yet this year.</p>
                       ) : (
-                        <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white ml-7">
+                        <div className="overflow-x-auto border border-primary-200 rounded-lg bg-white ml-7">
                           <table className="w-full text-left min-w-[560px]">
                             <thead>
-                              <tr className="border-b border-gray-100 bg-gray-50">
+                              <tr className="border-b border-gray-100 bg-primary-50">
                                 <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Rotation</th>
                                 <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Class</th>
                                 <th className="px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Teacher</th>
@@ -489,7 +475,7 @@ export default function StudentGroupDetailPage() {
 
       {/* Rotation history */}
       {group.groupRotationAssignments.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-primary-200 overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
             <Clock className="h-4 w-4 text-gray-400" aria-hidden="true" />
             <h2 className="text-sm font-semibold text-gray-900">Rotation History</h2>
@@ -497,7 +483,7 @@ export default function StudentGroupDetailPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[480px]">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
+                <tr className="border-b border-gray-100 bg-primary-50">
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rotation</th>
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teacher</th>
                   <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity</th>
@@ -525,6 +511,32 @@ export default function StudentGroupDetailPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Class analytics — same structure as the Teacher / Class detail views */}
+      {group.groupRotationAssignments.some((h) => h.historicalClassInstances.length > 0) && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-gray-400" aria-hidden="true" />
+            <h2 className="text-sm font-semibold text-gray-900">Class Analytics</h2>
+          </div>
+          {group.groupRotationAssignments
+            .filter((h) => h.historicalClassInstances.length > 0)
+            .map((h) => (
+              <div key={h.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                <p className="text-xs font-medium text-gray-500 mb-3">
+                  Rotation {h.rotationNumber} — {h.carouselPosition.teacherClassAssignment.activityTemplate.name} ·{" "}
+                  {h.carouselPosition.teacherClassAssignment.teacherProfile.firstName}{" "}
+                  {h.carouselPosition.teacherClassAssignment.teacherProfile.lastName}
+                </p>
+                <ClassInstanceAnalyticsView
+                  analyticsApiUrl={`/api/admin/classes/${h.historicalClassInstances[0].id}/analytics`}
+                  historyApiUrlFor={(studentId) => `/api/admin/grades/${studentId}/${h.historicalClassInstances[0].id}`}
+                  compact
+                />
+              </div>
+            ))}
         </div>
       )}
 

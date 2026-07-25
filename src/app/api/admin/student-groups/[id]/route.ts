@@ -48,6 +48,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
               },
             },
           },
+          // UPCOMING rotations have no instance yet — only rotations that
+          // have actually started produce one, which is what the analytics
+          // graphs are keyed on.
+          historicalClassInstances: { select: { id: true }, take: 1 },
         },
       },
     },

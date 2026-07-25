@@ -91,9 +91,6 @@ export function SignInForm() {
   return (
     <div className="w-full max-w-sm mx-auto">
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-100 mb-4">
-          <span className="text-primary-700 font-bold text-lg">PE</span>
-        </div>
         <h1 className="text-2xl font-semibold text-gray-900">Sign in</h1>
         <p className="mt-1 text-sm text-gray-500">
           Use your MICDS email address
@@ -133,7 +130,7 @@ export function SignInForm() {
             <Label htmlFor="password">Password</Label>
             <Link
               href="/auth/forgot-password"
-              className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
+              className="text-xs text-primary-900 hover:text-primary-900 hover:underline"
             >
               Forgot password?
             </Link>
@@ -185,7 +182,7 @@ export function SignInForm() {
         No account yet?{" "}
         <Link
           href="/auth/signup"
-          className="text-primary-600 font-medium hover:underline"
+          className="text-primary-900 font-medium hover:underline"
         >
           Request access
         </Link>

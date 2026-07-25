@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { ROLES } from "@/lib/constants";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface RequestedStudent {
   id: string;
@@ -80,7 +81,7 @@ function formatDate(iso: string) {
 
 function RoleBadge({ role }: { role: string }) {
   const map: Record<string, string> = {
-    TEACHER: "bg-blue-50 text-blue-700 border-blue-100",
+    TEACHER: "bg-amber-50 text-amber-700 border-amber-100",
     STUDENT: "bg-green-50 text-green-700 border-green-100",
     PARENT: "bg-purple-50 text-purple-700 border-purple-100",
     ADMIN: "bg-red-50 text-red-700 border-red-100",
@@ -348,12 +349,10 @@ export default function SignupRequestsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Signup Requests</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Review and manage account requests from students, teachers, and parents.
-        </p>
-      </div>
+      <PageHeader
+        title="Signup Requests"
+        description="Review and manage account requests from students, teachers, and parents."
+      />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v)}>
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -380,11 +379,11 @@ export default function SignupRequestsPage() {
 
         {(["PENDING", "APPROVED", "REJECTED"] as const).map((status) => (
           <TabsContent key={status} value={status} className="mt-4">
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl border border-primary-200 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left min-w-[560px]">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
+                    <tr className="border-b border-gray-100 bg-primary-50">
                       <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                         Name / Email
                       </th>
@@ -496,7 +495,7 @@ export default function SignupRequestsPage() {
           </DialogHeader>
           {approveTarget && (
             <div className="space-y-4 py-2">
-              <div className="bg-gray-50 rounded-lg p-3 text-sm">
+              <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm">
                 <p className="font-medium text-gray-900">{approveTarget.email}</p>
               </div>
               <div className="space-y-1.5">
@@ -679,7 +678,7 @@ export default function SignupRequestsPage() {
           </DialogHeader>
           {rejectTarget && (
             <div className="space-y-4 py-2">
-              <div className="bg-gray-50 rounded-lg p-3 text-sm">
+              <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm">
                 <p className="font-medium text-gray-900">{rejectTarget.email}</p>
               </div>
               <div className="space-y-1.5">

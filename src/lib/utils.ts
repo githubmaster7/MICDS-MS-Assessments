@@ -6,11 +6,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Formats a calendar date (Prisma `@db.Date` fields — school year / term /
+ * rotation start & end dates) as its stored UTC-midnight day, never shifted
+ * by the viewer's local timezone. These fields carry no time-of-day meaning,
+ * so `date-fns`'s local-time `format()` would render Jul 24 as "Jul 23" for
+ * anyone west of UTC — use this instead of `new Date(x).toLocaleDateString()`
+ * or `format()` for any @db.Date field.
+ */
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) return "—";
-  return format(d, "MMM d, yyyy");
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(d);
 }
 
 export function formatDatetime(date: Date | string | null | undefined): string {
@@ -33,48 +41,6 @@ export function formatGrade(percentage: number): string {
   if (percentage >= 63) return "D";
   if (percentage >= 60) return "D-";
   return "F";
-}
-
-export type ScoreLevel = "red" | "yellow" | "lightgreen" | "brightgreen";
-
-export function scoreToLevel(score: number): ScoreLevel {
-  if (score <= 1.5) return "red";
-  if (score <= 2.5) return "yellow";
-  if (score <= 3.5) return "lightgreen";
-  return "brightgreen";
-}
-
-export function scoreToColor(score: number): string {
-  const level = scoreToLevel(score);
-  const map: Record<ScoreLevel, string> = {
-    red: "score-chip-red",
-    yellow: "score-chip-yellow",
-    lightgreen: "score-chip-lightgreen",
-    brightgreen: "score-chip-brightgreen",
-  };
-  return map[level];
-}
-
-export function scoreToBgClass(score: number): string {
-  const level = scoreToLevel(score);
-  const map: Record<ScoreLevel, string> = {
-    red: "bg-score-red text-white",
-    yellow: "bg-score-yellow text-white",
-    lightgreen: "bg-score-lightgreen text-gray-900",
-    brightgreen: "bg-score-brightgreen text-white",
-  };
-  return map[level];
-}
-
-export function scoreToHex(score: number): string {
-  const level = scoreToLevel(score);
-  const map: Record<ScoreLevel, string> = {
-    red: "#ef4444",
-    yellow: "#eab308",
-    lightgreen: "#86efac",
-    brightgreen: "#22c55e",
-  };
-  return map[level];
 }
 
 export function isValidMICDSEmail(email: string): boolean {

@@ -25,14 +25,14 @@ const GRADE_CONFIGS: Record<string, { bg: string; ring: string; text: string; la
 
 export function GradeCard({ letterGrade, overallAverage, activityName, teacherName, className }: GradeCardProps) {
   const cfg = letterGrade ? GRADE_CONFIGS[letterGrade] : null
-  const bg = cfg?.bg ?? 'bg-slate-300'
-  const ring = cfg?.ring ?? 'ring-slate-200'
+  const bg = cfg?.bg ?? 'bg-gray-300'
+  const ring = cfg?.ring ?? 'ring-gray-200'
   const label = cfg?.label ?? ''
 
   return (
     <div
       className={cn(
-        'rounded-2xl p-6 flex items-center gap-5 shadow-sm',
+        'rounded-xl p-6 flex items-center gap-5 shadow-sm',
         bg,
         className,
       )}

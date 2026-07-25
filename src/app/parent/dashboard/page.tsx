@@ -6,14 +6,16 @@ import { RotationStatus } from '@prisma/client'
 import Link from 'next/link'
 import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution } from '@/lib/analytics/score-distribution'
 import { StandardDistributionGrid, ScoreDistributionChart } from '@/components/student/ScoreDistributionChart'
+import { formatDate } from '@/lib/utils'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export const metadata: Metadata = { title: 'Parent Dashboard' }
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
-  ACTIVE: { label: 'Active', className: 'bg-blue-50 text-blue-700 border-blue-100' },
+  ACTIVE: { label: 'Active', className: 'bg-primary-50 text-primary-900 border-primary-100' },
   COMPLETED: { label: 'Completed', className: 'bg-gray-100 text-gray-600 border-gray-200' },
   LOCKED: { label: 'Locked', className: 'bg-gray-100 text-gray-600 border-gray-200' },
-  UPCOMING: { label: 'Upcoming', className: 'bg-slate-50 text-slate-500 border-slate-200' },
+  UPCOMING: { label: 'Upcoming', className: 'bg-gray-50 text-gray-500 border-gray-200' },
 }
 
 export default async function ParentDashboard({
@@ -195,27 +197,28 @@ export default async function ParentDashboard({
 
   return (
     <div className="p-6 max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Parent Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Read-only view</p>
-        </div>
-        {students.length > 1 && (
-          <div className="flex gap-2">
-            {students.map((s) => (
-              <a
-                key={s.id}
-                href={`/parent/dashboard?studentId=${s.id}`}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${s.id === student.id ? 'bg-purple-700 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:border-purple-300'}`}
-              >
-                {s.firstName} {s.lastName}
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
+      <PageHeader
+        variant="primary"
+        title="Parent Dashboard"
+        description="Read-only view"
+        actions={
+          students.length > 1 && (
+            <div className="flex gap-2">
+              {students.map((s) => (
+                <a
+                  key={s.id}
+                  href={`/parent/dashboard?studentId=${s.id}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${s.id === student.id ? 'bg-primary-700 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:border-primary-300'}`}
+                >
+                  {s.firstName} {s.lastName}
+                </a>
+              ))}
+            </div>
+          )
+        }
+      />
 
-      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6 text-sm text-purple-700">
+      <div className="bg-primary-50 border border-primary-100 rounded-xl p-4 mb-6 text-sm text-primary-900">
         <strong>Viewing:</strong> {student.firstName} {student.lastName} · Grade {student.gradeLevel.replace('GRADE_', '')} · {student.groupMemberships[0]?.studentGroup.name ?? 'No group'}
       </div>
 
@@ -264,13 +267,13 @@ export default async function ParentDashboard({
           Teachers&apos; ratings of classroom habits, pooled across all classes. Informational only — does not affect the letter grade.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="bg-white rounded-xl border border-primary-200 p-4">
             <ScoreDistributionChart buckets={atlDistribution.responsiblePrepared} title="Responsible & Prepared for Class" />
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="bg-white rounded-xl border border-primary-200 p-4">
             <ScoreDistributionChart buckets={atlDistribution.respectfulWorks} title="Respectful and Works Well with Others" />
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="bg-white rounded-xl border border-primary-200 p-4">
             <ScoreDistributionChart buckets={atlDistribution.effortTeacherScore} title="Puts Forth Effort to Learn" />
           </div>
         </div>
@@ -290,7 +293,7 @@ export default async function ParentDashboard({
             {historyRows.map((row) => {
               const meta = STATUS_META[row.status] ?? STATUS_META.UPCOMING
               const content = (
-                <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-4 hover:border-purple-300 hover:shadow-sm transition-all">
+                <div className="bg-white rounded-xl border border-primary-200 p-4 flex items-center justify-between gap-4 hover:border-primary-400 hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs text-gray-400 tabular-nums">Class {row.rotationNumber}</span>
@@ -303,7 +306,7 @@ export default async function ParentDashboard({
                       {row.teacher} · {row.group}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(row.startDate).toLocaleDateString()} – {new Date(row.endDate).toLocaleDateString()}
+                      {formatDate(row.startDate)} – {formatDate(row.endDate)}
                     </p>
                   </div>
                   <div className="text-right shrink-0">

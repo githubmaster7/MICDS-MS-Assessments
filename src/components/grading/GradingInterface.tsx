@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Check, Circle } from 'lucide-react'
 import { calculateStandard1 } from '@/lib/grading/standard1'
 import { calculateStandard234 } from '@/lib/grading/standards234'
 import { calculateApproachToLearning, calculateDaysLateScore } from '@/lib/grading/approach-to-learning'
@@ -8,31 +9,31 @@ import { calculateOverallGrade } from '@/lib/grading/conversion'
 type Score = 1 | 2 | 3 | 4
 
 const COLOR_LABELS: Record<Score, string> = {
-  1: 'Red',
-  2: 'Yellow',
-  3: 'Light Green',
-  4: 'Bright Green',
+  1: 'Incomplete',
+  2: 'Developing',
+  3: 'Achieving',
+  4: 'Exceeding',
 }
 const COLOR_CLASSES: Record<Score, string> = {
-  1: 'bg-red-100 border-red-400 text-red-800',
-  2: 'bg-yellow-100 border-yellow-400 text-yellow-800',
-  3: 'bg-green-100 border-green-400 text-green-800',
-  4: 'bg-emerald-200 border-emerald-500 text-emerald-900',
+  1: 'bg-score-incomplete-bg border-score-incomplete-border text-score-incomplete-text',
+  2: 'bg-score-developing-bg border-score-developing-border text-score-developing-text',
+  3: 'bg-score-achieving-bg border-score-achieving-border text-score-achieving-text',
+  4: 'bg-score-exceeding-bg border-score-exceeding-border text-score-exceeding-text',
 }
 const COLOR_BG: Record<Score, string> = {
-  1: 'bg-red-500',
-  2: 'bg-yellow-400',
-  3: 'bg-green-300',
-  4: 'bg-emerald-500',
+  1: 'bg-score-incomplete',
+  2: 'bg-score-developing',
+  3: 'bg-score-achieving',
+  4: 'bg-score-exceeding',
 }
 const SCORE_BADGE_COLOR: Record<string, string> = {
-  '4': 'bg-emerald-500 text-white',
-  '3.5': 'bg-green-400 text-white',
-  '3': 'bg-green-300 text-green-900',
-  '2.5': 'bg-yellow-300 text-yellow-900',
-  '2': 'bg-yellow-200 text-yellow-800',
-  '1.5': 'bg-orange-300 text-orange-900',
-  '1': 'bg-red-400 text-white',
+  '4': 'bg-score-exceeding text-black',
+  '3.5': 'bg-score-achieving text-black',
+  '3': 'bg-score-achieving text-black',
+  '2.5': 'bg-score-developing text-black',
+  '2': 'bg-score-developing text-black',
+  '1.5': 'bg-score-incomplete text-black',
+  '1': 'bg-score-incomplete text-black',
 }
 
 // ---------------------------------------------------------------------------
@@ -379,7 +380,7 @@ export function GradingInterface({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search students…"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -390,12 +391,16 @@ export function GradingInterface({
               <button
                 key={s.id}
                 onClick={() => setSelectedId(s.id)}
-                className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-50 transition-colors ${selectedId === s.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}
+                className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-50 transition-colors ${selectedId === s.id ? 'bg-primary-50 border-l-4 border-l-primary-500' : ''}`}
               >
                 <div>
                   <div className="font-medium text-sm text-gray-900">{s.firstName} {s.lastName}</div>
                   <div className="text-xs text-gray-400 mt-0.5">
-                    {saved === s.id ? <span className="text-green-600">✓ Saved</span> : ''}
+                    {saved === s.id ? (
+                      <span className="inline-flex items-center gap-1 text-green-600">
+                        <Check className="h-3 w-3" aria-hidden="true" /> Saved
+                      </span>
+                    ) : ''}
                   </div>
                 </div>
                 <span className={`text-sm font-bold ${gradeColor[grade] ?? 'text-gray-500'}`}>{grade}</span>
@@ -425,15 +430,19 @@ export function GradingInterface({
               <button
                 onClick={() => handleSave(selected.id)}
                 disabled={saving}
-                className="px-4 py-2 bg-blue-700 text-white rounded-lg text-sm hover:bg-blue-800 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-700 text-white rounded-lg text-sm hover:bg-primary-800 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               >
-                {saving ? 'Saving…' : saved === selected.id ? '✓ Saved' : 'Save'}
+                {saving ? 'Saving…' : saved === selected.id ? (
+                  <>
+                    <Check className="h-4 w-4" aria-hidden="true" /> Saved
+                  </>
+                ) : 'Save'}
               </button>
             </div>
           </div>
 
           {error && (
-            <div className="mx-4 mt-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            <div className="mx-4 mt-3 px-3 py-2 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
               {error}
             </div>
           )}
@@ -559,7 +568,7 @@ export function GradingInterface({
                 gradeHistoryCount={selectedData.gradeHistory[4].length}
               />
 
-              <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
                   Demonstration of Teamwork &amp; Leadership
                 </div>
@@ -614,7 +623,7 @@ export function GradingInterface({
               <h3 className="font-semibold text-gray-800 mb-1 flex items-center gap-2">
                 Approach to Learning
                 {atlResult && (
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-sm">
+                  <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-sm">
                     {atlResult.calculatedScore.toFixed(2)}
                   </span>
                 )}
@@ -753,7 +762,7 @@ function SectionHeader({
           <button
             type="button"
             onClick={onViewHistory}
-            className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+            className="text-xs font-medium text-primary-900 hover:text-primary-900 hover:underline"
           >
             Student resubmission history{attemptCount && attemptCount > 1 ? ` (${attemptCount} attempts)` : ''}
           </button>
@@ -844,10 +853,18 @@ function BreakdownBar({
   if (!result) return null
   return (
     <div className="mt-3 p-3 bg-gray-50 rounded-lg text-xs text-gray-600 flex gap-4 flex-wrap">
-      <span>🔴 {result.breakdown.red} Red</span>
-      <span>🟡 {result.breakdown.yellow} Yellow</span>
-      <span>🟢 {result.breakdown.lightGreen} Light Green</span>
-      <span>✅ {result.breakdown.brightGreen} Bright Green</span>
+      <span className="inline-flex items-center gap-1">
+        <Circle className="h-2.5 w-2.5 fill-score-incomplete text-score-incomplete" aria-hidden="true" /> {result.breakdown.red} Incomplete
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <Circle className="h-2.5 w-2.5 fill-score-developing text-score-developing" aria-hidden="true" /> {result.breakdown.yellow} Developing
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <Circle className="h-2.5 w-2.5 fill-score-achieving text-score-achieving" aria-hidden="true" /> {result.breakdown.lightGreen} Achieving
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <Circle className="h-2.5 w-2.5 fill-score-exceeding text-score-exceeding" aria-hidden="true" /> {result.breakdown.brightGreen} Exceeding
+      </span>
     </div>
   )
 }
@@ -898,7 +915,7 @@ function SkillRow({
             aria-label={`${label}: ${COLOR_LABELS[v]}`}
             className={`w-9 h-9 rounded border-2 text-xs font-bold transition-all ${
               value === v
-                ? `${COLOR_BG[v]} border-gray-600 text-white scale-110`
+                ? `${COLOR_BG[v]} border-gray-600 text-black scale-110`
                 : 'bg-white border-gray-200 text-gray-400 hover:border-gray-400'
             }`}
           >
@@ -1063,7 +1080,7 @@ function FeedbackBox({
         onChange={(e) => onChange(e.target.value)}
         rows={2}
         placeholder="Optional teacher feedback…"
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none"
       />
       <label className="flex items-center gap-2 mt-1 text-xs text-gray-500 cursor-pointer">
         <input type="checkbox" checked={visible} onChange={(e) => onVisibleChange(e.target.checked)} className="rounded" />

@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface Stats {
   pendingSignups: number;
@@ -50,7 +51,7 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="group bg-white rounded-xl border border-gray-200 p-5 flex items-start gap-4 hover:border-primary-300 hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+      className="group bg-white rounded-xl border border-primary-200 p-5 flex items-start gap-4 hover:border-primary-400 hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
     >
       <div
         className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${accentClass}`}
@@ -175,7 +176,7 @@ export default function AdminDashboardPage() {
       value: stats?.activeUsers ?? 0,
       icon: Users,
       href: "/admin/users",
-      accentClass: "bg-blue-50 text-blue-600",
+      accentClass: "bg-primary-50 text-primary-900",
     },
     {
       label: "Student Groups",
@@ -195,12 +196,11 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Overview of the MICDS PE Assessment system
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Overview of the MICDS PE Assessment system"
+        variant="primary"
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => (
@@ -220,7 +220,7 @@ export default function AdminDashboardPage() {
             </div>
             <Link
               href="/admin/audit-logs"
-              className="text-xs text-primary-600 hover:underline font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+              className="text-xs text-primary-900 hover:underline font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
             >
               View all
             </Link>

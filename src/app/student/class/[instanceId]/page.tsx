@@ -5,6 +5,9 @@ import { db } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import { Role, RotationStatus } from '@prisma/client'
 import Link from 'next/link'
+import { ClassHistoryButtons } from '@/components/student/ClassHistoryButtons'
+import { formatDate } from '@/lib/utils'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export const metadata: Metadata = { title: 'Class Detail' }
 
@@ -125,33 +128,44 @@ export default async function StudentClassDetailPage({
 
   const scoreLabel = (score: number | null) => {
     if (score === null) return '—'
-    if (score >= 3.5) return 'Advanced'
-    if (score >= 3) return 'Proficient'
+    if (score >= 4) return 'Exceeding'
+    if (score >= 3.5) return 'Achieving+'
+    if (score >= 3) return 'Achieving'
     if (score >= 2.5) return 'Developing+'
     if (score >= 2) return 'Developing'
-    return 'Beginning'
+    return 'Incomplete'
   }
 
   return (
     <div className="p-6 max-w-2xl">
+      <PageHeader
+        title={activityName}
+        description={
+          <>
+            <span className="block">
+              Class {rotation.rotationNumber} ·{' '}
+              {formatDate(rotation.startDate)} –{' '}
+              {formatDate(rotation.endDate)}
+            </span>
+            <span className="block">
+              Teacher: {teacher.firstName} {teacher.lastName}
+            </span>
+          </>
+        }
+      />
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{activityName}</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Class {rotation.rotationNumber} ·{' '}
-          {new Date(rotation.startDate).toLocaleDateString()} –{' '}
-          {new Date(rotation.endDate).toLocaleDateString()}
-        </p>
-        <p className="text-sm text-gray-500">
-          Teacher: {teacher.firstName} {teacher.lastName}
-        </p>
         {canSubmit && (
           <Link
             href={`/student/submit/${instanceId}`}
-            className="inline-block mt-3 bg-blue-700 hover:bg-blue-800 transition-colors text-white text-sm font-medium px-4 py-2 rounded-lg"
+            className="inline-block bg-primary-700 hover:bg-primary-800 transition-colors text-white text-sm font-medium px-4 py-2 rounded-lg"
           >
             Submit Work
           </Link>
         )}
+        <ClassHistoryButtons
+          instanceId={instanceId}
+          studentName={`${studentProfile.firstName} ${studentProfile.lastName}`}
+        />
       </div>
 
       {/* Grade summary */}
@@ -176,7 +190,7 @@ export default async function StudentClassDetailPage({
               const score = snapshot[`standard${std}Score` as keyof typeof snapshot]
               const numScore = score != null ? Number(score) : null
               return (
-                <div key={std} className="bg-gray-50 rounded-lg p-3">
+                <div key={std} className="bg-white rounded-lg border border-gray-100 p-3">
                   <div className="text-xs text-gray-500 mb-1">Standard {std}</div>
                   <div className="font-semibold text-gray-900">
                     {numScore != null ? numScore.toFixed(2) : '—'}
@@ -206,8 +220,8 @@ export default async function StudentClassDetailPage({
           <div className="space-y-3">
             {(assessments as { standardNumber: number; score: unknown; feedback: string | null; assessedAt: Date }[]).map(
               (a) => (
-                <div key={a.standardNumber} className="p-3 bg-blue-50 rounded-lg text-sm">
-                  <div className="text-xs text-blue-600 font-medium mb-1">
+                <div key={a.standardNumber} className="p-3 bg-primary-50 rounded-lg text-sm">
+                  <div className="text-xs text-primary-900 font-medium mb-1">
                     Standard {a.standardNumber}
                     {a.score != null && (
                       <span className="ml-2 text-gray-500">· Score: {Number(a.score).toFixed(2)}</span>

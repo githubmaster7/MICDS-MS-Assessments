@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
 import { ROLES } from "@/lib/constants";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface User {
   id: string;
@@ -183,10 +184,7 @@ export default function UsersPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Users</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Manage all MICDS PE Assessment accounts.</p>
-      </div>
+      <PageHeader title="Users" description="Manage all MICDS PE Assessment accounts." />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
@@ -227,7 +225,7 @@ export default function UsersPage() {
         {(debouncedSearch || roleFilter !== "ALL" || statusFilter !== "ALL") && (
           <button
             onClick={() => { setSearch(""); setRoleFilter("ALL"); setStatusFilter("ALL"); }}
-            className="text-xs text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+            className="text-xs text-primary-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
           >
             Clear filters
           </button>
@@ -235,11 +233,11 @@ export default function UsersPage() {
         <span className="ml-auto text-xs text-gray-400 tabular-nums">{total.toLocaleString()} user{total !== 1 ? "s" : ""}</span>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-primary-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[650px]">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
+              <tr className="border-b border-gray-100 bg-primary-50">
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
@@ -330,7 +328,7 @@ export default function UsersPage() {
           <DialogHeader><DialogTitle>Edit role</DialogTitle></DialogHeader>
           {editTarget && (
             <div className="space-y-4 py-2">
-              <div className="bg-gray-50 rounded-lg p-3 text-sm">
+              <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm">
                 <p className="font-medium text-gray-900">{displayName(editTarget)}</p>
                 <p className="text-gray-500">{editTarget.email}</p>
               </div>

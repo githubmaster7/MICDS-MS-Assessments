@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
@@ -180,9 +181,13 @@ export function SignUpForm() {
   return (
     <div className="w-full max-w-sm mx-auto">
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-100 mb-4">
-          <span className="text-primary-700 font-bold text-lg">PE</span>
-        </div>
+        <Image
+          src="/images/micds-pe-logo.png"
+          alt="MICDS Physical Education"
+          width={690}
+          height={338}
+          className="h-16 w-auto mx-auto mb-4"
+        />
         <h1 className="text-2xl font-semibold text-gray-900">Request access</h1>
         <p className="mt-1 text-sm text-gray-500">
           Accounts require administrator approval
@@ -300,7 +305,7 @@ export function SignUpForm() {
                             Grade {GRADE_LABELS[s.gradeLevel] ?? s.gradeLevel} · {s.studentId}
                           </span>
                         </span>
-                        <span className="text-xs text-primary-600 font-medium shrink-0">
+                        <span className="text-xs text-primary-900 font-medium shrink-0">
                           {alreadyAdded ? "Added" : "Add"}
                         </span>
                       </button>
@@ -408,7 +413,7 @@ export function SignUpForm() {
         Already have an account?{" "}
         <Link
           href="/login"
-          className="text-primary-600 font-medium hover:underline"
+          className="text-primary-900 font-medium hover:underline"
         >
           Sign in
         </Link>

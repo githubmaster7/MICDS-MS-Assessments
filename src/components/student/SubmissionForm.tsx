@@ -1,23 +1,25 @@
 'use client'
 
 import { useState } from 'react'
+import { CheckCircle2 } from 'lucide-react'
 import { HonorCodeCheckbox } from './HonorCodeCheckbox'
 import { StandardDistributionGrid, type ScoreBucket } from './ScoreDistributionChart'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 const S4_RATING_LABELS: Record<number, { short: string; long: string; color: string }> = {
-  4: { short: '4 — Outstanding', long: 'The class is better with me in it', color: 'border-emerald-400 bg-emerald-50 text-emerald-800' },
-  3: { short: '3 — Good',        long: 'I work well with others',           color: 'border-blue-400 bg-blue-50 text-blue-800' },
-  2: { short: '2 — Developing',  long: 'I can improve on working with others', color: 'border-amber-400 bg-amber-50 text-amber-800' },
-  1: { short: '1 — Beginning',   long: 'The class is worse with me in it',   color: 'border-red-400 bg-red-50 text-red-800' },
+  4: { short: '4 — Exceeding', long: 'The class is better with me in it', color: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text' },
+  3: { short: '3 — Achieving', long: 'I work well with others',           color: 'border-score-achieving-border bg-score-achieving-bg text-score-achieving-text' },
+  2: { short: '2 — Developing',  long: 'I can improve on working with others', color: 'border-score-developing-border bg-score-developing-bg text-score-developing-text' },
+  1: { short: '1 — Incomplete',   long: 'The class is worse with me in it',   color: 'border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text' },
 }
 
-const SCORE_LABELS: Record<number, string> = { 1: 'Beginning', 2: 'Developing', 3: 'Proficient', 4: 'Advanced' }
+const SCORE_LABELS: Record<number, string> = { 1: 'Incomplete', 2: 'Developing', 3: 'Achieving', 4: 'Exceeding' }
 const SCORE_COLORS: Record<number, string> = {
-  1: 'border-red-400 bg-red-50 text-red-800',
-  2: 'border-amber-400 bg-amber-50 text-amber-800',
-  3: 'border-green-400 bg-green-50 text-green-800',
-  4: 'border-emerald-400 bg-emerald-50 text-emerald-800',
+  1: 'border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text',
+  2: 'border-score-developing-border bg-score-developing-bg text-score-developing-text',
+  3: 'border-score-achieving-border bg-score-achieving-bg text-score-achieving-text',
+  4: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text',
 }
 
 interface Question {
@@ -93,7 +95,7 @@ function ScoreSelector({
           onClick={() => onChange(v)}
           className={cn(
             'w-9 h-9 rounded-lg border-2 text-xs font-bold transition-colors',
-            value === v ? SCORE_COLORS[v] : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300',
+            value === v ? SCORE_COLORS[v] : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300',
           )}
         >
           {v}
@@ -114,7 +116,7 @@ function SkillSelfRatingRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
-      <span className="text-sm text-slate-700">{name}</span>
+      <span className="text-sm text-gray-700">{name}</span>
       <ScoreSelector value={value} onChange={onChange} name={name} />
     </div>
   )
@@ -133,7 +135,7 @@ function SelfRating({
 }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-slate-700 mb-2">{label}</p>
+      <p className="text-sm font-semibold text-gray-700 mb-2">{label}</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {([4, 3, 2, 1] as const).map((v) => {
           const cfg = S4_RATING_LABELS[v]
@@ -143,7 +145,7 @@ function SelfRating({
               key={v}
               className={cn(
                 'flex flex-col gap-1 p-3 rounded-xl border-2 cursor-pointer transition-colors',
-                selected ? cfg.color : 'border-slate-200 bg-white hover:border-slate-300',
+                selected ? cfg.color : 'border-gray-200 bg-white hover:border-gray-300',
               )}
             >
               <input
@@ -155,7 +157,7 @@ function SelfRating({
                 className="sr-only"
               />
               <span className="font-bold text-sm">{cfg.short}</span>
-              <span className={cn('text-xs leading-snug', selected ? '' : 'text-slate-500')}>
+              <span className={cn('text-xs leading-snug', selected ? '' : 'text-gray-500')}>
                 {cfg.long}
               </span>
             </label>
@@ -343,29 +345,31 @@ export function SubmissionForm({
 
     return (
       <div className="space-y-5">
-        <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-200 p-8 text-center">
-          <div className="text-4xl mb-3" aria-hidden="true">✓</div>
-          <h2 className="text-lg font-bold text-emerald-800 mb-2">
+        <div className="rounded-2xl bg-success-50 border-2 border-success-200 p-8 text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-success-100 mb-3" aria-hidden="true">
+            <CheckCircle2 className="h-7 w-7 text-success-600" />
+          </div>
+          <h2 className="text-lg font-bold text-success-800 mb-2">
             {anyFinalized ? 'Resubmitted!' : 'Work Submitted!'}
           </h2>
-          <p className="text-sm text-emerald-700">
+          <p className="text-sm text-success-700">
             Your work for {activityName} has been submitted. Your teacher will review it soon.
           </p>
         </div>
 
         {currentClassScores && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-slate-900">Your Scores — {activityName}</h3>
+              <h3 className="font-semibold text-gray-900">Your Scores — {activityName}</h3>
               {currentClassScores.letterGrade && (
-                <span className="text-2xl font-bold text-slate-900">{currentClassScores.letterGrade}</span>
+                <span className="text-2xl font-bold text-gray-900">{currentClassScores.letterGrade}</span>
               )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {standardScores.map(({ label, score }) => (
-                <div key={label} className="bg-slate-50 rounded-lg p-3 text-center">
-                  <div className="text-xs text-slate-400 mb-1">{label}</div>
-                  <div className="text-xl font-bold text-slate-800">{score ?? '—'}</div>
+                <div key={label} className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-xs text-gray-400 mb-1">{label}</div>
+                  <div className="text-xl font-bold text-gray-800">{score ?? '—'}</div>
                 </div>
               ))}
             </div>
@@ -373,20 +377,21 @@ export function SubmissionForm({
         )}
 
         <div>
-          <h3 className="font-semibold text-slate-900 mb-1">All Your Classes</h3>
-          <p className="text-xs text-slate-400 mb-4">
+          <h3 className="font-semibold text-gray-900 mb-1">All Your Classes</h3>
+          <p className="text-xs text-gray-400 mb-4">
             Every score your teachers have given you, by standard, pooled across every class this
             year. Hover a slice to see the breakdown by class.
           </p>
           <StandardDistributionGrid distribution={scoreDistribution} />
         </div>
 
-        <button
+        <Button
           onClick={() => setSaved(false)}
-          className="w-full py-3 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-colors"
+          variant="destructive"
+          className="w-full py-3 rounded-xl"
         >
           Resubmit
-        </button>
+        </Button>
       </div>
     )
   }
@@ -410,7 +415,7 @@ export function SubmissionForm({
   return (
     <div className="space-y-5">
       {allVisitedStandardsFinalized && (
-        <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+        <div className="rounded-xl bg-primary-50 border border-primary-200 px-4 py-3 text-sm text-primary-900">
           You've already submitted this work. You can revise your answers and resubmit — just
           change at least one score or edit a comment for each standard you want to resubmit.
         </div>
@@ -418,7 +423,7 @@ export function SubmissionForm({
 
       {/* Standard tabs */}
       <div
-        className="flex bg-slate-100 rounded-xl p-1 gap-1"
+        className="flex bg-gray-100 rounded-xl p-1 gap-1"
         role="tablist"
         aria-label="Standards"
       >
@@ -431,8 +436,8 @@ export function SubmissionForm({
             className={cn(
               'flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-colors',
               activeStd === n
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700',
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700',
             )}
           >
             <span className="hidden sm:inline">Standard {n}: </span>
@@ -445,22 +450,22 @@ export function SubmissionForm({
       <div role="tabpanel" className="space-y-4">
         {activeStd === 1 && (
           <div className="space-y-5">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-gray-500">
               Rate your own performance on each skill. Your teacher will also score these — their
               score is what counts toward your grade.
             </p>
             {skillDefinitions.length === 0 ? (
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 text-center text-sm text-slate-400">
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-6 text-center text-sm text-gray-400">
                 No skills configured for this activity.
               </div>
             ) : (
               <>
                 {fundamentalSkills.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
                       Fundamental Movement Assessment
                     </div>
-                    <div className="divide-y divide-slate-100">
+                    <div className="divide-y divide-gray-100">
                       {fundamentalSkills.map((s) => (
                         <SkillSelfRatingRow
                           key={s.id}
@@ -474,10 +479,10 @@ export function SubmissionForm({
                 )}
                 {specificSkills.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
                       Specific Skill Assessment
                     </div>
-                    <div className="divide-y divide-slate-100">
+                    <div className="divide-y divide-gray-100">
                       {specificSkills.map((s) => (
                         <SkillSelfRatingRow
                           key={s.id}
@@ -507,13 +512,13 @@ export function SubmissionForm({
 
         {(activeStd === 2 || activeStd === 3 || activeStd === 4) && (
           questionSets[activeStd].length === 0 ? (
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 text-center text-sm text-slate-400">
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-6 text-center text-sm text-gray-400">
               No written questions for this activity.
             </div>
           ) : (
             questionSets[activeStd].map((q) => (
               <div key={q.id}>
-                <label className="block text-sm font-semibold text-slate-700 mb-2 leading-snug">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 leading-snug">
                   {q.displayOrder}. {q.promptText}
                 </label>
                 <textarea
@@ -521,11 +526,11 @@ export function SubmissionForm({
                   onChange={(e) => setResponse(activeStd, q.displayOrder, e.target.value)}
                   rows={4}
                   placeholder="Write your response here…"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                 />
                 {(activeStd === 2 || activeStd === 3) && (
                   <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs font-medium text-slate-500">Rate your own answer:</span>
+                    <span className="text-xs font-medium text-gray-500">Rate your own answer:</span>
                     <ScoreSelector
                       value={promptRatings[activeStd]?.[q.displayOrder] ?? 3}
                       onChange={(v) => setPromptRating(activeStd, q.displayOrder, v)}
@@ -543,7 +548,7 @@ export function SubmissionForm({
       <HonorCodeCheckbox checked={honorCode} onChange={setHonorCode} />
 
       {error && (
-        <p role="alert" className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 border border-red-200">
+        <p role="alert" className="text-sm text-danger-700 bg-danger-50 rounded-xl px-4 py-3 border border-danger-200">
           {error}
         </p>
       )}
@@ -554,7 +559,7 @@ export function SubmissionForm({
           <button
             onClick={() => handleSubmit(true)}
             disabled={saving}
-            className="flex-1 py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:border-slate-300 disabled:opacity-50 transition-colors"
+            className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:border-gray-300 disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving…' : 'Save Draft'}
           </button>
@@ -562,14 +567,14 @@ export function SubmissionForm({
         <button
           onClick={() => handleSubmit(false)}
           disabled={!honorCode || saving}
-          className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 py-3 rounded-xl bg-primary-700 text-white font-semibold text-sm hover:bg-primary-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? 'Submitting…' : anyFinalized ? 'Resubmit Work' : 'Submit Work'}
         </button>
       </div>
 
       {!honorCode && (
-        <p className="text-xs text-slate-400 text-center">
+        <p className="text-xs text-gray-400 text-center">
           Check the Honor Code above to enable submission.
         </p>
       )}

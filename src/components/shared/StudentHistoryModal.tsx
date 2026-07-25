@@ -5,10 +5,10 @@ import { useEffect, useState } from 'react'
 type Score = 1 | 2 | 3 | 4
 
 const COLOR_CLASSES: Record<Score, string> = {
-  1: 'bg-red-100 border-red-400 text-red-800',
-  2: 'bg-yellow-100 border-yellow-400 text-yellow-800',
-  3: 'bg-green-100 border-green-400 text-green-800',
-  4: 'bg-emerald-200 border-emerald-500 text-emerald-900',
+  1: 'bg-score-incomplete-bg border-score-incomplete-border text-score-incomplete-text',
+  2: 'bg-score-developing-bg border-score-developing-border text-score-developing-text',
+  3: 'bg-score-achieving-bg border-score-achieving-border text-score-achieving-text',
+  4: 'bg-score-exceeding-bg border-score-exceeding-border text-score-exceeding-text',
 }
 
 const STANDARD_NAMES: Record<1 | 2 | 3 | 4, string> = {
@@ -52,22 +52,23 @@ interface GradesResponse {
 }
 
 /**
- * Shared "history" modal for the Class Analytics page's per-student cards —
- * one modal type shows the student's own resubmission history, the other
- * shows the teacher's own grading history. Both are tabbed by standard,
- * since history is inherently per-standard, and both lazily fetch from the
- * existing per-student grades endpoint (which already returns both shapes).
+ * Shared "history" modal — used by the teacher's Class Analytics page
+ * (per-student cards) and by the student's own class detail page. One mode
+ * shows the student's own resubmission history, the other shows the
+ * teacher's grading history. Both are tabbed by standard, since history is
+ * inherently per-standard, and both lazily fetch from a caller-supplied URL
+ * so each role hits its own authorization-scoped endpoint while sharing one
+ * rendering implementation.
  */
 export function StudentHistoryModal({
-  studentId,
   studentName,
-  instanceId,
+  apiUrl,
   mode,
   onClose,
 }: {
-  studentId: string
   studentName: string
-  instanceId: string
+  /** Full URL to fetch — teacher and student pages each point this at their own scoped endpoint. */
+  apiUrl: string
   mode: 'resubmission' | 'grading'
   onClose: () => void
 }) {
@@ -78,7 +79,7 @@ export function StudentHistoryModal({
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    fetch(`/api/teacher/grades/${studentId}/${instanceId}`)
+    fetch(apiUrl)
       .then((r) => r.json())
       .then((d) => {
         if (!cancelled) setData(d?.data ?? null)
@@ -89,7 +90,7 @@ export function StudentHistoryModal({
     return () => {
       cancelled = true
     }
-  }, [studentId, instanceId])
+  }, [apiUrl])
 
   const title = mode === 'resubmission' ? 'Student resubmission history' : 'Teacher grading history'
 
@@ -113,7 +114,7 @@ export function StudentHistoryModal({
               key={std}
               onClick={() => setTab(std)}
               className={`text-xs font-medium px-2.5 py-1.5 rounded-t-lg border-b-2 ${
-                tab === std ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+                tab === std ? 'border-primary-600 text-primary-900' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               Standard {std}

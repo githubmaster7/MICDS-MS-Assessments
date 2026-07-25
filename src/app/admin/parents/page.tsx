@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface LinkedStudent {
   id: string;
@@ -152,12 +153,10 @@ export default function AdminParentsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Parents</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Link parent accounts to their children so parents can view read-only assessment history.
-        </p>
-      </div>
+      <PageHeader
+        title="Parents"
+        description="Link parent accounts to their children so parents can view read-only assessment history."
+      />
 
       <div className="relative max-w-xs">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
@@ -272,7 +271,7 @@ export default function AdminParentsPage() {
                       type="button"
                       disabled={alreadyLinked || addingStudentId === s.id}
                       onClick={() => handleAddLink(s.id)}
-                      className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500"
                     >
                       <span>
                         <span className="font-medium text-gray-900">{s.firstName} {s.lastName}</span>
@@ -280,7 +279,7 @@ export default function AdminParentsPage() {
                           Grade {GRADE_LABELS[s.gradeLevel] ?? s.gradeLevel} · {s.studentId}
                         </span>
                       </span>
-                      <span className="text-xs text-primary-600 font-medium shrink-0">
+                      <span className="text-xs text-primary-900 font-medium shrink-0">
                         {alreadyLinked ? "Linked" : addingStudentId === s.id ? "Adding…" : "Add"}
                       </span>
                     </button>

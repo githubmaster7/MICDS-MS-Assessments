@@ -6,6 +6,7 @@ import { SubmissionForm } from '@/components/student/SubmissionForm'
 import { notFound } from 'next/navigation'
 import { Role, RotationStatus } from '@prisma/client'
 import { getStudentStandardItemDistribution } from '@/lib/analytics/score-distribution'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export const metadata: Metadata = { title: 'Submit Work' }
 
@@ -145,7 +146,7 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
 
   return (
     <div className="p-6 max-w-3xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Submit Work: {activityName}</h1>
+      <PageHeader title={`Submit Work: ${activityName}`} />
       <SubmissionForm
         instanceId={instanceId}
         activityName={activityName}

@@ -17,17 +17,17 @@ export interface ScoreBucket {
 // Individual teacher-rated items are always whole numbers 1–4 (skill/prompt
 // scores and the Standard 4 demonstration rating are all Int in the schema).
 const SCORE_COLOR: Record<string, string> = {
-  '4': '#10b981', // emerald-500
-  '3': '#86efac', // green-300
-  '2': '#fef08a', // yellow-200
-  '1': '#f87171', // red-400
+  '4': '#00ff00',
+  '3': '#6aa84f',
+  '2': '#d97706',
+  '1': '#ff0000',
 }
 
 const SCORE_LABEL: Record<string, string> = {
   '4': 'Exceeding',
   '3': 'Achieving',
   '2': 'Developing',
-  '1': 'Beginning',
+  '1': 'Incomplete',
 }
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
@@ -48,12 +48,16 @@ export function ScoreDistributionChart({ buckets, title }: { buckets: ScoreBucke
 
   if (total === 0) {
     return (
-      <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 text-center text-sm text-slate-400">
-        {title && <div className="font-semibold text-slate-500 mb-1">{title}</div>}
+      <div className="rounded-xl bg-gray-50 border border-primary-200 p-6 text-center text-sm text-gray-400">
+        {title && <div className="font-semibold text-gray-500 mb-1">{title}</div>}
         No graded items yet — scores will appear here once your teacher grades this standard.
       </div>
     )
   }
+
+  // Derived directly from the same buckets being plotted — can never drift
+  // from what the pie actually shows.
+  const average = buckets.reduce((sum, b) => sum + b.score * b.total, 0) / total
 
   // 2px surface-color gap between adjacent slices.
   const gapDeg = 360 * (1.2 / (2 * Math.PI * 80))
@@ -70,7 +74,15 @@ export function ScoreDistributionChart({ buckets, title }: { buckets: ScoreBucke
 
   return (
     <div>
-      {title && <h3 className="font-semibold text-slate-800 mb-3">{title}</h3>}
+      {title && (
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <h3 className="font-semibold text-gray-800">{title}</h3>
+          <div className="text-right shrink-0">
+            <div className="text-lg font-bold text-gray-800 tabular-nums leading-none">{average.toFixed(2)}</div>
+            <div className="text-[10px] text-gray-400 leading-none mt-0.5">avg</div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row items-center gap-6">
       <div className="relative shrink-0">
         <svg viewBox="0 0 200 200" width={200} height={200} role="img" aria-label={title ? `Distribution of ${title} scores across all classes` : 'Distribution of scores across all classes'}>
@@ -91,12 +103,12 @@ export function ScoreDistributionChart({ buckets, title }: { buckets: ScoreBucke
           ))}
         </svg>
         {hoveredBucket && (
-          <div className="absolute inset-x-0 -bottom-2 translate-y-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-10 min-w-[180px]">
+          <div className="absolute inset-x-0 -bottom-2 trangray-y-full bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-10 min-w-[180px]">
             <div className="font-semibold mb-1">
               {SCORE_LABEL[String(hoveredBucket.score)]} ({hoveredBucket.score}) — {hoveredBucket.total} total
             </div>
             {hoveredBucket.byClass.map((c) => (
-              <div key={c.instanceId} className="flex justify-between gap-3 text-slate-200">
+              <div key={c.instanceId} className="flex justify-between gap-3 text-gray-200">
                 <span>{c.className}</span>
                 <span className="tabular-nums font-medium">{c.count}</span>
               </div>
@@ -113,17 +125,17 @@ export function ScoreDistributionChart({ buckets, title }: { buckets: ScoreBucke
             type="button"
             onMouseEnter={() => setHovered(i)}
             onMouseLeave={() => setHovered(null)}
-            className={`w-full flex items-center gap-2 text-sm px-2 py-1 rounded-lg transition-colors ${hovered === i ? 'bg-slate-100' : ''}`}
+            className={`w-full flex items-center gap-2 text-sm px-2 py-1 rounded-lg transition-colors ${hovered === i ? 'bg-gray-100' : ''}`}
           >
             <span
               className="w-3 h-3 rounded-sm shrink-0"
               style={{ backgroundColor: SCORE_COLOR[String(s.score)] }}
               aria-hidden="true"
             />
-            <span className="text-slate-700 flex-1 text-left">
+            <span className="text-gray-700 flex-1 text-left">
               {SCORE_LABEL[String(s.score)]} ({s.score})
             </span>
-            <span className="text-slate-400 tabular-nums">
+            <span className="text-gray-400 tabular-nums">
               {s.total} · {Math.round((s.total / total) * 100)}%
             </span>
           </button>
@@ -154,7 +166,7 @@ export function StandardDistributionGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {([1, 2, 3, 4] as const).map((std) => (
-        <div key={std} className="bg-white rounded-xl border border-slate-200 p-4">
+        <div key={std} className="bg-white rounded-xl border border-primary-200 p-4">
           <ScoreDistributionChart buckets={distribution[std]} title={STANDARD_NAMES[std]} />
         </div>
       ))}

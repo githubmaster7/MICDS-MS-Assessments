@@ -8,42 +8,42 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary-600 text-white",
+          "border-transparent bg-primary-600 text-role-fg",
         secondary:
-          "border-transparent bg-gray-100 text-gray-700",
+          "border-transparent bg-secondary-100 text-secondary-700",
         destructive:
-          "border-transparent bg-red-100 text-red-700 border-red-200",
+          "border-transparent bg-danger-100 text-danger-700 border-danger-200",
         outline:
           "border-gray-300 text-gray-700 bg-white",
         success:
-          "border-transparent bg-green-100 text-green-700 border-green-200",
+          "border-transparent bg-success-100 text-success-700 border-success-200",
         warning:
-          "border-transparent bg-yellow-100 text-yellow-800 border-yellow-200",
+          "border-transparent bg-warning-100 text-warning-800 border-warning-200",
         // Score level variants
         "score-1":
-          "border-red-200 bg-red-100 text-red-700",
+          "border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text",
         "score-2":
-          "border-yellow-200 bg-yellow-100 text-yellow-800",
+          "border-score-developing-border bg-score-developing-bg text-score-developing-text",
         "score-3":
-          "border-green-200 bg-green-100 text-green-700",
+          "border-score-achieving-border bg-score-achieving-bg text-score-achieving-text",
         "score-4":
-          "border-green-600 bg-green-500 text-white",
+          "border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text",
         // Role variants
         admin:
           "border-purple-200 bg-purple-100 text-purple-700",
         teacher:
-          "border-blue-200 bg-blue-100 text-blue-700",
+          "border-amber-200 bg-amber-100 text-amber-700",
         student:
-          "border-sky-200 bg-sky-100 text-sky-700",
+          "border-teal-200 bg-teal-100 text-teal-700",
         parent:
-          "border-indigo-200 bg-indigo-100 text-indigo-700",
+          "border-secondary-200 bg-secondary-100 text-secondary-700",
         // Status variants
         pending:
-          "border-orange-200 bg-orange-100 text-orange-700",
+          "border-warning-200 bg-warning-100 text-warning-800",
         approved:
-          "border-green-200 bg-green-100 text-green-700",
+          "border-success-200 bg-success-100 text-success-700",
         rejected:
-          "border-red-200 bg-red-100 text-red-700",
+          "border-danger-200 bg-danger-100 text-danger-700",
       },
     },
     defaultVariants: {

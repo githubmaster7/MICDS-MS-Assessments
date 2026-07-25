@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { GradingInterface, type GradeDataByStudent, type HistoryAttempt, type GradeHistoryEntry } from '@/components/grading/GradingInterface'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export const metadata: Metadata = { title: 'Grade Students' }
 
@@ -38,14 +39,7 @@ export default async function GradeStudentsPage({
           memberships: {
             where: { leftAt: null },
             include: {
-              studentProfile: {
-                include: {
-                  gradeSnapshots: {
-                    orderBy: { calculatedAt: 'desc' },
-                    take: 1,
-                  },
-                },
-              },
+              studentProfile: true,
             },
           },
         },
@@ -68,11 +62,25 @@ export default async function GradeStudentsPage({
   const { instanceId } = await searchParams
   const activeInstance = availableInstances.find((i) => i.id === instanceId) ?? availableInstances[0]
 
+  const memberIds = activeInstance.studentGroup.memberships.map((m) => m.studentProfile.id)
+
+  // Scoped to THIS instance only — the student's most recent snapshot
+  // across all their classes would leak a previous (now-locked) class's
+  // final grade onto a brand-new, ungraded rotation.
+  const currentInstanceSnapshots = await db.gradeCalculationSnapshot.findMany({
+    where: { historicalClassInstanceId: activeInstance.id, studentProfileId: { in: memberIds } },
+    orderBy: { calculatedAt: 'desc' },
+  })
+  const latestSnapshotByStudent = new Map<string, (typeof currentInstanceSnapshots)[number]>()
+  for (const snap of currentInstanceSnapshots) {
+    if (!latestSnapshotByStudent.has(snap.studentProfileId)) latestSnapshotByStudent.set(snap.studentProfileId, snap)
+  }
+
   const students = activeInstance.studentGroup.memberships.map((m) => ({
     id: m.studentProfile.id,
     firstName: m.studentProfile.firstName,
     lastName: m.studentProfile.lastName,
-    currentGrade: m.studentProfile.gradeSnapshots[0]?.letterGrade ?? null,
+    currentGrade: latestSnapshotByStudent.get(m.studentProfile.id)?.letterGrade ?? null,
   }))
   const studentIds = students.map((s) => s.id)
 
@@ -258,20 +266,22 @@ export default async function GradeStudentsPage({
 
   return (
     <div className="p-6 max-w-7xl">
-      <div className="mb-6 flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Grade Students</h1>
-          <p className="text-gray-500 text-sm mt-1">
+      <PageHeader
+        title="Grade Students"
+        description={
+          <>
             {activeInstance.teacherClassAssignment.activityTemplate.name} · {activeInstance.studentGroup.name}
-          </p>
-        </div>
-        <Link
-          href={`/teacher/class/${activeInstance.id}`}
-          className="text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-blue-300"
-        >
-          View Class Analytics
-        </Link>
-      </div>
+          </>
+        }
+        actions={
+          <Link
+            href={`/teacher/class/${activeInstance.id}`}
+            className="text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-primary-300"
+          >
+            View Class Analytics
+          </Link>
+        }
+      />
       {availableInstances.length > 1 && (
         <div className="flex items-center gap-2 mb-6 flex-wrap">
           {availableInstances.map((inst) => (
@@ -280,8 +290,8 @@ export default async function GradeStudentsPage({
               href={`/teacher/grade/students?instanceId=${inst.id}`}
               className={`text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${
                 inst.id === activeInstance.id
-                  ? 'bg-blue-700 text-white border-blue-700'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+                  ? 'bg-primary-700 text-white border-primary-700'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-primary-300'
               }`}
             >
               {inst.teacherClassAssignment.activityTemplate.name} · {inst.studentGroup.name}

@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { calculateStandard1 } from '@/lib/grading/standard1'
 import { calculateStandard234 } from '@/lib/grading/standards234'
 import { createGradeSnapshot } from '@/lib/grading/snapshot'
+import { getGradeAndSubmissionHistory } from '@/lib/grading/history'
 import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 interface RouteParams {
@@ -72,123 +73,8 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
   }
 
-  const [assessments, snapshot, gradeHistoryLogs, submissions] = await Promise.all([
-    db.teacherAssessment.findMany({
-      where: {
-        historicalClassInstanceId: instanceId,
-        studentProfileId: studentId,
-      },
-      include: {
-        teacherSkillScores: {
-          include: {
-            skillDefinition: { select: { id: true, skillName: true, skillType: true, displayOrder: true } },
-          },
-        },
-        teacherPromptScores: {
-          include: {
-            promptDefinition: { select: { id: true, promptText: true, standardNumber: true, displayOrder: true } },
-          },
-        },
-        teacherStandard4Ratings: true,
-      },
-    }),
-    db.gradeCalculationSnapshot.findFirst({
-      where: { studentProfileId: studentId, historicalClassInstanceId: instanceId },
-      orderBy: { calculatedAt: 'desc' },
-    }),
-    db.auditLog.findMany({
-      where: {
-        targetType: 'TeacherAssessment',
-        targetId: studentId,
-        targetLabel: { in: [1, 2, 3, 4].map((n) => `Standard ${n} — student ${studentId} — instance ${instanceId}`) },
-      },
-      include: { actor: { select: { email: true } } },
-      orderBy: { createdAt: 'asc' },
-    }),
-    db.studentSubmission.findMany({
-      where: { historicalClassInstanceId: instanceId, studentProfileId: studentId },
-      include: {
-        historyEntries: { orderBy: { attemptNumber: 'asc' } },
-        writtenResponses: true,
-        studentSkillSelfRatings: true,
-        studentPromptRatings: true,
-        studentStandard4Ratings: true,
-      },
-    }),
-  ])
-
-  // Teacher grading history, per standard — every save the teacher has made
-  // (score + feedback before/after), sourced from the audit log. This is the
-  // teacher-side counterpart to the student's own resubmission history.
-  const gradeHistory: Record<1 | 2 | 3 | 4, typeof gradeHistoryLogs> = { 1: [], 2: [], 3: [], 4: [] }
-  for (const log of gradeHistoryLogs) {
-    const match = log.targetLabel?.match(/^Standard (\d) —/)
-    const std = match ? (Number(match[1]) as 1 | 2 | 3 | 4) : null
-    if (std) gradeHistory[std].push(log)
-  }
-
-  // Student resubmission history, per standard — every attempt the student
-  // has made (frozen self-ratings + written responses), sourced from
-  // SubmissionHistoryEntry. Self-contained here so this route can power the
-  // group Class Analytics page's history modal without needing SSR.
-  const submissionStatus: Record<1 | 2 | 3 | 4, string | null> = { 1: null, 2: null, 3: null, 4: null }
-  const attemptCount: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 }
-  const studentHistory: Record<
-    1 | 2 | 3 | 4,
-    Array<{
-      attemptNumber: number
-      submittedAt: string
-      writtenResponses: { promptDefinitionId: string; responseText: string }[]
-      skillSelfRatings: { skillDefinitionId: string; rating: number }[]
-      promptSelfRatings: { promptDefinitionId: string; rating: number }[]
-      standard4SelfRating: number | null
-    }>
-  > = { 1: [], 2: [], 3: [], 4: [] }
-  for (const sub of submissions) {
-    const std = sub.standardNumber as 1 | 2 | 3 | 4
-    if (std !== 1 && std !== 2 && std !== 3 && std !== 4) continue
-    submissionStatus[std] = sub.status
-    attemptCount[std] = sub.latestAttemptNumber
-    studentHistory[std] = sub.historyEntries.map((h) => {
-      const s = h.snapshotData as {
-        writtenResponses?: { promptDefinitionId: string; responseText: string }[]
-        skillSelfRatings?: { skillDefinitionId: string; rating: number }[]
-        promptSelfRatings?: { promptDefinitionId: string; rating: number }[]
-        standard4SelfRating?: number | null
-      }
-      return {
-        attemptNumber: h.attemptNumber,
-        submittedAt: h.submittedAt.toISOString(),
-        writtenResponses: s.writtenResponses ?? [],
-        skillSelfRatings: s.skillSelfRatings ?? [],
-        promptSelfRatings: s.promptSelfRatings ?? [],
-        standard4SelfRating: s.standard4SelfRating ?? null,
-      }
-    })
-
-    // The live/current attempt isn't frozen into a SubmissionHistoryEntry
-    // until the *next* resubmission — append it as the timeline's final
-    // entry so the modal shows every attempt, not just the frozen ones.
-    if (sub.status !== 'NOT_STARTED') {
-      studentHistory[std].push({
-        attemptNumber: sub.latestAttemptNumber,
-        submittedAt: (sub.reassessmentSubmittedAt ?? sub.submittedAt ?? sub.updatedAt).toISOString(),
-        writtenResponses: sub.writtenResponses.map((wr) => ({
-          promptDefinitionId: wr.promptDefinitionId,
-          responseText: wr.responseText,
-        })),
-        skillSelfRatings: sub.studentSkillSelfRatings.map((sr) => ({
-          skillDefinitionId: sr.skillDefinitionId,
-          rating: sr.rating,
-        })),
-        promptSelfRatings: sub.studentPromptRatings.map((pr) => ({
-          promptDefinitionId: pr.promptDefinitionId,
-          rating: pr.rating,
-        })),
-        standard4SelfRating: sub.studentStandard4Ratings[0]?.rating ?? null,
-      })
-    }
-  }
+  const { assessments, snapshot, gradeHistory, studentHistory, submissionStatus, attemptCount } =
+    await getGradeAndSubmissionHistory(studentId, instanceId)
 
   return NextResponse.json({
     data: {

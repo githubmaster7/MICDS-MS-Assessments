@@ -22,7 +22,7 @@ export function HonorCodeCheckbox({ checked, onChange, className }: HonorCodeChe
       <p className="text-xs uppercase tracking-wider font-semibold text-amber-700 mb-2">
         Honor Code — Required
       </p>
-      <p className="text-sm text-slate-700 leading-relaxed mb-4 italic">
+      <p className="text-sm text-gray-700 leading-relaxed mb-4 italic">
         &ldquo;{HONOR_CODE_TEXT}&rdquo;
       </p>
       <label className="flex items-start gap-3 cursor-pointer select-none">
@@ -39,7 +39,7 @@ export function HonorCodeCheckbox({ checked, onChange, className }: HonorCodeChe
               'block w-5 h-5 rounded-md border-2 transition-colors',
               checked
                 ? 'bg-emerald-500 border-emerald-500'
-                : 'bg-white border-slate-300 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-1',
+                : 'bg-white border-gray-300 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500 peer-focus-visible:ring-offset-1',
             )}
             aria-hidden="true"
           >
@@ -61,7 +61,7 @@ export function HonorCodeCheckbox({ checked, onChange, className }: HonorCodeChe
             )}
           </span>
         </span>
-        <span className="text-sm font-semibold text-slate-700">
+        <span className="text-sm font-semibold text-gray-700">
           I acknowledge and affirm the Honor Code above
         </span>
       </label>

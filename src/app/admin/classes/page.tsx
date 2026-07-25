@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Layers, AlertTriangle, Lock, Clock, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -10,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDate as fmtDate } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface ClassRow {
   id: string;
@@ -30,15 +33,11 @@ const STATUS_META: Record<
   ClassRow["status"],
   { label: string; className: string; icon: React.ElementType }
 > = {
-  UPCOMING: { label: "Upcoming", className: "bg-slate-50 text-slate-600 border-slate-200", icon: Clock },
+  UPCOMING: { label: "Upcoming", className: "bg-gray-50 text-gray-600 border-gray-200", icon: Clock },
   ACTIVE: { label: "Active", className: "bg-emerald-50 text-emerald-700 border-emerald-100", icon: CheckCircle2 },
-  COMPLETED: { label: "Completed", className: "bg-blue-50 text-blue-700 border-blue-100", icon: CheckCircle2 },
+  COMPLETED: { label: "Completed", className: "bg-primary-50 text-primary-900 border-primary-100", icon: CheckCircle2 },
   LOCKED: { label: "Locked", className: "bg-gray-100 text-gray-600 border-gray-200", icon: Lock },
 };
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
 
 export default function AdminAllClassesPage() {
   const [status, setStatus] = React.useState("ALL");
@@ -72,13 +71,15 @@ export default function AdminAllClassesPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">All Classes</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Every scheduled class instance across every student group and teacher — current, past,
-          and upcoming rotations. Read-only; grading happens on each teacher&apos;s dashboard.
-        </p>
-      </div>
+      <PageHeader
+        title="All Classes"
+        description={
+          <>
+            Every scheduled class instance across every student group and teacher — current, past,
+            and upcoming rotations. Read-only; grading happens on each teacher&apos;s dashboard.
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <Select value={status} onValueChange={setStatus}>
@@ -96,7 +97,7 @@ export default function AdminAllClassesPage() {
         {status !== "ALL" && (
           <button
             onClick={() => setStatus("ALL")}
-            className="text-xs text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+            className="text-xs text-primary-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
           >
             Clear filter
           </button>
@@ -113,11 +114,11 @@ export default function AdminAllClassesPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-primary-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[900px]">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
+              <tr className="border-b border-gray-100 bg-primary-50">
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rotation</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Group</th>
                 <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity</th>
@@ -156,15 +157,29 @@ export default function AdminAllClassesPage() {
                   const Icon = meta.icon;
                   return (
                     <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">#{c.rotationNumber}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">
+                        <Link href={`/admin/classes/${c.id}`} className="hover:underline hover:text-primary-900">
+                          #{c.rotationNumber}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-gray-900">{c.group.name}</p>
+                        <Link href={`/admin/groups/${c.group.id}`} className="text-sm font-medium text-gray-900 hover:underline hover:text-primary-900">
+                          {c.group.name}
+                        </Link>
                         <p className="text-xs text-gray-400">
                           {c.group.gradeLevel.replace("GRADE_", "Grade ")} · {c.group.gender === "MALE" ? "Boys" : "Girls"}
                         </p>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{c.activity.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{c.teacher.firstName} {c.teacher.lastName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        <Link href={`/admin/classes/${c.id}`} className="hover:underline hover:text-primary-900">
+                          {c.activity.name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        <Link href={`/admin/teachers/${c.teacher.id}`} className="hover:underline hover:text-primary-900">
+                          {c.teacher.firstName} {c.teacher.lastName}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{fmtDate(c.startDate)} – {fmtDate(c.endDate)}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.className}`}>

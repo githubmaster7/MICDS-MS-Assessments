@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import Link from 'next/link'
+import { PencilLine, BarChart3, Lock } from 'lucide-react'
+import { formatDate } from '@/lib/utils'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 type UpcomingAssignment = { id: string; startDate: Date; studentGroup: { name: string }; carouselPosition: { teacherClassAssignment: { activityTemplate: { name: string } } } }
 type PastInstance = { id: string; startDate?: Date; endDate?: Date; studentGroup: { name: string }; teacherClassAssignment: { activityTemplate: { name: string } } }
@@ -110,39 +113,40 @@ export default async function TeacherDashboard() {
 
   return (
     <div className="p-6 max-w-4xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">
-        Welcome, {teacher.firstName}!
-      </h1>
-      <p className="text-gray-500 mb-6 text-sm">School Year 2024–2025</p>
+      <PageHeader
+        variant="primary"
+        title={<>Welcome, {teacher.firstName}!</>}
+        description="School Year 2024–2025"
+      />
 
       {activeClassCards.length > 0 ? (
         <div className="space-y-4 mb-6">
           {activeClassCards.map((card) => (
             <div key={card.id}>
-              <div className="bg-blue-700 text-white rounded-xl p-6">
-                <div className="text-sm text-blue-200 mb-1">Currently Teaching</div>
-                <h2 className="text-xl font-bold mb-1">{card.activityName}</h2>
-                <p className="text-blue-200">{card.groupName}</p>
+              <div className="bg-white border border-gray-200 border-l-4 border-l-primary-700 rounded-xl p-6">
+                <div className="text-sm font-semibold text-primary-900 mb-1">Currently Teaching</div>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">{card.activityName}</h2>
+                <p className="text-gray-500">{card.groupName}</p>
                 <div className="mt-4 flex items-center gap-4 text-sm">
-                  <div className="bg-blue-600 rounded-lg px-3 py-1.5">
-                    <span className="font-semibold">{card.studentCount}</span>
-                    <span className="text-blue-200 ml-1">students</span>
+                  <div className="bg-primary-50 border border-primary-100 rounded-lg px-3 py-1.5">
+                    <span className="font-semibold text-gray-900">{card.studentCount}</span>
+                    <span className="text-gray-500 ml-1">students</span>
                   </div>
-                  <div className="bg-blue-600 rounded-lg px-3 py-1.5">
-                    <span className="font-semibold">{card.gradedCount}</span>
-                    <span className="text-blue-200 ml-1">graded</span>
+                  <div className="bg-primary-50 border border-primary-100 rounded-lg px-3 py-1.5">
+                    <span className="font-semibold text-gray-900">{card.gradedCount}</span>
+                    <span className="text-gray-500 ml-1">graded</span>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-3">
-                <Link href={`/teacher/grade/students?instanceId=${card.id}`} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-sm transition-all">
-                  <div className="text-2xl mb-2">✏️</div>
+                <Link href={`/teacher/grade/students?instanceId=${card.id}`} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-primary-300 hover:shadow-sm transition-all">
+                  <PencilLine className="h-6 w-6 mb-2 text-primary-900" aria-hidden="true" />
                   <div className="font-semibold text-gray-900">Grade Students</div>
                   <div className="text-sm text-gray-500 mt-0.5">{card.studentCount - card.gradedCount} students remaining</div>
                 </Link>
-                <Link href={`/teacher/mass-grading?instanceId=${card.id}`} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-sm transition-all">
-                  <div className="text-2xl mb-2">📊</div>
+                <Link href={`/teacher/mass-grading?instanceId=${card.id}`} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-primary-300 hover:shadow-sm transition-all">
+                  <BarChart3 className="h-6 w-6 mb-2 text-primary-900" aria-hidden="true" />
                   <div className="font-semibold text-gray-900">Year at a Glance</div>
                   <div className="text-sm text-gray-500 mt-0.5">{card.groupName} — all rotations</div>
                 </Link>
@@ -157,7 +161,7 @@ export default async function TeacherDashboard() {
       )}
 
       {upcomingAssignments.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+        <div className="bg-white rounded-xl border border-primary-200 p-5 mb-4">
           <h3 className="font-semibold text-gray-900 mb-3">
             Upcoming Classes
             {upcomingTotal > upcomingAssignments.length && (
@@ -168,10 +172,10 @@ export default async function TeacherDashboard() {
           </h3>
           <div className="space-y-2">
             {(upcomingAssignments as UpcomingAssignment[]).map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm p-2 bg-blue-50 rounded-lg">
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm p-2 bg-primary-50 rounded-lg">
                 <span className="font-medium">{a.carouselPosition.teacherClassAssignment.activityTemplate.name}</span>
                 <span className="text-gray-500">{a.studentGroup.name}</span>
-                <span className="text-xs text-gray-400 ml-auto">{new Date(a.startDate).toLocaleDateString()}</span>
+                <span className="text-xs text-gray-400 ml-auto">{formatDate(a.startDate)}</span>
               </div>
             ))}
           </div>
@@ -179,7 +183,7 @@ export default async function TeacherDashboard() {
       )}
 
       {pastInstances.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white rounded-xl border border-primary-200 p-5">
           <h3 className="font-semibold text-gray-900 mb-3">
             Past Classes
             {pastTotal > pastInstances.length && (
@@ -190,10 +194,12 @@ export default async function TeacherDashboard() {
           </h3>
           <div className="space-y-2">
             {(pastInstances as PastInstance[]).map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm p-2 bg-gray-50 rounded-lg">
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm p-2 bg-white border border-gray-100 rounded-lg">
                 <span className="font-medium">{a.teacherClassAssignment.activityTemplate.name}</span>
                 <span className="text-gray-500">{a.studentGroup.name}</span>
-                <span className="inline-flex px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full text-xs ml-auto">🔒 Locked</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full text-xs ml-auto">
+                  <Lock className="h-3 w-3" aria-hidden="true" /> Locked
+                </span>
               </div>
             ))}
           </div>

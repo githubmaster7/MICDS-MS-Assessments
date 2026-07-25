@@ -3,18 +3,19 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 import { Role } from '@prisma/client'
-import Link from 'next/link'
 import { requireParentStudentLink } from '@/lib/authorization'
 import { getParentClassDetail } from '@/lib/parent/class-detail'
+import { formatDate } from '@/lib/utils'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export const metadata: Metadata = { title: 'Class Detail' }
 
-const RATING_LABEL: Record<number, string> = { 4: 'Exceeding', 3: 'Achieving', 2: 'Developing', 1: 'Beginning' }
+const RATING_LABEL: Record<number, string> = { 4: 'Exceeding', 3: 'Achieving', 2: 'Developing', 1: 'Incomplete' }
 const RATING_COLOR: Record<number, string> = {
-  4: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  3: 'bg-green-50 text-green-700 border-green-100',
-  2: 'bg-yellow-50 text-yellow-700 border-yellow-100',
-  1: 'bg-red-50 text-red-700 border-red-100',
+  4: 'bg-score-exceeding-bg text-score-exceeding-text border-score-exceeding-border',
+  3: 'bg-score-achieving-bg text-score-achieving-text border-score-achieving-border',
+  2: 'bg-score-developing-bg text-score-developing-text border-score-developing-border',
+  1: 'bg-score-incomplete-bg text-score-incomplete-text border-score-incomplete-border',
 }
 
 function RatingBadge({ rating }: { rating: number | null }) {
@@ -64,8 +65,8 @@ export default async function ParentClassDetailPage({
   const feedbackBlock = (score: unknown, feedback: string | null, visible: boolean) => {
     if (!visible) return null
     return (
-      <div className="mt-3 bg-blue-50 rounded-lg p-3 text-sm">
-        <div className="text-xs text-blue-600 font-medium mb-1">
+      <div className="mt-3 bg-primary-50 rounded-lg p-3 text-sm">
+        <div className="text-xs text-primary-900 font-medium mb-1">
           Teacher feedback
           {score != null && <span className="ml-2 text-gray-500">· Score: {Number(score).toFixed(2)}</span>}
         </div>
@@ -76,21 +77,23 @@ export default async function ParentClassDetailPage({
 
   return (
     <div className="p-6 max-w-2xl">
-      <Link href={`/parent/dashboard?studentId=${studentId}`} className="text-sm text-purple-700 hover:underline mb-4 inline-block">
-        ← Back to dashboard
-      </Link>
-
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{detail.activityName}</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Class {detail.rotation.rotationNumber} ·{' '}
-          {new Date(detail.rotation.startDate).toLocaleDateString()} –{' '}
-          {new Date(detail.rotation.endDate).toLocaleDateString()}
-        </p>
-        <p className="text-sm text-gray-500">
-          Teacher: {detail.teacher.firstName} {detail.teacher.lastName}
-        </p>
-      </div>
+      <PageHeader
+        backHref={`/parent/dashboard?studentId=${studentId}`}
+        backLabel="Back to dashboard"
+        title={detail.activityName}
+        description={
+          <>
+            <span className="block">
+              Class {detail.rotation.rotationNumber} ·{' '}
+              {formatDate(detail.rotation.startDate)} –{' '}
+              {formatDate(detail.rotation.endDate)}
+            </span>
+            <span className="block">
+              Teacher: {detail.teacher.firstName} {detail.teacher.lastName}
+            </span>
+          </>
+        }
+      />
 
       {detail.snapshot ? (
         <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
@@ -110,7 +113,7 @@ export default async function ParentClassDetailPage({
             {[1, 2, 3, 4].map((std) => {
               const score = scoreOf((detail.snapshot as Record<string, unknown>)[`standard${std}Score`])
               return (
-                <div key={std} className="bg-gray-50 rounded-lg p-3">
+                <div key={std} className="bg-white rounded-lg border border-gray-100 p-3">
                   <div className="text-xs text-gray-500 mb-1">Standard {std}</div>
                   <div className="font-semibold text-gray-900">{score?.toFixed(2) ?? '—'}</div>
                 </div>

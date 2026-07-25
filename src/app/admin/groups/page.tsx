@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface StudentGroup {
   id: string;
@@ -79,7 +80,7 @@ function currentAssignmentLabel(group: StudentGroup): string | null {
 
 function GenderBadge({ gender }: { gender: string }) {
   const map: Record<string, string> = {
-    MALE: "bg-sky-50 text-sky-700 border-sky-100",
+    MALE: "bg-amber-50 text-amber-700 border-amber-100",
     FEMALE: "bg-pink-50 text-pink-700 border-pink-100",
   };
   const labels: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
@@ -231,16 +232,16 @@ export default function StudentGroupsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Student Groups</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage carousel rotation groups.</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          New group
-        </Button>
-      </div>
+      <PageHeader
+        title="Student Groups"
+        description="Manage carousel rotation groups."
+        actions={
+          <Button variant="outline" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New group
+          </Button>
+        }
+      />
 
       <div className="relative max-w-xs">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
@@ -290,7 +291,7 @@ export default function StudentGroupsPage() {
                     <Group className="h-4 w-4 text-violet-600" aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 group-hover:text-primary-700 transition-colors">
+                    <p className="text-sm font-medium text-gray-900 group-hover:text-primary-900 transition-colors">
                       {group.name}
                       {!group.isActive && <span className="ml-2 text-[11px] font-medium text-gray-400">(Removed)</span>}
                     </p>

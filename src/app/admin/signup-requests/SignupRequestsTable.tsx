@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 
 type Request = {
   id: string
@@ -28,7 +29,7 @@ export function SignupRequestsTable({
   if (requests.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
-        {mode === 'pending' ? 'No pending requests. 🎉' : 'No reviewed requests yet.'}
+        {mode === 'pending' ? 'No pending requests.' : 'No reviewed requests yet.'}
       </div>
     )
   }
@@ -72,16 +73,16 @@ export function SignupRequestsTable({
   }
 
   const statusBadge: Record<string, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    APPROVED: 'bg-green-100 text-green-800',
-    REJECTED: 'bg-red-100 text-red-800',
+    PENDING: 'bg-warning-100 text-warning-800',
+    APPROVED: 'bg-success-100 text-success-800',
+    REJECTED: 'bg-danger-100 text-danger-800',
   }
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-primary-200 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-600">
+          <thead className="bg-primary-50 text-gray-600">
             <tr>
               <th className="px-4 py-3 text-left font-medium">Email</th>
               <th className="px-4 py-3 text-left font-medium">Role Requested</th>
@@ -108,20 +109,23 @@ export function SignupRequestsTable({
                 </td>
                 {mode === 'pending' && (
                   <td className="px-4 py-3 text-right">
-                    <button
+                    <Button
+                      size="sm"
+                      variant="success"
                       onClick={() => { setApproveModal(r); setApproveRole('STUDENT') }}
                       disabled={loading === r.id}
-                      className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 mr-2 disabled:opacity-50"
+                      className="mr-2"
                     >
                       Approve
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
                       onClick={() => { setRejectModal(r); setRejectReason('') }}
                       disabled={loading === r.id}
-                      className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50"
                     >
                       Reject
-                    </button>
+                    </Button>
                   </td>
                 )}
               </tr>
@@ -140,21 +144,21 @@ export function SignupRequestsTable({
             <select
               value={approveRole}
               onChange={(e) => setApproveRole(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="STUDENT">Student</option>
               <option value="TEACHER">Teacher</option>
               <option value="PARENT">Parent</option>
             </select>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setApproveModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</button>
-              <button
+              <Button variant="ghost" onClick={() => setApproveModal(null)}>Cancel</Button>
+              <Button
+                variant="success"
                 onClick={() => handleApprove(approveModal.id, approveRole)}
-                disabled={loading === approveModal.id}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+                loading={loading === approveModal.id}
               >
                 {loading === approveModal.id ? 'Approving…' : 'Confirm Approval'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -172,17 +176,18 @@ export function SignupRequestsTable({
               onChange={(e) => setRejectReason(e.target.value)}
               rows={3}
               placeholder="Explain why this request is being rejected…"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setRejectModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</button>
-              <button
+              <Button variant="ghost" onClick={() => setRejectModal(null)}>Cancel</Button>
+              <Button
+                variant="destructive"
                 onClick={() => handleReject(rejectModal.id, rejectReason)}
-                disabled={loading === rejectModal.id || !rejectReason.trim()}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+                disabled={!rejectReason.trim()}
+                loading={loading === rejectModal.id}
               >
                 {loading === rejectModal.id ? 'Rejecting…' : 'Confirm Rejection'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

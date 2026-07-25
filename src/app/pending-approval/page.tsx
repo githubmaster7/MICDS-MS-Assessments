@@ -28,7 +28,7 @@ export default async function PendingApprovalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center">
         {/* Icon */}
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-50 border-2 border-amber-100 mb-6">
@@ -116,7 +116,7 @@ export default async function PendingApprovalPage() {
 
         {/* Details */}
         {(user.email || user.role) && (
-          <div className="bg-gray-50 rounded-lg p-3 text-left mb-6 space-y-1">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 text-left mb-6 space-y-1">
             {user.email && (
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500">Email</span>
@@ -141,7 +141,7 @@ export default async function PendingApprovalPage() {
 
         <p className="mt-4 text-xs text-gray-400">
           Questions?{" "}
-          <Link href="mailto:pe@micds.org" className="text-primary-600 hover:underline">
+          <Link href="mailto:pe@micds.org" className="text-primary-900 hover:underline">
             Contact the PE department
           </Link>
         </p>

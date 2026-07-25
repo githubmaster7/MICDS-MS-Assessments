@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Plus,
   GraduationCap,
@@ -32,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface ActivityTemplate {
   id: string;
@@ -77,7 +79,7 @@ const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
 function GenderBadge({ gender }: { gender: string | null }) {
   if (!gender) return <span className="text-xs text-gray-400">Any</span>;
   const map: Record<string, string> = {
-    MALE: "bg-sky-50 text-sky-700 border-sky-100",
+    MALE: "bg-amber-50 text-amber-700 border-amber-100",
     FEMALE: "bg-pink-50 text-pink-700 border-pink-100",
   };
   return (
@@ -317,12 +319,10 @@ export default function AdminTeachersPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Teachers &amp; Classes</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Manage the classes (activities) offered and which teachers are assigned to teach them.
-        </p>
-      </div>
+      <PageHeader
+        title="Teachers & Classes"
+        description="Manage the classes (activities) offered and which teachers are assigned to teach them."
+      />
 
       {/* Classes */}
       <section aria-labelledby="classes-heading" className="space-y-3">
@@ -413,11 +413,11 @@ export default function AdminTeachersPage() {
           </Button>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-primary-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[640px]">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
+                <tr className="border-b border-gray-100 bg-primary-50">
                   <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teacher</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Class</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">School year</th>
@@ -444,7 +444,11 @@ export default function AdminTeachersPage() {
                 ) : (
                   assignments.map((a) => (
                     <tr key={a.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${!a.isActive ? "opacity-60" : ""}`}>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{a.teacherProfile.firstName} {a.teacherProfile.lastName}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        <Link href={`/admin/teachers/${a.teacherProfile.id}`} className="hover:underline hover:text-primary-900">
+                          {a.teacherProfile.firstName} {a.teacherProfile.lastName}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-700">{a.activityTemplate.name}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{a.schoolYear.name}</td>
                       <td className="px-4 py-3">
