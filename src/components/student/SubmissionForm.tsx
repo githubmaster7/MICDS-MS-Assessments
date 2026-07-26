@@ -228,111 +228,138 @@ export function SubmissionForm({
     }))
   }
 
+  // One standard's full save (create shell + PUT). Returns a result object
+  // instead of throwing so the caller can run all four standards
+  // concurrently via Promise.all and only decide what's fatal once every
+  // request has settled — previously these ran one after another, so a
+  // student answering all four standards + ATL waited on up to 9 sequential
+  // round trips before the button ever unfroze.
+  async function submitStandard(
+    stdNum: 1 | 2 | 3 | 4,
+    isDraft: boolean,
+  ): Promise<{ stdNum: number; skipped: boolean; ok: boolean; fatal: boolean; message?: string }> {
+    if (stdNum === 1 && skillDefinitions.length === 0) {
+      return { stdNum, skipped: true, ok: true, fatal: false }
+    }
+    // Drafting only applies to standards not yet finalized — a finalized
+    // standard can only be changed via a full resubmission.
+    if (isDraft && finalizedStandards.has(stdNum)) {
+      return { stdNum, skipped: true, ok: true, fatal: false }
+    }
+
+    const questionSetsForSubmit: Record<2 | 3 | 4, Question[]> = {
+      2: standard2Questions,
+      3: standard3Questions,
+      4: standard4Questions,
+    }
+
+    const body: {
+      skillSelfRatings?: { skillDefinitionId: string; rating: number }[]
+      writtenResponses?: { promptDefinitionId: string; responseText: string }[]
+      promptSelfRatings?: { promptDefinitionId: string; rating: number }[]
+      submit: boolean
+      standard4SelfRating?: number
+    } = { submit: !isDraft }
+
+    if (stdNum === 1) {
+      body.skillSelfRatings = skillDefinitions.map((s) => ({
+        skillDefinitionId: s.id,
+        rating: skillRatings[s.id] ?? 3,
+      }))
+    } else {
+      // Only send questions the student has actually answered — other tabs
+      // may not have been visited yet, and the API rejects blank written
+      // responses.
+      const answeredQuestions = questionSetsForSubmit[stdNum].filter(
+        (q) => (responses[stdNum]?.[q.displayOrder] ?? '').trim().length > 0,
+      )
+      if (answeredQuestions.length > 0) {
+        body.writtenResponses = answeredQuestions.map((q) => ({
+          promptDefinitionId: q.id,
+          responseText: responses[stdNum][q.displayOrder],
+        }))
+        if (stdNum === 2 || stdNum === 3) {
+          body.promptSelfRatings = answeredQuestions.map((q) => ({
+            promptDefinitionId: q.id,
+            rating: promptRatings[stdNum]?.[q.displayOrder] ?? 3,
+          }))
+        }
+      }
+      if (stdNum === 4) body.standard4SelfRating = selfRating
+    }
+
+    // Nothing to save for this standard yet (student hasn't visited this
+    // tab) — skip it rather than creating an empty submission shell.
+    if (stdNum !== 1 && stdNum !== 4 && !body.writtenResponses) {
+      return { stdNum, skipped: true, ok: true, fatal: false }
+    }
+
+    try {
+      // Ensure the submission shell exists and the Honor Code is on record
+      const createRes = await fetch('/api/student/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instanceId,
+          standardNumber: stdNum,
+          honorCodeAcknowledged: true,
+        }),
+      })
+      if (!createRes.ok) {
+        const data = await createRes.json().catch(() => ({}))
+        throw new Error(data.error ?? `Failed to save Standard ${stdNum}`)
+      }
+
+      const res = await fetch(`/api/student/submissions/${instanceId}/${stdNum}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? `Failed to save Standard ${stdNum}`)
+      }
+      return { stdNum, skipped: false, ok: true, fatal: false }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to save.'
+      // Only surface per-standard rejections for a real resubmission
+      // attempt — for a first-time submission, any failure is fatal.
+      const fatal = !(isDraft || finalizedStandards.has(stdNum))
+      return { stdNum, skipped: false, ok: false, fatal, message }
+    }
+  }
+
   async function handleSubmit(isDraft: boolean) {
     if (!isDraft && !honorCode) {
       setError('You must acknowledge the Honor Code before submitting.')
       return
     }
+    // Flips the button to its disabled "Saving…"/"Submitting…" label the
+    // instant the student taps it — before any network request is even
+    // constructed — so the UI never reads as frozen while the requests below
+    // run in the background.
     setError(null)
     setSaving(true)
     try {
-      const questionSetsForSubmit: Record<2 | 3 | 4, Question[]> = {
-        2: standard2Questions,
-        3: standard3Questions,
-        4: standard4Questions,
-      }
+      // Each standard resubmits independently and concurrently — a rejection
+      // on one (e.g. no meaningful change) shouldn't block the others from
+      // saving, and none of them need to wait on the others to start.
+      const results = await Promise.all(
+        ([1, 2, 3, 4] as const).map((stdNum) => submitStandard(stdNum, isDraft)),
+      )
 
-      // Each standard resubmits independently — a rejection on one
-      // (e.g. no meaningful change) shouldn't block the others from saving.
-      const rejections: string[] = []
-      let anySucceeded = false
+      const rejections = results
+        .filter((r) => !r.skipped && !r.ok)
+        .map((r) => `Standard ${r.stdNum}: ${r.message}`)
+      const anySucceeded = results.some((r) => !r.skipped && r.ok)
+      const fatalFailure = results.find((r) => !r.ok && r.fatal)
 
-      for (const stdNum of [1, 2, 3, 4] as const) {
-        if (stdNum === 1 && skillDefinitions.length === 0) continue
-
-        // Drafting only applies to standards not yet finalized — a
-        // finalized standard can only be changed via a full resubmission.
-        if (isDraft && finalizedStandards.has(stdNum)) continue
-
-        const body: {
-          skillSelfRatings?: { skillDefinitionId: string; rating: number }[]
-          writtenResponses?: { promptDefinitionId: string; responseText: string }[]
-          promptSelfRatings?: { promptDefinitionId: string; rating: number }[]
-          submit: boolean
-          standard4SelfRating?: number
-        } = { submit: !isDraft }
-
-        if (stdNum === 1) {
-          body.skillSelfRatings = skillDefinitions.map((s) => ({
-            skillDefinitionId: s.id,
-            rating: skillRatings[s.id] ?? 3,
-          }))
-        } else {
-          // Only send questions the student has actually answered — other
-          // tabs may not have been visited yet, and the API rejects blank
-          // written responses.
-          const answeredQuestions = questionSetsForSubmit[stdNum].filter(
-            (q) => (responses[stdNum]?.[q.displayOrder] ?? '').trim().length > 0,
-          )
-          if (answeredQuestions.length > 0) {
-            body.writtenResponses = answeredQuestions.map((q) => ({
-              promptDefinitionId: q.id,
-              responseText: responses[stdNum][q.displayOrder],
-            }))
-            if (stdNum === 2 || stdNum === 3) {
-              body.promptSelfRatings = answeredQuestions.map((q) => ({
-                promptDefinitionId: q.id,
-                rating: promptRatings[stdNum]?.[q.displayOrder] ?? 3,
-              }))
-            }
-          }
-          if (stdNum === 4) body.standard4SelfRating = selfRating
-        }
-
-        // Nothing to save for this standard yet (student hasn't visited this
-        // tab) — skip it rather than creating an empty submission shell.
-        if (stdNum !== 1 && stdNum !== 4 && !body.writtenResponses) {
-          continue
-        }
-
-        try {
-          // Ensure the submission shell exists and the Honor Code is on record
-          const createRes = await fetch('/api/student/submissions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              instanceId,
-              standardNumber: stdNum,
-              honorCodeAcknowledged: true,
-            }),
-          })
-          if (!createRes.ok) {
-            const data = await createRes.json().catch(() => ({}))
-            throw new Error(data.error ?? `Failed to save Standard ${stdNum}`)
-          }
-
-          const res = await fetch(
-            `/api/student/submissions/${instanceId}/${stdNum}`,
-            {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            },
-          )
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}))
-            throw new Error(data.error ?? `Failed to save Standard ${stdNum}`)
-          }
-          anySucceeded = true
-        } catch (e) {
-          // Only surface per-standard rejections for a real resubmission
-          // attempt — for a first-time submission, any failure is fatal.
-          if (isDraft || finalizedStandards.has(stdNum)) {
-            rejections.push(`Standard ${stdNum}: ${e instanceof Error ? e.message : 'Failed to save.'}`)
-          } else {
-            throw e
-          }
-        }
+      // A fatal failure (a first-time, non-draft submission that a standard
+      // rejected outright) mirrors the old behavior: stop here, skip the ATL
+      // save, and surface the error rather than a false success.
+      if (fatalFailure) {
+        setError(fatalFailure.message ?? 'Something went wrong. Please try again.')
+        return
       }
 
       // Approach to Learning effort self-rating saves independently of the

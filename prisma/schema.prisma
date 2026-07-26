@@ -912,10 +912,17 @@ model GradeCalculationSnapshot {
   historicalClassInstance HistoricalClassInstance @relation(fields: [historicalClassInstanceId], references: [id], onDelete: Restrict)
   schoolYear              SchoolYear              @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
 
-  @@index([studentProfileId])
-  @@index([historicalClassInstanceId])
+  // Composite (not standalone) indexes: every call site filters by
+  // studentProfileId and/or historicalClassInstanceId (often as an IN-list)
+  // and always orders by calculatedAt desc to get the latest snapshot — a
+  // composite index serves both the filter and the sort in one index scan,
+  // so the old standalone studentProfileId/historicalClassInstanceId/
+  // calculatedAt indexes were replaced rather than kept alongside these
+  // (extra indexes only add write overhead on a model that gets a new row
+  // every time a grade is recalculated).
+  @@index([studentProfileId, calculatedAt])
+  @@index([historicalClassInstanceId, calculatedAt])
   @@index([schoolYearId])
-  @@index([calculatedAt])
 }
 
 // ---------------------------------------------------------------------------
