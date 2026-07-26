@@ -195,7 +195,7 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader
         title="Dashboard"
         description="Overview of the MICDS PE Assessment system"

@@ -318,7 +318,7 @@ export default function AdminTeachersPage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader
         title="Teachers & Classes"
         description="Manage the classes (activities) offered and which teachers are assigned to teach them."

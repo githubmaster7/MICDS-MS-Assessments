@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Layers,
   UserRound,
+  Calculator,
 } from "lucide-react";
 import { RoleAppShell, type RoleNavItem } from "@/components/layout/RoleAppShell";
 
@@ -51,6 +52,7 @@ export default function AdminLayout({
     { label: "Carousel & Rotations", href: "/admin/carousel", icon: RotateCcw },
     { label: "All Classes", href: "/admin/classes", icon: Layers },
     { label: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
+    { label: "Scoring Calculations", href: "/admin/scoring-calculations", icon: Calculator },
     { label: "School Settings", href: "/admin/settings", icon: Settings },
   ];
 

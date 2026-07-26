@@ -4,8 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { RotationStatus } from '@prisma/client'
 import Link from 'next/link'
-import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution } from '@/lib/analytics/score-distribution'
+import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution, averageFromBuckets } from '@/lib/analytics/score-distribution'
 import { StandardDistributionGrid, ScoreDistributionChart } from '@/components/student/ScoreDistributionChart'
+import { calculateCumulativeGrade } from '@/lib/grading/conversion'
 import { formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/PageHeader'
 
@@ -63,28 +64,9 @@ export default async function ParentDashboard({
 
   if (!student) return null
 
-  // Get most recent grade snapshot for this student
-  const currentSnapshot = await db.gradeCalculationSnapshot.findFirst({
-    where: { studentProfileId: student.id },
-    orderBy: { calculatedAt: 'desc' },
-    include: {
-      historicalClassInstance: {
-        include: {
-          teacherClassAssignment: {
-            include: {
-              activityTemplate: true,
-              teacherProfile: true,
-            },
-          },
-        },
-      },
-    },
-  })
-
   // The student's actual current class is whichever rotation is ACTIVE right
-  // now — not whichever class happens to have the most recent grade snapshot
-  // (that could still be a prior, fully-graded rotation while the new one is
-  // still in progress and ungraded).
+  // now — used below purely for "which class is this student in right now"
+  // display, not for the grade itself.
   const activeGroupId = student.groupMemberships[0]?.studentGroupId
   const activeInstance = activeGroupId
     ? await db.historicalClassInstance.findFirst({
@@ -97,18 +79,8 @@ export default async function ParentDashboard({
       })
     : null
 
-  const gradeColorClass: Record<string, string> = {
-    A: 'bg-emerald-600', 'A-': 'bg-emerald-500',
-    'B+': 'bg-blue-600', B: 'bg-blue-500', 'B-': 'bg-blue-400',
-    'C+': 'bg-yellow-500', C: 'bg-yellow-400', 'C-': 'bg-orange-500',
-    'D+': 'bg-orange-600', D: 'bg-red-500', 'D-': 'bg-red-600', F: 'bg-red-700',
-  }
-
-  const grade = currentSnapshot?.letterGrade
-  const gradeBg = grade ? (gradeColorClass[grade] ?? 'bg-gray-500') : 'bg-gray-300'
   const currentActivity = activeInstance?.teacherClassAssignment
   const currentTeacher = currentActivity?.teacherProfile
-  const scoreVal = (d: unknown) => d != null ? Number(d) : null
 
   // Full class history — every rotation this student's group has ever been
   // scheduled into, past and future, mirroring the student's own "My
@@ -195,6 +167,20 @@ export default async function ParentDashboard({
   const scoreDistribution = await getStudentStandardItemDistribution(student.id)
   const atlDistribution = await getStudentApproachToLearningDistribution(student.id)
 
+  // Overall Grade is cumulative — every score pooled across every class this
+  // student has been in this year (the same numbers behind the "Score
+  // Distribution — All Classes" chart below), NOT just whichever class most
+  // recently had a grade calculated. Each individual class still shows its
+  // own isolated grade in "Class History" below.
+  const standardAverages = {
+    s1: averageFromBuckets(scoreDistribution[1]),
+    s2: averageFromBuckets(scoreDistribution[2]),
+    s3: averageFromBuckets(scoreDistribution[3]),
+    s4: averageFromBuckets(scoreDistribution[4]),
+  }
+  const cumulative = calculateCumulativeGrade(standardAverages)
+  const grade = cumulative?.letterGrade
+
   return (
     <div className="p-6 max-w-4xl">
       <PageHeader
@@ -222,30 +208,30 @@ export default async function ParentDashboard({
         <strong>Viewing:</strong> {student.firstName} {student.lastName} · Grade {student.gradeLevel.replace('GRADE_', '')} · {student.groupMemberships[0]?.studentGroup.name ?? 'No group'}
       </div>
 
-      <div className={`${gradeBg} text-white rounded-2xl p-6 mb-6 flex items-center gap-6`}>
+      <div className="bg-primary-700 text-role-fg rounded-2xl p-6 mb-6 flex items-center gap-6">
         <div className="text-center">
           <div className="text-6xl font-black">{grade ?? '—'}</div>
-          <div className="text-sm text-white/80 mt-1">Overall Grade</div>
+          <div className="text-sm text-role-fg/80 mt-1">Overall Grade</div>
         </div>
         <div className="flex-1">
           {currentActivity && (
             <div>
               <div className="font-semibold">{currentActivity.activityTemplate.name}</div>
-              <div className="text-white/80 text-sm">
+              <div className="text-role-fg/80 text-sm">
                 {currentTeacher ? `${currentTeacher.firstName} ${currentTeacher.lastName}` : 'No teacher assigned'}
               </div>
             </div>
           )}
           <div className="mt-3 grid grid-cols-4 gap-2 text-center">
             {[
-              { label: 'Std 1', score: scoreVal(currentSnapshot?.standard1Score) },
-              { label: 'Std 2', score: scoreVal(currentSnapshot?.standard2Score) },
-              { label: 'Std 3', score: scoreVal(currentSnapshot?.standard3Score) },
-              { label: 'Std 4', score: scoreVal(currentSnapshot?.standard4Score) },
+              { label: 'Std 1', score: standardAverages.s1 },
+              { label: 'Std 2', score: standardAverages.s2 },
+              { label: 'Std 3', score: standardAverages.s3 },
+              { label: 'Std 4', score: standardAverages.s4 },
             ].map(({ label, score }) => (
-              <div key={label} className="bg-white/20 rounded-lg p-2">
-                <div className="text-xs text-white/70">{label}</div>
-                <div className="text-lg font-bold">{score?.toString() ?? '—'}</div>
+              <div key={label} className="bg-role-fg/10 rounded-lg p-2">
+                <div className="text-xs text-role-fg/70">{label}</div>
+                <div className="text-lg font-bold">{score != null ? score.toFixed(2) : '—'}</div>
               </div>
             ))}
           </div>

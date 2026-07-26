@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, PencilLine, BarChart3, BookOpen } from "lucide-react";
+import { LayoutDashboard, PencilLine, BarChart3, BookOpen, Calculator } from "lucide-react";
 import { RoleAppShell, type RoleNavItem } from "@/components/layout/RoleAppShell";
 
 const NAV_ITEMS: RoleNavItem[] = [
@@ -8,6 +8,7 @@ const NAV_ITEMS: RoleNavItem[] = [
   { label: "Grade Students", href: "/teacher/grade/students", icon: PencilLine },
   { label: "Year at a Glance", href: "/teacher/mass-grading", icon: BarChart3 },
   { label: "My History", href: "/teacher/history", icon: BookOpen },
+  { label: "Scoring Calculations", href: "/teacher/scoring-calculations", icon: Calculator },
 ];
 
 /**

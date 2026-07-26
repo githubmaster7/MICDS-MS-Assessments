@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Check, Circle } from 'lucide-react'
-import { calculateStandard1 } from '@/lib/grading/standard1'
-import { calculateStandard234 } from '@/lib/grading/standards234'
+import { calculateStandardScore } from '@/lib/grading/standard-score'
 import { calculateApproachToLearning, calculateDaysLateScore } from '@/lib/grading/approach-to-learning'
 import { calculateOverallGrade } from '@/lib/grading/conversion'
 
@@ -175,7 +174,7 @@ export function GradingInterface({
       .filter((s) => d.skillScores[s.id] !== undefined)
       .map((s) => ({ skillId: s.id, score: d.skillScores[s.id] }))
     if (items.length === 0) return null
-    return calculateStandard1(items)
+    return calculateStandardScore(items)
   }
 
   function calcStandard23(d: StudentGradeData, std: 2 | 3) {
@@ -184,7 +183,7 @@ export function GradingInterface({
       .filter((p) => d.promptScores[p.id] !== undefined)
       .map((p) => ({ itemId: p.id, score: d.promptScores[p.id] }))
     if (items.length === 0) return null
-    return calculateStandard234(items)
+    return calculateStandardScore(items)
   }
 
   function calcStandard4(d: StudentGradeData) {
@@ -199,7 +198,7 @@ export function GradingInterface({
       items.push({ itemId: 'student-self-rating', score: d.standard4StudentSelfRating })
     }
     if (items.length === 0) return null
-    return calculateStandard234(items)
+    return calculateStandardScore(items)
   }
 
   function calcAtl(d: StudentGradeData) {

@@ -11,7 +11,7 @@ export default function ClassAnalyticsPage() {
   const [header, setHeader] = useState<ClassInstanceAnalyticsData | null>(null)
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader
         backHref={`/teacher/grade/students?instanceId=${instanceId}`}
         backLabel="Back to grading"

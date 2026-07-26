@@ -112,3 +112,65 @@ export function calculateOverallGrade(scores: OverallGradeInput): OverallGradeRe
   )
   return { internal, average, letterGrade }
 }
+
+const SORTED_SCORE_ANCHORS = Object.entries(STANDARD_SCORE_MAP)
+  .map(([k, v]) => [Number(k), v] as const)
+  .sort((a, b) => a[0] - b[0])
+
+/**
+ * Convert a CONTINUOUS raw score (e.g. a cross-class weighted average like
+ * 3.62 — not necessarily one of the 7 discrete standard-score values) onto
+ * the same 0.5–1.0 internal contribution scale as STANDARD_SCORE_MAP, via
+ * piecewise-linear interpolation between its anchor points.
+ *
+ * Used only for the cross-class cumulative grade below — a single class's
+ * own grade always uses the exact discrete standardScoreToInternal lookup,
+ * since an individual GradeCalculationSnapshot's standardNScore is always
+ * one of the 7 valid values.
+ */
+export function interpolateStandardScoreToInternal(score: number): number {
+  const anchors = SORTED_SCORE_ANCHORS
+  if (score <= anchors[0][0]) return anchors[0][1]
+  if (score >= anchors[anchors.length - 1][0]) return anchors[anchors.length - 1][1]
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const [x0, y0] = anchors[i]
+    const [x1, y1] = anchors[i + 1]
+    if (score >= x0 && score <= x1) {
+      const t = (score - x0) / (x1 - x0)
+      return y0 + t * (y1 - y0)
+    }
+  }
+  return anchors[anchors.length - 1][1]
+}
+
+export interface CumulativeGradeInput {
+  s1: number | null
+  s2: number | null
+  s3: number | null
+  s4: number | null
+}
+
+/**
+ * The student's overall grade across every class they've been in this year
+ * — distinct from a single class's own GradeCalculationSnapshot. Each input
+ * is the cross-class average raw score (1-4) for that standard, pooled from
+ * every individual teacher-scored item across all classes (the same numbers
+ * shown in the "Score Distribution — All Classes" UI). Each average is
+ * interpolated onto the internal scale, the four are averaged, and the
+ * result is mapped to a letter grade with the same thresholds a single
+ * class's grade uses — so a straight-A cumulative record and a straight-A
+ * single class both read "A" for the same underlying reason.
+ *
+ * Returns null if any standard has no data yet, matching the per-class
+ * snapshot's own rule of only computing a grade once all 4 standards have
+ * at least one score.
+ */
+export function calculateCumulativeGrade(
+  scores: CumulativeGradeInput
+): { average: number; letterGrade: string } | null {
+  const { s1, s2, s3, s4 } = scores
+  if (s1 == null || s2 == null || s3 == null || s4 == null) return null
+  const average =
+    [s1, s2, s3, s4].map(interpolateStandardScoreToInternal).reduce((a, b) => a + b, 0) / 4
+  return { average, letterGrade: internalAverageToLetterGrade(average) }
+}

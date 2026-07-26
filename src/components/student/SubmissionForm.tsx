@@ -6,12 +6,21 @@ import { HonorCodeCheckbox } from './HonorCodeCheckbox'
 import { StandardDistributionGrid, type ScoreBucket } from './ScoreDistributionChart'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { SCORING_RUBRIC } from '@/lib/grading/rubric'
+import { ScoringRubricCard } from '@/components/shared/ScoringRubricCard'
 
 const S4_RATING_LABELS: Record<number, { short: string; long: string; color: string }> = {
   4: { short: '4 — Exceeding', long: 'The class is better with me in it', color: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text' },
   3: { short: '3 — Achieving', long: 'I work well with others',           color: 'border-score-achieving-border bg-score-achieving-bg text-score-achieving-text' },
   2: { short: '2 — Developing',  long: 'I can improve on working with others', color: 'border-score-developing-border bg-score-developing-bg text-score-developing-text' },
   1: { short: '1 — Incomplete',   long: 'The class is worse with me in it',   color: 'border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text' },
+}
+
+const EFFORT_RATING_LABELS: Record<number, { short: string; long: string; color: string }> = {
+  4: { short: '4 — Exceeding', long: 'I consistently give my best effort in every class', color: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text' },
+  3: { short: '3 — Achieving', long: 'I give good effort in most classes', color: 'border-score-achieving-border bg-score-achieving-bg text-score-achieving-text' },
+  2: { short: '2 — Developing', long: "I sometimes hold back or don't try my best", color: 'border-score-developing-border bg-score-developing-bg text-score-developing-text' },
+  1: { short: '1 — Incomplete', long: 'I rarely put in effort during class', color: 'border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text' },
 }
 
 const SCORE_LABELS: Record<number, string> = { 1: 'Incomplete', 2: 'Developing', 3: 'Achieving', 4: 'Exceeding' }
@@ -47,6 +56,7 @@ interface InitialSubmissionData {
   responses: Record<number, Record<number, string>>
   promptRatings: Record<number, Record<number, number>>
   standard4SelfRating: number | null
+  effortSelfRating: number | null
 }
 
 interface CurrentClassScores {
@@ -72,7 +82,7 @@ interface SubmissionFormProps {
 
 const FINALIZED_STATUSES = new Set(['SUBMITTED', 'REASSESSMENT_SUBMITTED'])
 
-type ActiveStd = 1 | 2 | 3 | 4
+type ActiveStd = 1 | 2 | 3 | 4 | 'atl'
 
 function ScoreSelector({
   value,
@@ -127,18 +137,20 @@ function SelfRating({
   name,
   value,
   onChange,
+  labels,
 }: {
   label: string
   name: string
   value: number
   onChange: (v: number) => void
+  labels: Record<number, { short: string; long: string; color: string }>
 }) {
   return (
     <div>
       <p className="text-sm font-semibold text-gray-700 mb-2">{label}</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {([4, 3, 2, 1] as const).map((v) => {
-          const cfg = S4_RATING_LABELS[v]
+          const cfg = labels[v]
           const selected = value === v
           return (
             <label
@@ -196,6 +208,7 @@ export function SubmissionForm({
     initialData?.promptRatings ?? { 2: {}, 3: {} },
   )
   const [selfRating, setSelfRating] = useState(initialData?.standard4SelfRating ?? 3)
+  const [effortSelfRating, setEffortSelfRating] = useState(initialData?.effortSelfRating ?? 3)
   const [honorCode, setHonorCode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -322,6 +335,23 @@ export function SubmissionForm({
         }
       }
 
+      // Approach to Learning effort self-rating saves independently of the
+      // four standards — it's informational only (doesn't affect the letter
+      // grade), so a failure here is never fatal to the overall submission.
+      try {
+        const atlRes = await fetch(`/api/student/approach-to-learning/${instanceId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ effortStudentScore: effortSelfRating }),
+        })
+        if (!atlRes.ok) {
+          const data = await atlRes.json().catch(() => ({}))
+          throw new Error(data.error ?? 'Failed to save Approach to Learning rating')
+        }
+      } catch (e) {
+        rejections.push(`Approach to Learning: ${e instanceof Error ? e.message : 'Failed to save.'}`)
+      }
+
       if (rejections.length > 0) {
         setError(rejections.join(' '))
       }
@@ -401,6 +431,7 @@ export function SubmissionForm({
     2: 'Movement Concepts',
     3: 'Health & Fitness',
     4: 'Teamwork',
+    atl: 'Approach to Learning',
   }
 
   const questionSets: Record<2 | 3 | 4, Question[]> = {
@@ -427,7 +458,7 @@ export function SubmissionForm({
         role="tablist"
         aria-label="Standards"
       >
-        {([1, 2, 3, 4] as const).map((n) => (
+        {([1, 2, 3, 4, 'atl'] as const).map((n) => (
           <button
             key={n}
             role="tab"
@@ -440,7 +471,7 @@ export function SubmissionForm({
                 : 'text-gray-500 hover:text-gray-700',
             )}
           >
-            <span className="hidden sm:inline">Standard {n}: </span>
+            {n !== 'atl' && <span className="hidden sm:inline">Standard {n}: </span>}
             {TAB_LABELS[n]}
           </button>
         ))}
@@ -448,6 +479,25 @@ export function SubmissionForm({
 
       {/* Question section */}
       <div role="tabpanel" className="space-y-4">
+        {activeStd !== 'atl' && <ScoringRubricCard rubric={SCORING_RUBRIC[activeStd]} />}
+
+        {activeStd === 'atl' && (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500">
+              Rate your own effort this rotation. Your teacher rates this separately — both
+              ratings, plus attendance/preparedness, feed into your Approach to Learning score.
+              This is informational only and does not affect your letter grade.
+            </p>
+            <SelfRating
+              label="How much effort did you put into this class this rotation?"
+              name="effort-self-rating"
+              value={effortSelfRating}
+              onChange={setEffortSelfRating}
+              labels={EFFORT_RATING_LABELS}
+            />
+          </div>
+        )}
+
         {activeStd === 1 && (
           <div className="space-y-5">
             <p className="text-xs text-gray-500">
@@ -506,6 +556,7 @@ export function SubmissionForm({
               name="self-rating"
               value={selfRating}
               onChange={setSelfRating}
+              labels={S4_RATING_LABELS}
             />
           </div>
         )}

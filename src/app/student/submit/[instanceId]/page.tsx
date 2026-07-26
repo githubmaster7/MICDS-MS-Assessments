@@ -144,6 +144,17 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
   })
   const scoreDistribution = await getStudentStandardItemDistribution(student.id)
 
+  const atlRecord = await db.approachToLearningRecord.findUnique({
+    where: {
+      studentProfileId_historicalClassInstanceId: {
+        studentProfileId: student.id,
+        historicalClassInstanceId: instanceId,
+      },
+    },
+    select: { effortStudentScore: true },
+  })
+  const effortSelfRating = atlRecord?.effortStudentScore != null ? Number(atlRecord.effortStudentScore) : null
+
   return (
     <div className="p-6 max-w-3xl">
       <PageHeader title={`Submit Work: ${activityName}`} />
@@ -160,7 +171,7 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
           status: s.status,
           attemptNumber: s.latestAttemptNumber,
         }))}
-        initialData={{ skillRatings, responses, promptRatings, standard4SelfRating }}
+        initialData={{ skillRatings, responses, promptRatings, standard4SelfRating, effortSelfRating }}
         currentClassScores={{
           standard1: currentSnapshot?.standard1Score ? Number(currentSnapshot.standard1Score) : null,
           standard2: currentSnapshot?.standard2Score ? Number(currentSnapshot.standard2Score) : null,

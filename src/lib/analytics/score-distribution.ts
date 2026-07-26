@@ -58,6 +58,19 @@ function toBuckets(bucketMaps: Map<number, Map<string, ClassScoreCount>>): Score
   }).filter((b) => b.total > 0)
 }
 
+/**
+ * Weighted average of every individual item score in a standard's bucket
+ * set — the same number the Score Distribution UI shows as e.g. "3.60 avg"
+ * (ScoreDistributionChart derives it identically, client-side, from these
+ * same buckets so the two can never drift). Returns null if there's no
+ * data yet for this standard (e.g. student hasn't been scored on it).
+ */
+export function averageFromBuckets(buckets: ScoreBucket[]): number | null {
+  const total = buckets.reduce((sum, b) => sum + b.total, 0)
+  if (total === 0) return null
+  return buckets.reduce((sum, b) => sum + b.score * b.total, 0) / total
+}
+
 export async function getStudentStandardItemDistribution(
   studentProfileId: string,
 ): Promise<Record<1 | 2 | 3 | 4, ScoreBucket[]>> {

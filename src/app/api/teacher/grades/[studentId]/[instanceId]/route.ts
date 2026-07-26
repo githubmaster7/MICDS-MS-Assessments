@@ -6,8 +6,7 @@ import { auditGradeChange, auditGradeSnapshot, AuditAction, createAuditLog } fro
 import { canTeacherGrade } from '@/lib/authorization'
 import { Role } from '@prisma/client'
 import { z } from 'zod'
-import { calculateStandard1 } from '@/lib/grading/standard1'
-import { calculateStandard234 } from '@/lib/grading/standards234'
+import { calculateStandardScore } from '@/lib/grading/standard-score'
 import { createGradeSnapshot } from '@/lib/grading/snapshot'
 import { getGradeAndSubmissionHistory } from '@/lib/grading/history'
 import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
@@ -202,8 +201,8 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
       where: { teacherAssessmentId: assessment.id },
       select: { skillDefinitionId: true, score: true },
     })
-    const std1Result = calculateStandard1(
-      allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
+    const std1Result = calculateStandardScore(
+      allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ score: s.score as 1 | 2 | 3 | 4 })),
     )
     assessment = await db.teacherAssessment.update({
       where: { id: assessment.id },
@@ -285,7 +284,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     }
 
     if (items.length > 0) {
-      const std234Result = calculateStandard234(items)
+      const std234Result = calculateStandardScore(items)
       assessment = await db.teacherAssessment.update({
         where: { id: assessment.id },
         data: { score: std234Result.score },

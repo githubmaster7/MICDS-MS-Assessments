@@ -6,7 +6,7 @@ import { createAuditLog, AuditAction } from '@/lib/audit'
 import { canTeacherGrade } from '@/lib/authorization'
 import { Role } from '@prisma/client'
 import { z } from 'zod'
-import { calculateStandard1 } from '@/lib/grading/standard1'
+import { calculateStandardScore } from '@/lib/grading/standard-score'
 import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 interface RouteParams {
@@ -117,8 +117,8 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     select: { skillDefinitionId: true, score: true },
   })
 
-  const std1Result = calculateStandard1(
-    allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
+  const std1Result = calculateStandardScore(
+    allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ score: s.score as 1 | 2 | 3 | 4 })),
   )
 
   await db.teacherAssessment.update({

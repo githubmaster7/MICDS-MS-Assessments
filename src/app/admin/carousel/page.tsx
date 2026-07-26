@@ -420,7 +420,7 @@ export default function CarouselPage() {
   const selectedList = Array.from(selectedGroupIds);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader
         title="Carousel & Rotations"
         description={planName || "Loading carousel plan…"}

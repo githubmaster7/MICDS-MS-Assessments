@@ -4,8 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { RotationStatus } from '@prisma/client'
 import Link from 'next/link'
-import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution } from '@/lib/analytics/score-distribution'
+import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution, averageFromBuckets } from '@/lib/analytics/score-distribution'
 import { StandardDistributionGrid, ScoreDistributionChart } from '@/components/student/ScoreDistributionChart'
+import { calculateCumulativeGrade } from '@/lib/grading/conversion'
 import { formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/PageHeader'
 
@@ -111,12 +112,18 @@ export default async function StudentHistoryPage() {
   const scoreDistribution = await getStudentStandardItemDistribution(student.id)
   const atlDistribution = await getStudentApproachToLearningDistribution(student.id)
 
-  // Same authoritative "current overall grade" the dashboard hero shows —
-  // reused here rather than deriving a second, competing letter grade from
-  // the pooled item distribution above, which would risk showing two
-  // different grades for the same student on two different pages.
-  const activeInstanceId = instances.find((i) => i.status === 'ACTIVE')?.id
-  const currentLetterGrade = activeInstanceId ? latestSnapshotByInstance.get(activeInstanceId)?.letterGrade ?? null : null
+  // Same cumulative grade the dashboard hero shows — derived from the exact
+  // same pooled item distribution as the Score Distribution chart below, so
+  // this badge and that chart can never disagree with each other. This is
+  // deliberately NOT any single class's own grade (each class's own grade is
+  // shown per-row below instead) — it's the average across every class.
+  const cumulativeGrade = calculateCumulativeGrade({
+    s1: averageFromBuckets(scoreDistribution[1]),
+    s2: averageFromBuckets(scoreDistribution[2]),
+    s3: averageFromBuckets(scoreDistribution[3]),
+    s4: averageFromBuckets(scoreDistribution[4]),
+  })
+  const currentLetterGrade = cumulativeGrade?.letterGrade ?? null
 
   const gradeColorClass: Record<string, string> = {
     A: 'bg-emerald-600', 'A-': 'bg-emerald-500',
@@ -136,7 +143,7 @@ export default async function StudentHistoryPage() {
         <div className="flex items-center justify-between mb-1">
           <h2 className="font-semibold text-gray-900">Score Distribution — All Classes</h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">Current grade</span>
+            <span className="text-xs text-gray-400">Overall grade</span>
             <span
               className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-sm font-bold ${currentLetterGrade ? gradeColorClass[currentLetterGrade] ?? 'bg-gray-400' : 'bg-gray-300'}`}
             >

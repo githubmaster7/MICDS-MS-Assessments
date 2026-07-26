@@ -7,8 +7,7 @@ import { bulkGradingLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate
 import { canTeacherGrade } from '@/lib/authorization'
 import { Role, RotationStatus } from '@prisma/client'
 import { z } from 'zod'
-import { calculateStandard1 } from '@/lib/grading/standard1'
-import { calculateStandard234 } from '@/lib/grading/standards234'
+import { calculateStandardScore } from '@/lib/grading/standard-score'
 import { standardScoreToInternal, internalAverageToLetterGrade } from '@/lib/grading/conversion'
 import { ipRateLimitKey } from '@/lib/rate-limit'
 
@@ -179,8 +178,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           where: { teacherAssessmentId: assessment.id },
           select: { skillDefinitionId: true, score: true },
         })
-        const std1Result = calculateStandard1(
-          allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ skillId: s.skillDefinitionId, score: s.score as 1 | 2 | 3 | 4 })),
+        const std1Result = calculateStandardScore(
+          allSkillScores.map((s: { skillDefinitionId: string; score: unknown }) => ({ score: s.score as 1 | 2 | 3 | 4 })),
         )
         assessment = await db.teacherAssessment.update({
           where: { id: assessment.id },
@@ -266,7 +265,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         }
 
         if (items.length > 0) {
-          const std234Result = calculateStandard234(items)
+          const std234Result = calculateStandardScore(items)
           assessment = await db.teacherAssessment.update({
             where: { id: assessment.id },
             data: { score: std234Result.score },

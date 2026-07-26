@@ -27,6 +27,17 @@ const ATL_CATEGORY_LABELS: Record<string, string> = {
   effortTeacherScore: 'Puts Forth Effort to Learn',
 }
 
+// Short form for the compact per-student roster card — the full label's
+// first word isn't always a sensible abbreviation on its own (e.g. "Puts
+// Forth Effort to Learn" starts with "Puts", not the word that actually
+// identifies the category), so this is spelled out explicitly per category
+// rather than derived by splitting the full label.
+const ATL_CATEGORY_SHORT_LABELS: Record<string, string> = {
+  responsiblePrepared: 'Responsible',
+  respectfulWorks: 'Respectful',
+  effortTeacherScore: 'Effort',
+}
+
 interface ATLCategorySummary {
   average: number | null
   buckets: GroupScoreBucket[]
@@ -186,7 +197,7 @@ export function ClassInstanceAnalyticsView({
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {(['responsiblePrepared', 'respectfulWorks', 'effortTeacherScore'] as const).map((cat) => (
                   <span key={cat} className="text-xs px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100">
-                    {ATL_CATEGORY_LABELS[cat].split(' ')[0]}: {row.atl[cat] ?? '—'}
+                    {ATL_CATEGORY_SHORT_LABELS[cat]}: {row.atl[cat] ?? '—'}
                   </span>
                 ))}
               </div>
