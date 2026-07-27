@@ -29,7 +29,7 @@ const COMING_SOON_SECTIONS = [
 
 export default function AdminSettingsPage() {
   return (
-    <div className="space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader title="School Settings" description="Account and historical data." />
 
       <div className="bg-white border border-gray-200 rounded-lg p-5">

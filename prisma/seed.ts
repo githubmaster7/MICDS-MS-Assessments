@@ -303,23 +303,30 @@ async function main() {
     },
   })
 
-  const positionMap: Record<number, string> = {}
-  for (let i = 0; i < carouselOrder.length; i++) {
-    const actName = carouselOrder[i]
-    const tcaId = tcaMap[actName]
-    if (!tcaId) {
-      console.warn(`    WARNING: No TCA found for carousel activity: ${actName}`)
-      continue
+  // Positions belong to exactly one student group's own carousel — the same
+  // 9-activity order is instantiated once per group (18 rows total), each
+  // row scoped by (studentGroupId, positionOrder), mirroring how the admin
+  // carousel API creates positions (src/app/api/admin/carousel/[id]/positions/route.ts).
+  const positionMap: Record<string, string> = {} // keyed by `${studentGroupId}:${positionOrder}`
+  for (const group of [groupA, groupB]) {
+    for (let i = 0; i < carouselOrder.length; i++) {
+      const actName = carouselOrder[i]
+      const tcaId = tcaMap[actName]
+      if (!tcaId) {
+        console.warn(`    WARNING: No TCA found for carousel activity: ${actName}`)
+        continue
+      }
+      const positionOrder = i + 1
+      const found = await db.carouselPosition.findUnique({
+        where: { studentGroupId_positionOrder: { studentGroupId: group.id, positionOrder } },
+      })
+      const pos = found ?? await db.carouselPosition.create({
+        data: { carouselPlanId: plan.id, studentGroupId: group.id, positionOrder, teacherClassAssignmentId: tcaId },
+      })
+      positionMap[`${group.id}:${positionOrder}`] = pos.id
     }
-    const found = await db.carouselPosition.findUnique({
-      where: { carouselPlanId_positionOrder: { carouselPlanId: plan.id, positionOrder: i + 1 } },
-    })
-    const pos = found ?? await db.carouselPosition.create({
-      data: { carouselPlanId: plan.id, positionOrder: i + 1, teacherClassAssignmentId: tcaId },
-    })
-    positionMap[i + 1] = pos.id
   }
-  log('Carousel plan with 9 positions created')
+  log('Carousel plan with 9 positions created for each of the 2 groups (18 total)')
 
   // =========================================================================
   // Group Rotation Assignments
@@ -366,8 +373,8 @@ async function main() {
   for (let rotNum = 1; rotNum <= rotationDefs.length; rotNum++) {
     const def = rotationDefs[rotNum - 1]
     const dates = rotationDates[Math.min(def.dateIdx, rotationDates.length - 1)]
-    const posAId = positionMap[def.groupAPos]
-    const posBId = positionMap[def.groupBPos]
+    const posAId = positionMap[`${groupA.id}:${def.groupAPos}`]
+    const posBId = positionMap[`${groupB.id}:${def.groupBPos}`]
 
     if (posAId) {
       const found = await db.groupRotationAssignment.findFirst({
@@ -746,7 +753,19 @@ async function main() {
     })
 
     // Student submissions for Standards 2, 3, 4 — rotation 1
-    const submissionDefs = [
+    interface SubmissionDef {
+      standardNumber: number
+      status: SubmissionStatus
+      honorCodeAcknowledgedAt: Date
+      honorCodeVersion: string
+      submittedAt: Date
+      reassessmentSubmittedAt?: Date
+      latestAttemptNumber: number
+      priorAttempt?: { attemptNumber: number; submittedAt: Date; responses: { key: string; text: string }[] }
+      responses: { key: string; text: string }[]
+    }
+
+    const submissionDefs: SubmissionDef[] = [
       {
         standardNumber: 2,
         status: SubmissionStatus.SUBMITTED,
@@ -832,7 +851,7 @@ async function main() {
           honorCodeAcknowledgedAt: subDef.honorCodeAcknowledgedAt,
           honorCodeVersion: subDef.honorCodeVersion,
           submittedAt: subDef.submittedAt,
-          reassessmentSubmittedAt: (subDef as any).reassessmentSubmittedAt ?? null,
+          reassessmentSubmittedAt: subDef.reassessmentSubmittedAt ?? null,
           latestAttemptNumber: subDef.latestAttemptNumber,
         },
       })
@@ -858,7 +877,7 @@ async function main() {
 
       // Demonstrate the resubmission-history feature: freeze the superseded
       // attempt as a SubmissionHistoryEntry snapshot.
-      const priorAttempt = (subDef as { priorAttempt?: { attemptNumber: number; submittedAt: Date; responses: { key: string; text: string }[] } }).priorAttempt
+      const priorAttempt = subDef.priorAttempt
       if (priorAttempt) {
         const foundHistory = await db.submissionHistoryEntry.findUnique({
           where: { studentSubmissionId_attemptNumber: { studentSubmissionId: sub.id, attemptNumber: priorAttempt.attemptNumber } },
