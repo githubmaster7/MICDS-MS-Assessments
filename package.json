@@ -1,0 +1,23 @@
+{
+  "name": "micds-ms-assessments",
+  "version": "1.0.0",
+  "description": "MICDS Middle School Assessment Portal",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/githubmaster7/MICDS-MS-Assessments.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/githubmaster7/MICDS-MS-Assessments/issues"
+  },
+  "homepage": "https://github.com/githubmaster7/MICDS-MS-Assessments#readme",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
