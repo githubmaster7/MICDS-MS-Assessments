@@ -261,6 +261,7 @@ export default async function GradeStudentsPage({
         daysLateUnprepared: atl?.daysLateUnprepared ?? 0,
         calculatedScore: toNum(atl?.calculatedScore),
       },
+      atlTouched: false,
     }
   }
 

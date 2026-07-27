@@ -101,6 +101,11 @@ export interface StudentGradeData {
   history: Record<1 | 2 | 3 | 4, HistoryAttempt[]>
   gradeHistory: Record<1 | 2 | 3 | 4, GradeHistoryEntry[]>
   atl: AtlData
+  // Explicit dirty flag for the ATL section - whether any of its fields are
+  // null is not a reliable "has this been touched" signal, since a student
+  // with no submission yet starts with every ATL field null even after the
+  // teacher grades it (see putAtl below).
+  atlTouched: boolean
 }
 
 export type GradeDataByStudent = Record<string, StudentGradeData>
@@ -280,11 +285,7 @@ export function GradingInterface({
   }
 
   async function putAtl(studentId: string, d: StudentGradeData) {
-    if (
-      d.atl.responsiblePrepared === null &&
-      d.atl.respectfulWorks === null &&
-      d.atl.effortTeacherScore === null
-    ) {
+    if (!d.atlTouched) {
       return
     }
     const res = await fetch(`/api/teacher/approach-to-learning/${studentId}/${instanceId}`, {
@@ -352,6 +353,7 @@ export function GradingInterface({
           3: calcStandard23(prev, 3)?.score ?? prev.standardScores[3],
           4: calcStandard4(prev)?.score ?? prev.standardScores[4],
         },
+        atlTouched: false,
       }))
 
       setSaved(studentId)
@@ -633,14 +635,14 @@ export function GradingInterface({
                 label="Responsible & prepared"
                 value={selectedData.atl.responsiblePrepared ?? undefined}
                 onChange={(v) =>
-                  updateStudent(selected.id, (d) => ({ ...d, atl: { ...d.atl, responsiblePrepared: v } }))
+                  updateStudent(selected.id, (d) => ({ ...d, atl: { ...d.atl, responsiblePrepared: v }, atlTouched: true }))
                 }
               />
               <SkillRow
                 label="Respectful & works well"
                 value={selectedData.atl.respectfulWorks ?? undefined}
                 onChange={(v) =>
-                  updateStudent(selected.id, (d) => ({ ...d, atl: { ...d.atl, respectfulWorks: v } }))
+                  updateStudent(selected.id, (d) => ({ ...d, atl: { ...d.atl, respectfulWorks: v }, atlTouched: true }))
                 }
               />
 
@@ -659,7 +661,7 @@ export function GradingInterface({
                 label="Teacher effort rating"
                 value={selectedData.atl.effortTeacherScore ?? undefined}
                 onChange={(v) =>
-                  updateStudent(selected.id, (d) => ({ ...d, atl: { ...d.atl, effortTeacherScore: v } }))
+                  updateStudent(selected.id, (d) => ({ ...d, atl: { ...d.atl, effortTeacherScore: v }, atlTouched: true }))
                 }
               />
 
@@ -672,6 +674,7 @@ export function GradingInterface({
                       updateStudent(selected.id, (d) => ({
                         ...d,
                         atl: { ...d.atl, daysLateUnprepared: Math.max(0, d.atl.daysLateUnprepared - 1) },
+                        atlTouched: true,
                       }))
                     }
                     disabled={selectedData.atl.daysLateUnprepared === 0}
@@ -686,6 +689,7 @@ export function GradingInterface({
                       updateStudent(selected.id, (d) => ({
                         ...d,
                         atl: { ...d.atl, daysLateUnprepared: d.atl.daysLateUnprepared + 1 },
+                        atlTouched: true,
                       }))
                     }
                     className="w-7 h-7 rounded border border-gray-200 text-gray-600 font-bold hover:bg-gray-100"
