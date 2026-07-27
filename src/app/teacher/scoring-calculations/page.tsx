@@ -4,7 +4,7 @@ import { SCORING_RUBRIC } from "@/lib/grading/rubric";
 
 export default function TeacherScoringCalculationsPage() {
   return (
-    <div className="p-6 max-w-4xl space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
       <PageHeader
         title="Scoring Calculations"
         description="How each standard's 1-4 score is calculated, shown to students alongside their self-rating."

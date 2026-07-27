@@ -50,7 +50,7 @@ export function ScoreDistributionChart({ buckets, title }: { buckets: ScoreBucke
     return (
       <div className="rounded-xl bg-gray-50 border border-primary-200 p-6 text-center text-sm text-gray-400">
         {title && <div className="font-semibold text-gray-500 mb-1">{title}</div>}
-        No graded items yet — scores will appear here once your teacher grades this standard.
+        No graded items yet - scores will appear here once your teacher grades this standard.
       </div>
     )
   }
@@ -98,14 +98,14 @@ export function ScoreDistributionChart({ buckets, title }: { buckets: ScoreBucke
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
             >
-              <title suppressHydrationWarning>{`${SCORE_LABEL[String(s.score)]} (${s.score}): ${s.total} total — ${s.byClass.map((c) => `${c.className}: ${c.count}`).join(', ')}`}</title>
+              <title suppressHydrationWarning>{`${SCORE_LABEL[String(s.score)]} (${s.score}): ${s.total} total - ${s.byClass.map((c) => `${c.className}: ${c.count}`).join(', ')}`}</title>
             </path>
           ))}
         </svg>
         {hoveredBucket && (
           <div className="absolute inset-x-0 -bottom-2 trangray-y-full bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-10 min-w-[180px]">
             <div className="font-semibold mb-1">
-              {SCORE_LABEL[String(hoveredBucket.score)]} ({hoveredBucket.score}) — {hoveredBucket.total} total
+              {SCORE_LABEL[String(hoveredBucket.score)]} ({hoveredBucket.score}) - {hoveredBucket.total} total
             </div>
             {hoveredBucket.byClass.map((c) => (
               <div key={c.instanceId} className="flex justify-between gap-3 text-gray-200">

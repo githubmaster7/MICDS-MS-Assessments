@@ -76,7 +76,7 @@ export default async function ParentClassDetailPage({
   }
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-6 max-w-2xl mx-auto">
       <PageHeader
         backHref={`/parent/dashboard?studentId=${studentId}`}
         backLabel="Back to dashboard"
@@ -100,12 +100,12 @@ export default async function ParentClassDetailPage({
           <h2 className="font-semibold text-gray-900 mb-4">Grade Summary</h2>
           <div className="flex items-center gap-4 mb-4">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold ${gradeBg}`}>
-              {letterGrade ?? '—'}
+              {letterGrade ?? '-'}
             </div>
             <div>
               <div className="text-sm text-gray-500">Overall Average</div>
               <div className="text-lg font-semibold text-gray-900">
-                {scoreOf(detail.snapshot.overallAverage)?.toFixed(2) ?? '—'}
+                {scoreOf(detail.snapshot.overallAverage)?.toFixed(2) ?? '-'}
               </div>
             </div>
           </div>
@@ -115,7 +115,7 @@ export default async function ParentClassDetailPage({
               return (
                 <div key={std} className="bg-white rounded-lg border border-gray-100 p-3">
                   <div className="text-xs text-gray-500 mb-1">Standard {std}</div>
-                  <div className="font-semibold text-gray-900">{score?.toFixed(2) ?? '—'}</div>
+                  <div className="font-semibold text-gray-900">{score?.toFixed(2) ?? '-'}</div>
                 </div>
               )
             })}

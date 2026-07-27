@@ -127,7 +127,7 @@ export default async function StudentClassDetailPage({
   }
 
   const scoreLabel = (score: number | null) => {
-    if (score === null) return '—'
+    if (score === null) return '-'
     if (score >= 4) return 'Exceeding'
     if (score >= 3.5) return 'Achieving+'
     if (score >= 3) return 'Achieving'
@@ -137,7 +137,7 @@ export default async function StudentClassDetailPage({
   }
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-6 max-w-2xl mx-auto">
       <PageHeader
         title={activityName}
         description={
@@ -176,12 +176,12 @@ export default async function StudentClassDetailPage({
             <div
               className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold ${gradeColorClass[snapshot.letterGrade as string] ?? 'bg-gray-400'}`}
             >
-              {snapshot.letterGrade ?? '—'}
+              {snapshot.letterGrade ?? '-'}
             </div>
             <div>
               <div className="text-sm text-gray-500">Overall Average</div>
               <div className="text-lg font-semibold text-gray-900">
-                {snapshot.overallAverage != null ? Number(snapshot.overallAverage).toFixed(2) : '—'}
+                {snapshot.overallAverage != null ? Number(snapshot.overallAverage).toFixed(2) : '-'}
               </div>
             </div>
           </div>
@@ -193,7 +193,7 @@ export default async function StudentClassDetailPage({
                 <div key={std} className="bg-white rounded-lg border border-gray-100 p-3">
                   <div className="text-xs text-gray-500 mb-1">Standard {std}</div>
                   <div className="font-semibold text-gray-900">
-                    {numScore != null ? numScore.toFixed(2) : '—'}
+                    {numScore != null ? numScore.toFixed(2) : '-'}
                   </div>
                   <div className="text-xs text-gray-400">{scoreLabel(numScore)}</div>
                 </div>

@@ -90,7 +90,7 @@ export function StandardCard({
             </>
           ) : (
             <>
-              <span className="text-3xl font-black text-gray-200">—</span>
+              <span className="text-3xl font-black text-gray-200">-</span>
               <p className="text-xs text-gray-400 mt-0.5">Not graded yet</p>
             </>
           )}

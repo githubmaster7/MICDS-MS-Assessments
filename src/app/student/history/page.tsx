@@ -133,7 +133,7 @@ export default async function StudentHistoryPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl mx-auto">
       <PageHeader
         title="My Classes"
         description="Your class history for the current school year. Scores are final once a class is completed."
@@ -141,13 +141,13 @@ export default async function StudentHistoryPage() {
 
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="font-semibold text-gray-900">Score Distribution — All Classes</h2>
+          <h2 className="font-semibold text-gray-900">Score Distribution - All Classes</h2>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">Overall grade</span>
             <span
               className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-sm font-bold ${currentLetterGrade ? gradeColorClass[currentLetterGrade] ?? 'bg-gray-400' : 'bg-gray-300'}`}
             >
-              {currentLetterGrade ?? '—'}
+              {currentLetterGrade ?? '-'}
             </span>
           </div>
         </div>
@@ -162,7 +162,7 @@ export default async function StudentHistoryPage() {
         <h2 className="font-semibold text-gray-900 mb-1">Approach to Learning</h2>
         <p className="text-xs text-gray-400 mb-4">
           Your teachers&apos; ratings of your classroom habits, pooled across all your classes.
-          Informational only — does not affect your letter grade.
+          Informational only - does not affect your letter grade.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4">

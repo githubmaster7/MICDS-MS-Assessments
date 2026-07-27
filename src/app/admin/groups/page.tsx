@@ -80,7 +80,7 @@ function currentAssignmentLabel(group: StudentGroup): string | null {
 
 function GenderBadge({ gender }: { gender: string }) {
   const map: Record<string, string> = {
-    MALE: "bg-amber-50 text-amber-700 border-amber-100",
+    MALE: "bg-blue-50 text-blue-700 border-blue-100",
     FEMALE: "bg-pink-50 text-pink-700 border-pink-100",
   };
   const labels: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
@@ -397,7 +397,7 @@ export default function StudentGroupsPage() {
               </div>
             )}
             {schoolYears.length === 0 && (
-              <p className="text-xs text-amber-600">No school years exist yet — create one before adding groups.</p>
+              <p className="text-xs text-amber-600">No school years exist yet - create one before adding groups.</p>
             )}
           </div>
           <DialogFooter>
@@ -438,7 +438,7 @@ export default function StudentGroupsPage() {
           <div className="space-y-4 py-2">
             <p className="text-sm text-gray-600">
               This permanently deletes <strong>{deleteTarget?.name}</strong> and cannot be undone. Only
-              groups with no rotation or grade history can be deleted this way — groups with real
+              groups with no rotation or grade history can be deleted this way - groups with real
               history must stay archived instead.
             </p>
             <div className="space-y-1.5">

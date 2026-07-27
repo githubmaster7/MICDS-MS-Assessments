@@ -46,7 +46,7 @@ export function GradeCard({ letterGrade, overallAverage, activityName, teacherNa
         )}
       >
         <span className="text-4xl font-black text-white tabular-nums leading-none">
-          {letterGrade ?? '—'}
+          {letterGrade ?? '-'}
         </span>
         <span className="text-[10px] text-white/70 uppercase tracking-wider mt-0.5">Grade</span>
       </div>

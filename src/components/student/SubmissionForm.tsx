@@ -10,17 +10,17 @@ import { SCORING_RUBRIC } from '@/lib/grading/rubric'
 import { ScoringRubricCard } from '@/components/shared/ScoringRubricCard'
 
 const S4_RATING_LABELS: Record<number, { short: string; long: string; color: string }> = {
-  4: { short: '4 — Exceeding', long: 'The class is better with me in it', color: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text' },
-  3: { short: '3 — Achieving', long: 'I work well with others',           color: 'border-score-achieving-border bg-score-achieving-bg text-score-achieving-text' },
-  2: { short: '2 — Developing',  long: 'I can improve on working with others', color: 'border-score-developing-border bg-score-developing-bg text-score-developing-text' },
-  1: { short: '1 — Incomplete',   long: 'The class is worse with me in it',   color: 'border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text' },
+  4: { short: '4 - Exceeding', long: 'The class is better with me in it', color: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text' },
+  3: { short: '3 - Achieving', long: 'I work well with others',           color: 'border-score-achieving-border bg-score-achieving-bg text-score-achieving-text' },
+  2: { short: '2 - Developing',  long: 'I can improve on working with others', color: 'border-score-developing-border bg-score-developing-bg text-score-developing-text' },
+  1: { short: '1 - Incomplete',   long: 'The class is worse with me in it',   color: 'border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text' },
 }
 
 const EFFORT_RATING_LABELS: Record<number, { short: string; long: string; color: string }> = {
-  4: { short: '4 — Exceeding', long: 'I consistently give my best effort in every class', color: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text' },
-  3: { short: '3 — Achieving', long: 'I give good effort in most classes', color: 'border-score-achieving-border bg-score-achieving-bg text-score-achieving-text' },
-  2: { short: '2 — Developing', long: "I sometimes hold back or don't try my best", color: 'border-score-developing-border bg-score-developing-bg text-score-developing-text' },
-  1: { short: '1 — Incomplete', long: 'I rarely put in effort during class', color: 'border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text' },
+  4: { short: '4 - Exceeding', long: 'I consistently give my best effort in every class', color: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text' },
+  3: { short: '3 - Achieving', long: 'I give good effort in most classes', color: 'border-score-achieving-border bg-score-achieving-bg text-score-achieving-text' },
+  2: { short: '2 - Developing', long: "I sometimes hold back or don't try my best", color: 'border-score-developing-border bg-score-developing-bg text-score-developing-text' },
+  1: { short: '1 - Incomplete', long: 'I rarely put in effort during class', color: 'border-score-incomplete-border bg-score-incomplete-bg text-score-incomplete-text' },
 }
 
 const SCORE_LABELS: Record<number, string> = { 1: 'Incomplete', 2: 'Developing', 3: 'Achieving', 4: 'Exceeding' }
@@ -417,7 +417,7 @@ export function SubmissionForm({
         {currentClassScores && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900">Your Scores — {activityName}</h3>
+              <h3 className="font-semibold text-gray-900">Your Scores - {activityName}</h3>
               {currentClassScores.letterGrade && (
                 <span className="text-2xl font-bold text-gray-900">{currentClassScores.letterGrade}</span>
               )}
@@ -426,7 +426,7 @@ export function SubmissionForm({
               {standardScores.map(({ label, score }) => (
                 <div key={label} className="bg-gray-50 rounded-lg p-3 text-center">
                   <div className="text-xs text-gray-400 mb-1">{label}</div>
-                  <div className="text-xl font-bold text-gray-800">{score ?? '—'}</div>
+                  <div className="text-xl font-bold text-gray-800">{score ?? '-'}</div>
                 </div>
               ))}
             </div>
@@ -474,7 +474,7 @@ export function SubmissionForm({
     <div className="space-y-5">
       {allVisitedStandardsFinalized && (
         <div className="rounded-xl bg-primary-50 border border-primary-200 px-4 py-3 text-sm text-primary-900">
-          You've already submitted this work. You can revise your answers and resubmit — just
+          You've already submitted this work. You can revise your answers and resubmit - just
           change at least one score or edit a comment for each standard you want to resubmit.
         </div>
       )}
@@ -511,7 +511,7 @@ export function SubmissionForm({
         {activeStd === 'atl' && (
           <div className="space-y-4">
             <p className="text-xs text-gray-500">
-              Rate your own effort this rotation. Your teacher rates this separately — both
+              Rate your own effort this rotation. Your teacher rates this separately - both
               ratings, plus attendance/preparedness, feed into your Approach to Learning score.
               This is informational only and does not affect your letter grade.
             </p>
@@ -528,7 +528,7 @@ export function SubmissionForm({
         {activeStd === 1 && (
           <div className="space-y-5">
             <p className="text-xs text-gray-500">
-              Rate your own performance on each skill. Your teacher will also score these — their
+              Rate your own performance on each skill. Your teacher will also score these - their
               score is what counts toward your grade.
             </p>
             {skillDefinitions.length === 0 ? (

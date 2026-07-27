@@ -20,7 +20,7 @@ export function HonorCodeCheckbox({ checked, onChange, className }: HonorCodeChe
       )}
     >
       <p className="text-xs uppercase tracking-wider font-semibold text-amber-700 mb-2">
-        Honor Code — Required
+        Honor Code - Required
       </p>
       <p className="text-sm text-gray-700 leading-relaxed mb-4 italic">
         &ldquo;{HONOR_CODE_TEXT}&rdquo;

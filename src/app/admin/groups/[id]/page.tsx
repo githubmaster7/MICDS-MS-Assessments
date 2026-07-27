@@ -449,13 +449,13 @@ export default function StudentGroupDetailPage() {
                                   <td className="px-3 py-2 text-xs text-gray-500 tabular-nums">{c.rotationNumber}</td>
                                   <td className="px-3 py-2 text-sm text-gray-900">{c.activityName}</td>
                                   <td className="px-3 py-2 text-sm text-gray-600">{c.teacherName}</td>
-                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard1Score ?? "—"}</td>
-                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard2Score ?? "—"}</td>
-                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard3Score ?? "—"}</td>
-                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard4Score ?? "—"}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard1Score ?? "-"}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard2Score ?? "-"}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard3Score ?? "-"}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-600 text-center tabular-nums">{c.standard4Score ?? "-"}</td>
                                   <td className="px-3 py-2 text-center">
                                     <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-800">
-                                      {c.letterGrade ?? "—"}
+                                      {c.letterGrade ?? "-"}
                                     </span>
                                   </td>
                                 </tr>
@@ -526,7 +526,7 @@ export default function StudentGroupDetailPage() {
             .map((h) => (
               <div key={h.id} className="bg-white border border-gray-200 rounded-xl p-4">
                 <p className="text-xs font-medium text-gray-500 mb-3">
-                  Rotation {h.rotationNumber} — {h.carouselPosition.teacherClassAssignment.activityTemplate.name} ·{" "}
+                  Rotation {h.rotationNumber} - {h.carouselPosition.teacherClassAssignment.activityTemplate.name} ·{" "}
                   {h.carouselPosition.teacherClassAssignment.teacherProfile.firstName}{" "}
                   {h.carouselPosition.teacherClassAssignment.teacherProfile.lastName}
                 </p>
@@ -630,7 +630,7 @@ export default function StudentGroupDetailPage() {
           <div className="space-y-4 py-2">
             <p className="text-sm text-gray-600">
               This permanently deletes <strong>{group.name}</strong> and cannot be undone. Only groups
-              with no rotation or grade history can be deleted this way — groups with real history
+              with no rotation or grade history can be deleted this way - groups with real history
               must stay archived instead.
             </p>
             <div className="space-y-1.5">

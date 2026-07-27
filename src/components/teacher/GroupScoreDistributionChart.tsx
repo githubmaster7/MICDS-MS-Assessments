@@ -87,14 +87,14 @@ export function GroupScoreDistributionChart({ buckets, title }: { buckets: Group
                 onMouseEnter={() => setHovered(i)}
                 onMouseLeave={() => setHovered(null)}
               >
-                <title suppressHydrationWarning>{`${SCORE_LABEL[String(s.score)]} (${s.score}): ${s.total} total — ${s.byStudent.map((c) => `${c.studentName}: ${c.count}`).join(', ')}`}</title>
+                <title suppressHydrationWarning>{`${SCORE_LABEL[String(s.score)]} (${s.score}): ${s.total} total - ${s.byStudent.map((c) => `${c.studentName}: ${c.count}`).join(', ')}`}</title>
               </path>
             ))}
           </svg>
           {hoveredBucket && (
             <div className="absolute inset-x-0 -bottom-2 trangray-y-full bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-10 min-w-[180px]">
               <div className="font-semibold mb-1">
-                {SCORE_LABEL[String(hoveredBucket.score)]} ({hoveredBucket.score}) — {hoveredBucket.total} total
+                {SCORE_LABEL[String(hoveredBucket.score)]} ({hoveredBucket.score}) - {hoveredBucket.total} total
               </div>
               {hoveredBucket.byStudent.map((c) => (
                 <div key={c.studentProfileId} className="flex justify-between gap-3 text-gray-200">

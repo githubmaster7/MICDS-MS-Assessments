@@ -265,7 +265,7 @@ export default async function GradeStudentsPage({
   }
 
   return (
-    <div className="p-6 max-w-7xl">
+    <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Grade Students"
         description={

@@ -34,7 +34,7 @@ export default async function TeacherHistoryPage() {
   })
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl mx-auto">
       <PageHeader
         title="Teaching History"
         description="Read-only. Completed rotations are locked."

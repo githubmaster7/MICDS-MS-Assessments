@@ -134,7 +134,7 @@ function RequestRow({
       )}
       {!actionable && (
         <td className="px-4 py-3 text-xs text-gray-400">
-          {req.reviewer?.email ?? "—"}
+          {req.reviewer?.email ?? "-"}
           {req.reviewedAt ? ` · ${formatDate(req.reviewedAt)}` : ""}
           {req.adminNote && (
             <p className="text-gray-500 italic mt-0.5 max-w-xs truncate">
@@ -599,7 +599,7 @@ export default function SignupRequestsPage() {
                   </p>
                   {(approveTarget?.requestedStudents ?? []).length === 0 ? (
                     <p className="text-sm text-red-600">
-                      This request has no linked children on file — approving will not grant access to any student.
+                      This request has no linked children on file - approving will not grant access to any student.
                     </p>
                   ) : (
                     <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">

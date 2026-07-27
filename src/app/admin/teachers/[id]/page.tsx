@@ -98,7 +98,7 @@ export default function TeacherDetailPage() {
                 <Link href={`/admin/groups/${c.group.id}`} className="hover:underline hover:text-primary-900">
                   {c.group.name}
                 </Link>{" "}
-                — Rotation {c.rotationNumber} · {c.activity.name} · {fmtDate(c.startDate)} – {fmtDate(c.endDate)} · {c.status}
+                - Rotation {c.rotationNumber} · {c.activity.name} · {fmtDate(c.startDate)} – {fmtDate(c.endDate)} · {c.status}
               </p>
               <ClassInstanceAnalyticsView
                 analyticsApiUrl={`/api/admin/classes/${c.id}/analytics`}

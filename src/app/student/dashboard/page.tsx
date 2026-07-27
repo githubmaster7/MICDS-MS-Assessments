@@ -116,7 +116,7 @@ export default async function StudentDashboard() {
   const visibleFeedback = currentInstance?.teacherAssessments.filter(a => a.isFeedbackStudentVisible && a.feedback) ?? []
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl mx-auto">
       <PageHeader
         variant="primary"
         title={<>Welcome, {student.firstName}!</>}
@@ -130,7 +130,7 @@ export default async function StudentDashboard() {
       {/* Overall Grade hero */}
       <div className="bg-primary-700 text-role-fg rounded-2xl p-6 mb-6 flex items-center gap-6">
         <div className="text-center">
-          <div className="text-6xl font-black">{grade ?? '—'}</div>
+          <div className="text-6xl font-black">{grade ?? '-'}</div>
           <div className="text-sm text-role-fg/80 mt-1">Overall Grade</div>
         </div>
         <div className="flex-1">
@@ -161,7 +161,7 @@ export default async function StudentDashboard() {
             ].map(({ label, score }) => (
               <div key={label} className="bg-role-fg/10 rounded-lg p-2">
                 <div className="text-xs text-role-fg/70">{label}</div>
-                <div className="text-lg font-bold">{score != null ? score.toFixed(2) : '—'}</div>
+                <div className="text-lg font-bold">{score != null ? score.toFixed(2) : '-'}</div>
               </div>
             ))}
           </div>
@@ -180,7 +180,7 @@ export default async function StudentDashboard() {
             <div className="text-xs font-medium text-gray-400 mb-1">Standard {num}</div>
             <div className="font-semibold text-gray-900 text-sm mb-2">{name}</div>
             <div className={`text-3xl font-bold ${scoreColor(score)}`}>
-              {score != null ? score.toFixed(2) : '—'}
+              {score != null ? score.toFixed(2) : '-'}
             </div>
             {score != null && (
               <div className={`text-xs mt-1 ${scoreColor(score)}`}>
@@ -228,7 +228,7 @@ export default async function StudentDashboard() {
                   ) : isActive ? (
                     <span className="text-primary-900 text-xs">In Progress</span>
                   ) : (
-                    <span className="text-gray-400 text-xs">—</span>
+                    <span className="text-gray-400 text-xs">-</span>
                   )}
                 </div>
               </div>

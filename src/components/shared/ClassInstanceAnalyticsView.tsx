@@ -119,7 +119,7 @@ export function ClassInstanceAnalyticsView({
   return (
     <div className="space-y-6">
       <section>
-        {!compact && <h2 className="text-sm font-semibold text-gray-700 mb-3">Standard Score Distribution — Whole Class</h2>}
+        {!compact && <h2 className="text-sm font-semibold text-gray-700 mb-3">Standard Score Distribution - Whole Class</h2>}
         <GroupStandardDistributionGrid distributions={data.distributions} />
       </section>
 
@@ -127,7 +127,7 @@ export function ClassInstanceAnalyticsView({
         {!compact && (
           <>
             <h2 className="text-sm font-semibold text-gray-700 mb-1">Approach to Learning</h2>
-            <p className="text-xs text-gray-400 mb-3">Informational only — does not affect the overall letter grade.</p>
+            <p className="text-xs text-gray-400 mb-3">Informational only - does not affect the overall letter grade.</p>
           </>
         )}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -146,7 +146,7 @@ export function ClassInstanceAnalyticsView({
                   <tr key={category}>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{ATL_CATEGORY_LABELS[category]}</td>
                     <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">
-                      {summary.average !== null ? summary.average.toFixed(2) : '—'}
+                      {summary.average !== null ? summary.average.toFixed(2) : '-'}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
@@ -156,7 +156,7 @@ export function ClassInstanceAnalyticsView({
                           summary.buckets.map((b) => (
                             <span
                               key={b.score}
-                              title={`Score ${b.score}: ${b.total} — ${b.byStudent.map((s) => `${s.studentName}: ${s.count}`).join(', ')}`}
+                              title={`Score ${b.score}: ${b.total} - ${b.byStudent.map((s) => `${s.studentName}: ${s.count}`).join(', ')}`}
                               className={`text-xs font-semibold px-1.5 py-0.5 rounded cursor-default ${SCORE_BADGE_COLOR[String(b.score)] ?? 'bg-gray-100 text-gray-700'}`}
                             >
                               {b.score}: {b.total}
@@ -181,7 +181,7 @@ export function ClassInstanceAnalyticsView({
               <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold text-gray-900">{row.studentName}</span>
                 <span className="text-sm font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-800">
-                  {row.letterGrade ?? '—'}
+                  {row.letterGrade ?? '-'}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5 mb-2">
@@ -190,14 +190,14 @@ export function ClassInstanceAnalyticsView({
                     key={std}
                     className={`text-xs font-medium px-1.5 py-0.5 rounded ${SCORE_BADGE_COLOR[String(row.standards[std] ?? '')] ?? 'bg-gray-100 text-gray-500'}`}
                   >
-                    {STANDARD_LABELS[std]}: {row.standards[std] ?? '—'}
+                    {STANDARD_LABELS[std]}: {row.standards[std] ?? '-'}
                   </span>
                 ))}
               </div>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {(['responsiblePrepared', 'respectfulWorks', 'effortTeacherScore'] as const).map((cat) => (
                   <span key={cat} className="text-xs px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100">
-                    {ATL_CATEGORY_SHORT_LABELS[cat]}: {row.atl[cat] ?? '—'}
+                    {ATL_CATEGORY_SHORT_LABELS[cat]}: {row.atl[cat] ?? '-'}
                   </span>
                 ))}
               </div>

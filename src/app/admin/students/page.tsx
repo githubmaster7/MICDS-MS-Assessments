@@ -55,7 +55,7 @@ const GRADE_BADGE: Record<string, string> = {
 };
 
 function fmtScore(v: string | number | null) {
-  return v === null ? "—" : Number(v).toFixed(1);
+  return v === null ? "-" : Number(v).toFixed(1);
 }
 
 export default function AdminAllStudentsPage() {
@@ -227,9 +227,9 @@ export default function AdminAllStudentsPage() {
                       <p className="text-xs text-gray-400">{s.studentId}</p>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{GRADE_LABELS[s.gradeLevel] ?? s.gradeLevel}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.currentGroup?.name ?? "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.currentActivity ?? "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{s.currentTeacher ?? "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{s.currentGroup?.name ?? "-"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{s.currentActivity ?? "-"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{s.currentTeacher ?? "-"}</td>
                     <td className="px-4 py-3 text-sm text-center tabular-nums text-gray-700">{fmtScore(s.standard1Score)}</td>
                     <td className="px-4 py-3 text-sm text-center tabular-nums text-gray-700">{fmtScore(s.standard2Score)}</td>
                     <td className="px-4 py-3 text-sm text-center tabular-nums text-gray-700">{fmtScore(s.standard3Score)}</td>

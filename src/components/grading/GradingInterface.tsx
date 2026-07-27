@@ -385,7 +385,7 @@ export function GradingInterface({
         <div className="flex-1 overflow-y-auto">
           {filtered.map((s) => {
             const liveOverall = calcOverall(data[s.id])
-            const grade = liveOverall?.letterGrade ?? s.currentGrade ?? '—'
+            const grade = liveOverall?.letterGrade ?? s.currentGrade ?? '-'
             return (
               <button
                 key={s.id}
@@ -627,7 +627,7 @@ export function GradingInterface({
                   </span>
                 )}
               </h3>
-              <p className="text-xs text-gray-400 mb-3">Informational only — does not affect the overall letter grade.</p>
+              <p className="text-xs text-gray-400 mb-3">Informational only - does not affect the overall letter grade.</p>
 
               <SkillRow
                 label="Responsible & prepared"
@@ -797,7 +797,7 @@ function GradeHistoryModal({
       >
         <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
           <h3 className="font-semibold text-gray-900">
-            {STANDARD_NAMES[standardNumber]} — Teacher Grading History
+            {STANDARD_NAMES[standardNumber]} - Teacher Grading History
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
             &times;
@@ -826,7 +826,7 @@ function GradeHistoryModal({
                 </div>
                 <div className="text-sm text-gray-700 space-y-1">
                   <div>
-                    Score: {entry.beforeValue?.score ?? '—'} → <strong>{entry.afterValue?.score ?? '—'}</strong>
+                    Score: {entry.beforeValue?.score ?? '-'} → <strong>{entry.afterValue?.score ?? '-'}</strong>
                   </div>
                   {entry.beforeValue?.feedback !== entry.afterValue?.feedback && (
                     <div>
@@ -989,7 +989,7 @@ function HistoryModal({
       >
         <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
           <h3 className="font-semibold text-gray-900">
-            {STANDARD_NAMES[standardNumber]} — Submission History
+            {STANDARD_NAMES[standardNumber]} - Submission History
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
             &times;

@@ -102,7 +102,7 @@ export function StudentHistoryModal({
       >
         <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
           <h3 className="font-semibold text-gray-900">
-            {studentName} — {title}
+            {studentName} - {title}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
             &times;
@@ -210,7 +210,7 @@ function GradingTimeline({ entries }: { entries: GradeHistoryEntry[] }) {
           </div>
           <div className="text-sm text-gray-700 space-y-1">
             <div>
-              Score: {entry.beforeValue?.score ?? '—'} → <strong>{entry.afterValue?.score ?? '—'}</strong>
+              Score: {entry.beforeValue?.score ?? '-'} → <strong>{entry.afterValue?.score ?? '-'}</strong>
             </div>
             {entry.beforeValue?.feedback !== entry.afterValue?.feedback && (
               <div>

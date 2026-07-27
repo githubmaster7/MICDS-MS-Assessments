@@ -115,10 +115,10 @@ function LogRow({ log }: { log: AuditLog }) {
         </td>
         <td className="px-4 py-3"><ActionBadge action={log.action} /></td>
         <td className="px-4 py-3">
-          <p className="text-sm text-gray-700">{log.targetLabel ?? "—"}</p>
+          <p className="text-sm text-gray-700">{log.targetLabel ?? "-"}</p>
           <p className="text-xs text-gray-400">{log.targetType}</p>
         </td>
-        <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{log.ipAddress ?? "—"}</td>
+        <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{log.ipAddress ?? "-"}</td>
         <td className="px-4 py-3">
           {hasDetail && (
             <button

@@ -58,7 +58,7 @@ export function FeedbackCard({ items, className }: FeedbackCardProps) {
             )}
           >
             <p className="text-[10px] uppercase tracking-wider font-semibold mb-1 opacity-70">
-              Standard {item.standardNumber} — {STD_NAMES[item.standardNumber] ?? ''}
+              Standard {item.standardNumber} - {STD_NAMES[item.standardNumber] ?? ''}
             </p>
             <p className="text-sm leading-relaxed">{item.feedback}</p>
           </div>

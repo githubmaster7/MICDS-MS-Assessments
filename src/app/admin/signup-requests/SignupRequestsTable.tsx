@@ -104,7 +104,7 @@ export function SignupRequestsTable({
                     {r.status}
                   </span>
                   {r.reviewNotes && (
-                    <span className="ml-2 text-gray-400 text-xs">— {r.reviewNotes}</span>
+                    <span className="ml-2 text-gray-400 text-xs">- {r.reviewNotes}</span>
                   )}
                 </td>
                 {mode === 'pending' && (

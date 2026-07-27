@@ -182,7 +182,7 @@ export default async function ParentDashboard({
   const grade = cumulative?.letterGrade
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl mx-auto">
       <PageHeader
         variant="primary"
         title="Parent Dashboard"
@@ -210,7 +210,7 @@ export default async function ParentDashboard({
 
       <div className="bg-primary-700 text-role-fg rounded-2xl p-6 mb-6 flex items-center gap-6">
         <div className="text-center">
-          <div className="text-6xl font-black">{grade ?? '—'}</div>
+          <div className="text-6xl font-black">{grade ?? '-'}</div>
           <div className="text-sm text-role-fg/80 mt-1">Overall Grade</div>
         </div>
         <div className="flex-1">
@@ -231,7 +231,7 @@ export default async function ParentDashboard({
             ].map(({ label, score }) => (
               <div key={label} className="bg-role-fg/10 rounded-lg p-2">
                 <div className="text-xs text-role-fg/70">{label}</div>
-                <div className="text-lg font-bold">{score != null ? score.toFixed(2) : '—'}</div>
+                <div className="text-lg font-bold">{score != null ? score.toFixed(2) : '-'}</div>
               </div>
             ))}
           </div>
@@ -239,7 +239,7 @@ export default async function ParentDashboard({
       </div>
 
       <div className="mb-6">
-        <h2 className="font-semibold text-gray-900 mb-1">Score Distribution — All Classes</h2>
+        <h2 className="font-semibold text-gray-900 mb-1">Score Distribution - All Classes</h2>
         <p className="text-xs text-gray-400 mb-4">
           Every score {student.firstName}&apos;s teachers have given, by standard, pooled across all classes.
           Hover a slice (or a legend row) to see which classes contributed it.
@@ -250,7 +250,7 @@ export default async function ParentDashboard({
       <div className="mb-6">
         <h2 className="font-semibold text-gray-900 mb-1">Approach to Learning</h2>
         <p className="text-xs text-gray-400 mb-4">
-          Teachers&apos; ratings of classroom habits, pooled across all classes. Informational only — does not affect the letter grade.
+          Teachers&apos; ratings of classroom habits, pooled across all classes. Informational only - does not affect the letter grade.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-primary-200 p-4">

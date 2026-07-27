@@ -97,7 +97,7 @@ function defaultDates() {
 }
 
 function GenderDot({ gender }: { gender: string }) {
-  const colors: Record<string, string> = { MALE: "bg-amber-400", FEMALE: "bg-pink-400" };
+  const colors: Record<string, string> = { MALE: "bg-blue-400", FEMALE: "bg-pink-400" };
   return <span className={`inline-block h-2 w-2 rounded-full ${colors[gender] ?? "bg-gray-400"}`} title={GENDER_LABELS[gender] ?? gender} />;
 }
 
@@ -450,7 +450,7 @@ export default function CarouselPage() {
       <section aria-labelledby="positions-heading">
         <div className="flex items-center justify-between mb-3">
           <h2 id="positions-heading" className="text-sm font-semibold text-gray-700">Carousel Positions</h2>
-          <p className="text-xs text-gray-400">Each group has its own independent rotation order — check the groups you want to include in a rotation.</p>
+          <p className="text-xs text-gray-400">Each group has its own independent rotation order - check the groups you want to include in a rotation.</p>
         </div>
         {loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -589,7 +589,7 @@ export default function CarouselPage() {
         <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle>Full carousel plan</DialogTitle></DialogHeader>
           <p className="text-xs text-gray-500 -mt-2">
-            Every group&apos;s scheduled teacher/activity for each rotation this school year —
+            Every group&apos;s scheduled teacher/activity for each rotation this school year -
             already-completed rotations aren&apos;t shown, only the current and upcoming ones.
           </p>
           <div className="flex-1 overflow-auto">
@@ -639,7 +639,7 @@ export default function CarouselPage() {
                                       <span className="block text-xs text-gray-400">{s.teacher}</span>
                                     </>
                                   ) : (
-                                    <span className="text-gray-300">—</span>
+                                    <span className="text-gray-300">-</span>
                                   )}
                                 </td>
                               );
@@ -687,7 +687,7 @@ export default function CarouselPage() {
                         ) : (
                           <>
                             <td className="px-3 py-2.5 text-gray-600">
-                              <span className="block">{row.currentTeacher ?? "—"}</span>
+                              <span className="block">{row.currentTeacher ?? "-"}</span>
                               <span className="text-xs text-gray-400">{row.currentActivity ?? "Not yet started"}</span>
                             </td>
                             <td className="px-3 py-2.5 text-gray-800">
@@ -724,7 +724,7 @@ export default function CarouselPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="text-sm text-gray-600">
-              This will advance the following group{confirmGroupIds.length !== 1 ? "s" : ""} to their next carousel position — each group's own rotation order, independent of the others. This action is logged.
+              This will advance the following group{confirmGroupIds.length !== 1 ? "s" : ""} to their next carousel position - each group's own rotation order, independent of the others. This action is logged.
               <ul className="list-disc list-inside mt-1.5 text-gray-700">
                 {confirmGroupIds.map((gid) => {
                   const g = groups.find((gr) => gr.id === gid);
@@ -848,7 +848,7 @@ export default function CarouselPage() {
                     <li key={id} className="flex items-center gap-2 text-sm bg-white border border-gray-100 rounded-lg px-3 py-1.5">
                       <span className="text-xs font-semibold text-gray-400 w-4">{i + 1}</span>
                       <span className="flex-1 truncate">
-                        {opt?.activityTemplate.name} — {opt?.teacherProfile.firstName} {opt?.teacherProfile.lastName}
+                        {opt?.activityTemplate.name} - {opt?.teacherProfile.firstName} {opt?.teacherProfile.lastName}
                       </span>
                       <button onClick={() => toggleSetupSelection(id)} aria-label={`Remove ${opt?.activityTemplate.name}`}>
                         <X className="h-3.5 w-3.5 text-gray-400 hover:text-gray-700" />
@@ -876,7 +876,7 @@ export default function CarouselPage() {
                         className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${selected ? "bg-primary-50" : ""}`}
                       >
                         <span className="flex-1 truncate">
-                          {opt.activityTemplate.name} — {opt.teacherProfile.firstName} {opt.teacherProfile.lastName}
+                          {opt.activityTemplate.name} - {opt.teacherProfile.firstName} {opt.teacherProfile.lastName}
                         </span>
                         {selected ? <X className="h-3.5 w-3.5 text-primary-900 shrink-0" /> : <Plus className="h-3.5 w-3.5 text-gray-400 shrink-0" />}
                       </button>

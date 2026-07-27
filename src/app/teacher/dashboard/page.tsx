@@ -112,7 +112,7 @@ export default async function TeacherDashboard() {
   })
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl mx-auto">
       <PageHeader
         variant="primary"
         title={<>Welcome, {teacher.firstName}!</>}
@@ -148,7 +148,7 @@ export default async function TeacherDashboard() {
                 <Link href={`/teacher/mass-grading?instanceId=${card.id}`} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-primary-300 hover:shadow-sm transition-all">
                   <BarChart3 className="h-6 w-6 mb-2 text-primary-900" aria-hidden="true" />
                   <div className="font-semibold text-gray-900">Year at a Glance</div>
-                  <div className="text-sm text-gray-500 mt-0.5">{card.groupName} — all rotations</div>
+                  <div className="text-sm text-gray-500 mt-0.5">{card.groupName} - all rotations</div>
                 </Link>
               </div>
             </div>
@@ -188,7 +188,7 @@ export default async function TeacherDashboard() {
             Past Classes
             {pastTotal > pastInstances.length && (
               <span className="font-normal text-gray-400 text-sm ml-2">
-                (showing {pastInstances.length} of {pastTotal} — see Teaching History for all)
+                (showing {pastInstances.length} of {pastTotal} - see Teaching History for all)
               </span>
             )}
           </h3>

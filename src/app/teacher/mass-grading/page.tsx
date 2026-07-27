@@ -139,12 +139,12 @@ export default async function MassGradingPage({
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Year at a Glance"
         description={
           <>
-            {activeInstance.studentGroup.name} — All students × all class rotations
+            {activeInstance.studentGroup.name} - All students × all class rotations
           </>
         }
       />
@@ -235,15 +235,15 @@ export default async function MassGradingPage({
                             {snap.letterGrade}
                           </span>
                         ) : isActive ? (
-                          <span className="text-primary-400">—</span>
+                          <span className="text-primary-400">-</span>
                         ) : (
-                          <span className="text-gray-300">—</span>
+                          <span className="text-gray-300">-</span>
                         )}
                       </td>
                     )
                   })}
                   <td className="px-3 py-2 border border-gray-200 text-center sticky right-0 bg-white z-10 font-bold text-gray-900">
-                    {latestSnap?.letterGrade ?? '—'}
+                    {latestSnap?.letterGrade ?? '-'}
                   </td>
                 </tr>
               )

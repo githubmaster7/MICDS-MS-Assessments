@@ -11,7 +11,7 @@ const COMING_SOON_SECTIONS = [
     icon: GraduationCap,
     title: "Student grade history",
     description:
-      "Every student's past grades across each class they've taken, for any school year — not just the current one.",
+      "Every student's past grades across each class they've taken, for any school year - not just the current one.",
   },
   {
     icon: Users2,

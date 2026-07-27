@@ -75,7 +75,7 @@ export default function AdminAllClassesPage() {
         title="All Classes"
         description={
           <>
-            Every scheduled class instance across every student group and teacher — current, past,
+            Every scheduled class instance across every student group and teacher - current, past,
             and upcoming rotations. Read-only; grading happens on each teacher&apos;s dashboard.
           </>
         }

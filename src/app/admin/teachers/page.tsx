@@ -94,13 +94,13 @@ const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
 function activityTemplateLabel(c: { name: string; gender: string | null; gradeLevel: string | null }): string {
   const gender = c.gender ? GENDER_LABELS[c.gender] ?? c.gender : "Any";
   const grade = c.gradeLevel ? `Grade ${GRADE_LABELS[c.gradeLevel]}` : "Any grade";
-  return `${c.name} — ${gender} · ${grade}`;
+  return `${c.name} - ${gender} · ${grade}`;
 }
 
 function GenderBadge({ gender }: { gender: string | null }) {
   if (!gender) return <span className="text-xs text-gray-400">Any</span>;
   const map: Record<string, string> = {
-    MALE: "bg-amber-50 text-amber-700 border-amber-100",
+    MALE: "bg-blue-50 text-blue-700 border-blue-100",
     FEMALE: "bg-pink-50 text-pink-700 border-pink-100",
   };
   return (
@@ -208,7 +208,7 @@ export default function AdminTeachersPage() {
               description: `"${effectiveClassName}" was added, and its Standard 1-4 grading content was applied automatically from the base rubric.`,
             }
           : {
-              title: "Class added — no base grading content found",
+              title: "Class added - no base grading content found",
               description: `"${effectiveClassName}" was added, but there's no reference rubric for that name, so grading forms will be empty until content is added.`,
             },
       );
