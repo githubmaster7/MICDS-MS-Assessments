@@ -188,7 +188,17 @@ export default function AdminTeachersPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Failed to create class");
-      toast({ title: "Class added", description: `"${classForm.name}" was added.` });
+      toast(
+        data.rubricApplied
+          ? {
+              title: "Class added",
+              description: `"${classForm.name}" was added, and its Standard 1-4 grading content was applied automatically from the base rubric.`,
+            }
+          : {
+              title: "Class added — no base grading content found",
+              description: `"${classForm.name}" was added, but there's no reference rubric for that name, so grading forms will be empty until content is added.`,
+            },
+      );
       setCreateClassOpen(false);
       setClassForm({ name: "", description: "", gender: "ANY", gradeLevel: "ANY" });
       fetchAll();

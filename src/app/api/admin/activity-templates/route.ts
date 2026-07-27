@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { createAuditLog, AuditAction } from '@/lib/audit'
 import { Role, GradeLevel, Gender } from '@prisma/client'
 import { z } from 'zod'
 import { apiLimiter, checkRateLimit, userRateLimitKey, ipRateLimitKey } from '@/lib/rate-limit'
+import { seedActivityRubric } from '@/lib/skills/seed-rubric'
 
 const CreateActivityTemplateSchema = z.object({
   name: z.string().min(1).max(100),
@@ -87,13 +88,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const ip = ipRateLimitKey(req)
 
-  const activityTemplate = await db.activityTemplate.create({
-    data: {
-      name,
-      description,
-      gender: gender as Gender | undefined,
-      gradeLevel: gradeLevel as GradeLevel | undefined,
-    },
+  // Creating the class and (when its name matches the base question bank —
+  // e.g. a second "Flag Football" for a different grade/gender) populating
+  // its Standard 1-4 grading content happen in one transaction, so a class
+  // never ends up half-created if the rubric step fails partway through.
+  const { activityTemplate, rubricApplied } = await db.$transaction(async (tx: TxClient) => {
+    const created = await tx.activityTemplate.create({
+      data: {
+        name,
+        description,
+        gender: gender as Gender | undefined,
+        gradeLevel: gradeLevel as GradeLevel | undefined,
+      },
+    })
+    const rubric = await seedActivityRubric(tx, created.id, name)
+    return { activityTemplate: created, rubricApplied: rubric.applied }
   })
 
   await createAuditLog({
@@ -103,10 +112,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     targetType: 'ActivityTemplate',
     targetId: activityTemplate.id,
     targetLabel: name,
-    afterValue: { name, description, gender, gradeLevel },
+    afterValue: { name, description, gender, gradeLevel, rubricApplied },
     ipAddress: ip,
     userAgent: req.headers.get('user-agent') ?? undefined,
   })
 
-  return NextResponse.json({ data: activityTemplate }, { status: 201 })
+  return NextResponse.json({ data: activityTemplate, rubricApplied }, { status: 201 })
 }

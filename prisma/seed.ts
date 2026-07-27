@@ -6,13 +6,9 @@ import {
   AccountStatus,
   RotationStatus,
   SubmissionStatus,
-  SkillType,
 } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { ACTIVITY_SKILLS } from '../src/lib/skills/definitions'
-import { STANDARD2_QUESTIONS } from '../src/lib/skills/standard2-questions'
-import { STANDARD3_QUESTIONS } from '../src/lib/skills/standard3-questions'
-import { STANDARD4_QUESTIONS } from '../src/lib/skills/standard4-questions'
+import { seedActivityRubric } from '../src/lib/skills/seed-rubric'
 
 const db = new PrismaClient()
 
@@ -479,12 +475,6 @@ async function main() {
   // submissions work identically for the full nine-activity carousel.
   const athDevId = activityMap['Athletic Development']
 
-  const QUESTION_SETS_BY_STANDARD: Record<number, Record<string, { promptText: string; displayOrder: number }[]>> = {
-    2: STANDARD2_QUESTIONS,
-    3: STANDARD3_QUESTIONS,
-    4: STANDARD4_QUESTIONS,
-  }
-
   // skillDefMap/promptDefMap are keyed by "<activityName>|<skillName>" and
   // "<activityName>|<standardNumber>-<displayOrder>" so the sample-grade
   // section below can look up real IDs by name instead of guessing them.
@@ -492,79 +482,12 @@ async function main() {
   const promptDefMap: Record<string, string> = {}
 
   for (const [activityName, activityId] of Object.entries(activityMap)) {
-    // Standard 1 — fundamental + specific skills
-    const foundRv1 = await db.rubricVersion.findFirst({
-      where: { activityTemplateId: activityId, standardNumber: 1, version: 1 },
-    })
-    const rv1 = foundRv1 ?? await db.rubricVersion.create({
-      data: {
-        activityTemplateId: activityId,
-        standardNumber: 1,
-        activityName,
-        version: 1,
-        isActive: true,
-      },
-    })
-
-    const skills = ACTIVITY_SKILLS[activityName]
-    if (skills) {
-      // displayOrder is unique per rubricVersionId in the schema, so it must
-      // be renumbered sequentially across both categories here — skillType
-      // (not displayOrder) is what the UI groups fundamental vs. specific by.
-      const allSkills = [
-        ...skills.fundamental.map((s) => ({ ...s, type: SkillType.FUNDAMENTAL })),
-        ...skills.specific.map((s) => ({ ...s, type: SkillType.SPECIFIC })),
-      ]
-      for (let i = 0; i < allSkills.length; i++) {
-        const skill = allSkills[i]
-        const displayOrder = i + 1
-        const found = await db.skillDefinition.findFirst({
-          where: { rubricVersionId: rv1.id, skillName: skill.name },
-        })
-        const sd = found ?? await db.skillDefinition.create({
-          data: {
-            rubricVersionId: rv1.id,
-            skillType: skill.type,
-            skillName: skill.name,
-            displayOrder,
-            isActive: true,
-          },
-        })
-        skillDefMap[`${activityName}|${skill.name}`] = sd.id
-      }
+    const result = await seedActivityRubric(db, activityId, activityName)
+    for (const [skillName, id] of Object.entries(result.skillIdsByName)) {
+      skillDefMap[`${activityName}|${skillName}`] = id
     }
-
-    // Standards 2-4 — concept-question prompts
-    for (const stdNum of [2, 3, 4]) {
-      const foundRvOther = await db.rubricVersion.findFirst({
-        where: { activityTemplateId: activityId, standardNumber: stdNum, version: 1 },
-      })
-      const rvOther = foundRvOther ?? await db.rubricVersion.create({
-        data: {
-          activityTemplateId: activityId,
-          standardNumber: stdNum,
-          activityName,
-          version: 1,
-          isActive: true,
-        },
-      })
-
-      const questions = QUESTION_SETS_BY_STANDARD[stdNum][activityName] ?? []
-      for (const q of questions) {
-        const found = await db.promptDefinition.findFirst({
-          where: { rubricVersionId: rvOther.id, standardNumber: stdNum, displayOrder: q.displayOrder },
-        })
-        const pd = found ?? await db.promptDefinition.create({
-          data: {
-            rubricVersionId: rvOther.id,
-            standardNumber: stdNum,
-            promptText: q.promptText,
-            displayOrder: q.displayOrder,
-            isActive: true,
-          },
-        })
-        promptDefMap[`${activityName}|${stdNum}-${q.displayOrder}`] = pd.id
-      }
+    for (const [stdOrder, id] of Object.entries(result.promptIdsByStdOrder)) {
+      promptDefMap[`${activityName}|${stdOrder}`] = id
     }
   }
   log('Rubric versions, skill definitions, and prompt definitions created for all 9 activities')
