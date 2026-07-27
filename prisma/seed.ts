@@ -920,6 +920,7 @@ async function main() {
       { std: 4, score: 3.0, feedback: 'Good spirit. Called fouls accurately and accepted calls graciously.', visible: true },
     ]
 
+    const assessmentByStd2A: Partial<Record<number, { id: string }>> = {}
     for (const s of stdScores) {
       const found = await db.teacherAssessment.findUnique({
         where: {
@@ -928,13 +929,71 @@ async function main() {
           },
         },
       })
-      found || await db.teacherAssessment.create({
+      assessmentByStd2A[s.std] = found ?? await db.teacherAssessment.create({
         data: {
           teacherProfileId: michaelId, historicalClassInstanceId: hci2AId, studentProfileId: alexId,
           standardNumber: s.std, score: s.score, feedback: s.feedback, isFeedbackStudentVisible: s.visible,
         },
       })
     }
+
+    // Item-level scores backing the aggregates above, so the Class Analytics
+    // distribution charts have something to show for this rotation too (not
+    // just the roster's aggregate score/letter grade).
+    const ta2s1 = assessmentByStd2A[1]!
+    const skillScoreData2: Array<{ name: string; score: number }> = [
+      { name: 'Elbow Side Plank', score: 3 },
+      { name: 'Lateral Leap', score: 3 },
+      { name: 'Throwing', score: 4 },
+      { name: 'Catching', score: 2 },
+      { name: 'Defensive Skill', score: 2 },
+    ]
+    for (const ss of skillScoreData2) {
+      const sdId = skillDefMap[`Ultimate Frisbee|${ss.name}`]
+      if (!sdId) continue
+      await db.teacherSkillScore.upsert({
+        where: { teacherAssessmentId_skillDefinitionId: { teacherAssessmentId: ta2s1.id, skillDefinitionId: sdId } },
+        update: {},
+        create: { teacherAssessmentId: ta2s1.id, skillDefinitionId: sdId, score: ss.score },
+      })
+    }
+
+    const ta2s2 = assessmentByStd2A[2]!
+    const std2Scores2 = [3, 2]
+    for (let i = 0; i < std2Scores2.length; i++) {
+      const pdId = promptDefMap[`Ultimate Frisbee|2-${i + 1}`]
+      if (!pdId) continue
+      await db.teacherPromptScore.upsert({
+        where: { teacherAssessmentId_promptDefinitionId: { teacherAssessmentId: ta2s2.id, promptDefinitionId: pdId } },
+        update: {},
+        create: { teacherAssessmentId: ta2s2.id, promptDefinitionId: pdId, score: std2Scores2[i] },
+      })
+    }
+
+    const ta2s3 = assessmentByStd2A[3]!
+    const pd2_31Id = promptDefMap['Ultimate Frisbee|3-1']
+    if (pd2_31Id) {
+      await db.teacherPromptScore.upsert({
+        where: { teacherAssessmentId_promptDefinitionId: { teacherAssessmentId: ta2s3.id, promptDefinitionId: pd2_31Id } },
+        update: {},
+        create: { teacherAssessmentId: ta2s3.id, promptDefinitionId: pd2_31Id, score: 3 },
+      })
+    }
+
+    const ta2s4 = assessmentByStd2A[4]!
+    const pd2_41Id = promptDefMap['Ultimate Frisbee|4-1']
+    if (pd2_41Id) {
+      await db.teacherPromptScore.upsert({
+        where: { teacherAssessmentId_promptDefinitionId: { teacherAssessmentId: ta2s4.id, promptDefinitionId: pd2_41Id } },
+        update: {},
+        create: { teacherAssessmentId: ta2s4.id, promptDefinitionId: pd2_41Id, score: 3 },
+      })
+    }
+    await db.teacherStandard4Rating.upsert({
+      where: { teacherAssessmentId: ta2s4.id },
+      update: {},
+      create: { teacherAssessmentId: ta2s4.id, rating: 2 },
+    })
 
     const foundSnap2 = await db.gradeCalculationSnapshot.findFirst({
       where: { studentProfileId: alexId, historicalClassInstanceId: hci2AId },
