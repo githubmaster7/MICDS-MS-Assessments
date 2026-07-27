@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { RotationStatus } from '@prisma/client'
 import Link from 'next/link'
-import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution, averageFromBuckets } from '@/lib/analytics/score-distribution'
+import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution, getStudentCumulativeStandardAverages } from '@/lib/analytics/score-distribution'
 import { StandardDistributionGrid, ScoreDistributionChart } from '@/components/student/ScoreDistributionChart'
 import { calculateCumulativeGrade } from '@/lib/grading/conversion'
 import { formatDate } from '@/lib/utils'
@@ -167,17 +167,12 @@ export default async function ParentDashboard({
   const scoreDistribution = await getStudentStandardItemDistribution(student.id)
   const atlDistribution = await getStudentApproachToLearningDistribution(student.id)
 
-  // Overall Grade is cumulative — every score pooled across every class this
-  // student has been in this year (the same numbers behind the "Score
-  // Distribution — All Classes" chart below), NOT just whichever class most
-  // recently had a grade calculated. Each individual class still shows its
-  // own isolated grade in "Class History" below.
-  const standardAverages = {
-    s1: averageFromBuckets(scoreDistribution[1]),
-    s2: averageFromBuckets(scoreDistribution[2]),
-    s3: averageFromBuckets(scoreDistribution[3]),
-    s4: averageFromBuckets(scoreDistribution[4]),
-  }
+  // Overall Grade is cumulative — every class's own rubric-converted
+  // standard score, averaged across every class this student has been in
+  // this year, NOT just whichever class most recently had a grade
+  // calculated. Each individual class still shows its own isolated grade in
+  // "Class History" below.
+  const standardAverages = await getStudentCumulativeStandardAverages(student.id)
   const cumulative = calculateCumulativeGrade(standardAverages)
   const grade = cumulative?.letterGrade
 

@@ -76,6 +76,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     id: r.id,
     email: r.user.email,
     requestedRole: r.requestedRole,
+    requestedName: r.requestedName,
     status: r.status,
     createdAt: r.createdAt,
     adminNote: r.adminNote,

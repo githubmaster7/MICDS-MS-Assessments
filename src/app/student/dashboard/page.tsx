@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import Link from 'next/link'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { getStudentStandardItemDistribution, averageFromBuckets } from '@/lib/analytics/score-distribution'
+import { getStudentCumulativeStandardAverages } from '@/lib/analytics/score-distribution'
 import { calculateCumulativeGrade } from '@/lib/grading/conversion'
 
 
@@ -89,13 +89,7 @@ export default async function StudentDashboard() {
   // My Classes page), NOT just the currently-active class's own grade. Each
   // individual class still gets its own isolated grade below, in "My Classes
   // This Year".
-  const distribution = await getStudentStandardItemDistribution(student.id)
-  const standardAverages = {
-    s1: averageFromBuckets(distribution[1]),
-    s2: averageFromBuckets(distribution[2]),
-    s3: averageFromBuckets(distribution[3]),
-    s4: averageFromBuckets(distribution[4]),
-  }
+  const standardAverages = await getStudentCumulativeStandardAverages(student.id)
   const cumulative = calculateCumulativeGrade(standardAverages)
   const grade = cumulative?.letterGrade
 

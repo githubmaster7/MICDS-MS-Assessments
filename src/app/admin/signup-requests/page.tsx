@@ -46,6 +46,7 @@ interface SignupRequest {
   id: string;
   email: string;
   requestedRole: string;
+  requestedName?: string | null;
   status: string;
   createdAt: string;
   adminNote?: string | null;
@@ -210,10 +211,13 @@ export default function SignupRequestsPage() {
 
   React.useEffect(() => {
     if (approveTarget) {
+      // Pre-fill from the name the requester typed at signup — informational
+      // only, the admin can still edit it before approving.
+      const [firstGuess, ...restGuess] = (approveTarget.requestedName ?? "").trim().split(/\s+/);
       setApproveRole("");
       setApproveNote("");
-      setApproveFirstName("");
-      setApproveLastName("");
+      setApproveFirstName(firstGuess ?? "");
+      setApproveLastName(restGuess.join(" "));
       setApproveGradeLevel("");
       setApproveGender("");
       setApproveStudentId("");
@@ -497,6 +501,9 @@ export default function SignupRequestsPage() {
             <div className="space-y-4 py-2">
               <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm">
                 <p className="font-medium text-gray-900">{approveTarget.email}</p>
+                {approveTarget.requestedName && (
+                  <p className="text-xs text-gray-500 mt-0.5">Requested as &quot;{approveTarget.requestedName}&quot;</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="approve-role">Role</Label>

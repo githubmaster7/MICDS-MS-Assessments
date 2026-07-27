@@ -25,13 +25,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ data: [] })
   }
 
+  // Split on whitespace so a full-name search like "Alex Thompson" matches
+  // students whose first/last name are in separate fields, not just a single
+  // field that happens to contain the entire typed string.
+  const tokens = search.split(/\s+/).filter(Boolean)
+
   const students = await db.studentProfile.findMany({
     where: {
-      OR: [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { studentId: { contains: search, mode: 'insensitive' } },
-      ],
+      AND: tokens.map((token) => ({
+        OR: [
+          { firstName: { contains: token, mode: 'insensitive' } },
+          { lastName: { contains: token, mode: 'insensitive' } },
+          { studentId: { contains: token, mode: 'insensitive' } },
+        ],
+      })),
     },
     take: MAX_RESULTS,
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],

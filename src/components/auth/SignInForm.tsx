@@ -20,11 +20,23 @@ const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// Short, library/middleware-level error codes (never shown as-is - mapped to
+// a friendly message). Anything else reaching resolveErrorMessage() is
+// assumed to be one of the full human-readable sentences authorize() throws
+// in src/lib/auth.ts (e.g. "Your account is pending administrator
+// approval."), which next-auth passes through verbatim as the error value -
+// those are already safe and correct to show directly.
 const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Incorrect email or password. Please try again.",
   AccountDisabled: "Your account has been disabled. Contact your administrator.",
   default: "Something went wrong. Please try again.",
 };
+
+function resolveErrorMessage(code: string | null | undefined): string | null {
+  if (!code) return null;
+  if (code in ERROR_MESSAGES) return ERROR_MESSAGES[code];
+  return code;
+}
 
 export function SignInForm() {
   const router = useRouter();
@@ -40,7 +52,7 @@ export function SignInForm() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [serverError, setServerError] = React.useState<string | null>(
-    errorParam ? (ERROR_MESSAGES[errorParam] ?? ERROR_MESSAGES.default) : null
+    resolveErrorMessage(errorParam)
   );
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -73,9 +85,7 @@ export function SignInForm() {
       });
 
       if (result?.error) {
-        setServerError(
-          ERROR_MESSAGES[result.error] ?? ERROR_MESSAGES.default
-        );
+        setServerError(resolveErrorMessage(result.error));
         return;
       }
 

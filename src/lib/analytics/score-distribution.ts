@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import type { CumulativeGradeInput } from '@/lib/grading/conversion'
 
 /**
  * Per-standard distribution of individual teacher-rated items for one
@@ -116,6 +117,53 @@ export async function getStudentStandardItemDistribution(
     2: toBuckets(perStandard[2]),
     3: toBuckets(perStandard[3]),
     4: toBuckets(perStandard[4]),
+  }
+}
+
+/**
+ * The student's cross-class standard averages for use with
+ * calculateCumulativeGrade — one average per standard, taken from each
+ * class's own rubric-converted GradeCalculationSnapshot score rather than a
+ * raw mean of individual item scores. A raw item mean does not equal the
+ * official rollup (see calculateStandardScore's green-percent rubric), so
+ * averaging item scores directly would produce a cumulative grade that
+ * disagrees with a student's own single-class grade for identical
+ * performance. Only the latest snapshot per class instance is used.
+ */
+export async function getStudentCumulativeStandardAverages(
+  studentProfileId: string,
+): Promise<CumulativeGradeInput> {
+  const snapshots = await db.gradeCalculationSnapshot.findMany({
+    where: { studentProfileId },
+    orderBy: { calculatedAt: 'desc' },
+    select: {
+      historicalClassInstanceId: true,
+      standard1Score: true,
+      standard2Score: true,
+      standard3Score: true,
+      standard4Score: true,
+    },
+  })
+
+  const latestByInstance = new Map<string, (typeof snapshots)[number]>()
+  for (const s of snapshots) {
+    if (!latestByInstance.has(s.historicalClassInstanceId)) {
+      latestByInstance.set(s.historicalClassInstanceId, s)
+    }
+  }
+  const list = [...latestByInstance.values()]
+
+  const average = (values: (number | null)[]): number | null => {
+    const present = values.filter((v): v is number => v != null)
+    if (present.length === 0) return null
+    return present.reduce((a, b) => a + b, 0) / present.length
+  }
+
+  return {
+    s1: average(list.map((s) => (s.standard1Score != null ? Number(s.standard1Score) : null))),
+    s2: average(list.map((s) => (s.standard2Score != null ? Number(s.standard2Score) : null))),
+    s3: average(list.map((s) => (s.standard3Score != null ? Number(s.standard3Score) : null))),
+    s4: average(list.map((s) => (s.standard4Score != null ? Number(s.standard4Score) : null))),
   }
 }
 

@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { RotationStatus } from '@prisma/client'
 import Link from 'next/link'
-import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution, averageFromBuckets } from '@/lib/analytics/score-distribution'
+import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution, getStudentCumulativeStandardAverages } from '@/lib/analytics/score-distribution'
 import { StandardDistributionGrid, ScoreDistributionChart } from '@/components/student/ScoreDistributionChart'
 import { calculateCumulativeGrade } from '@/lib/grading/conversion'
 import { formatDate } from '@/lib/utils'
@@ -112,17 +112,15 @@ export default async function StudentHistoryPage() {
   const scoreDistribution = await getStudentStandardItemDistribution(student.id)
   const atlDistribution = await getStudentApproachToLearningDistribution(student.id)
 
-  // Same cumulative grade the dashboard hero shows — derived from the exact
-  // same pooled item distribution as the Score Distribution chart below, so
-  // this badge and that chart can never disagree with each other. This is
-  // deliberately NOT any single class's own grade (each class's own grade is
-  // shown per-row below instead) — it's the average across every class.
-  const cumulativeGrade = calculateCumulativeGrade({
-    s1: averageFromBuckets(scoreDistribution[1]),
-    s2: averageFromBuckets(scoreDistribution[2]),
-    s3: averageFromBuckets(scoreDistribution[3]),
-    s4: averageFromBuckets(scoreDistribution[4]),
-  })
+  // Same cumulative grade the dashboard hero shows — derived from each
+  // class's own rubric-converted standard score (not the raw item buckets
+  // the Score Distribution chart below uses), so this badge always agrees
+  // with each class's own letter grade shown per-row. This is deliberately
+  // NOT any single class's own grade in isolation — it's the average across
+  // every class.
+  const cumulativeGrade = calculateCumulativeGrade(
+    await getStudentCumulativeStandardAverages(student.id),
+  )
   const currentLetterGrade = cumulativeGrade?.letterGrade ?? null
 
   const gradeColorClass: Record<string, string> = {

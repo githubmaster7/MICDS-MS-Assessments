@@ -11,6 +11,7 @@ import { AccountStatus, Role } from '@prisma/client'
 
 const SignupSchema = z
   .object({
+    name: z.string().trim().min(2).max(80).optional(),
     email: z
       .string()
       .email('Invalid email address.')
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     )
   }
 
-  const { email, password, requestedRole, studentProfileIds } = parsed.data
+  const { name, email, password, requestedRole, studentProfileIds } = parsed.data
 
   // Server-side domain enforcement
   const domain = email.split('@')[1]
@@ -135,6 +136,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         data: {
           userId: user.id,
           requestedRole: requestedRole as Role,
+          requestedName: name,
           status: AccountStatus.PENDING_EMAIL_VERIFICATION,
         },
       })

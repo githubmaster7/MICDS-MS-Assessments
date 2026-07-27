@@ -136,6 +136,7 @@ export function SignUpForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: formData.name?.trim(),
           email: formData.email?.trim().toLowerCase(),
           requestedRole: formData.role,
           password: formData.password,
