@@ -34,6 +34,16 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ACTIVITY_SKILLS } from "@/lib/skills/definitions";
+
+// The base rubric only has grading content (skills/questions) for these
+// names — see src/lib/skills/seed-rubric.ts. Picking one from this list
+// guarantees the new class's Standard 1-4 content is applied automatically
+// instead of risking a typo (e.g. "Flagg Football") that would silently
+// create a class with an empty grading form. "Other" is the escape hatch
+// for a genuinely new sport not in the base bank yet.
+const KNOWN_ACTIVITY_NAMES = Object.keys(ACTIVITY_SKILLS).sort();
+const CUSTOM_CLASS_NAME = "__custom__";
 
 interface ActivityTemplate {
   id: string;
@@ -112,7 +122,7 @@ export default function AdminTeachersPage() {
 
   const [createClassOpen, setCreateClassOpen] = React.useState(false);
   const [createClassLoading, setCreateClassLoading] = React.useState(false);
-  const [classForm, setClassForm] = React.useState({ name: "", description: "", gender: "ANY", gradeLevel: "ANY" });
+  const [classForm, setClassForm] = React.useState({ name: "", customName: "", description: "", gender: "ANY", gradeLevel: "ANY" });
   const [classFormErrors, setClassFormErrors] = React.useState<Record<string, string>>({});
 
   const [assignOpen, setAssignOpen] = React.useState(false);
@@ -165,9 +175,12 @@ export default function AdminTeachersPage() {
     (c) => !search || c.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const effectiveClassName = classForm.name === CUSTOM_CLASS_NAME ? classForm.customName.trim() : classForm.name;
+
   const validateClassForm = () => {
     const errs: Record<string, string> = {};
-    if (!classForm.name.trim()) errs.name = "Name is required";
+    if (!classForm.name) errs.name = "Select a class";
+    else if (classForm.name === CUSTOM_CLASS_NAME && !classForm.customName.trim()) errs.name = "Name is required";
     setClassFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -180,7 +193,7 @@ export default function AdminTeachersPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: classForm.name.trim(),
+          name: effectiveClassName,
           description: classForm.description.trim() || undefined,
           gender: classForm.gender === "ANY" ? undefined : classForm.gender,
           gradeLevel: classForm.gradeLevel === "ANY" ? undefined : classForm.gradeLevel,
@@ -192,15 +205,15 @@ export default function AdminTeachersPage() {
         data.rubricApplied
           ? {
               title: "Class added",
-              description: `"${classForm.name}" was added, and its Standard 1-4 grading content was applied automatically from the base rubric.`,
+              description: `"${effectiveClassName}" was added, and its Standard 1-4 grading content was applied automatically from the base rubric.`,
             }
           : {
               title: "Class added — no base grading content found",
-              description: `"${classForm.name}" was added, but there's no reference rubric for that name, so grading forms will be empty until content is added.`,
+              description: `"${effectiveClassName}" was added, but there's no reference rubric for that name, so grading forms will be empty until content is added.`,
             },
       );
       setCreateClassOpen(false);
-      setClassForm({ name: "", description: "", gender: "ANY", gradeLevel: "ANY" });
+      setClassForm({ name: "", customName: "", description: "", gender: "ANY", gradeLevel: "ANY" });
       fetchAll();
     } catch (e) {
       toast({ title: "Failed to add class", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
@@ -504,14 +517,29 @@ export default function AdminTeachersPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="class-name">Class name</Label>
-              <Input
-                id="class-name"
-                placeholder="e.g. Basketball"
+              <Select
                 value={classForm.name}
-                onChange={(e) => { setClassForm((f) => ({ ...f, name: e.target.value })); if (classFormErrors.name) setClassFormErrors((fe) => ({ ...fe, name: "" })); }}
-                error={!!classFormErrors.name}
-              />
+                onValueChange={(v) => { setClassForm((f) => ({ ...f, name: v })); if (classFormErrors.name) setClassFormErrors((fe) => ({ ...fe, name: "" })); }}
+              >
+                <SelectTrigger id="class-name"><SelectValue placeholder="Select a class" /></SelectTrigger>
+                <SelectContent>
+                  {KNOWN_ACTIVITY_NAMES.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  <SelectItem value={CUSTOM_CLASS_NAME}>Other (custom name)…</SelectItem>
+                </SelectContent>
+              </Select>
+              {classForm.name === CUSTOM_CLASS_NAME && (
+                <Input
+                  className="mt-2"
+                  placeholder="e.g. Basketball"
+                  value={classForm.customName}
+                  onChange={(e) => { setClassForm((f) => ({ ...f, customName: e.target.value })); if (classFormErrors.name) setClassFormErrors((fe) => ({ ...fe, name: "" })); }}
+                  error={!!classFormErrors.name}
+                />
+              )}
               {classFormErrors.name && <p className="text-xs text-red-600">{classFormErrors.name}</p>}
+              {classForm.name && classForm.name !== CUSTOM_CLASS_NAME && (
+                <p className="text-xs text-gray-400">Standard 1-4 grading content will be applied automatically.</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="class-description">Description (optional)</Label>
