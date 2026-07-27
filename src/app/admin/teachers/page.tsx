@@ -76,6 +76,17 @@ interface ReassignConflict {
 const GRADE_LABELS: Record<string, string> = { GRADE_5: "5", GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
 const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
 
+// Multiple classes can share the same sport name (e.g. two "Squash" rows for
+// Boys Grade 8 vs Girls Grade 6 — see ActivityTemplate's
+// @@unique([name, gender, gradeLevel])), so anywhere a class is picked from a
+// flat list needs the gender/grade shown alongside the name or the options
+// are indistinguishable.
+function activityTemplateLabel(c: { name: string; gender: string | null; gradeLevel: string | null }): string {
+  const gender = c.gender ? GENDER_LABELS[c.gender] ?? c.gender : "Any";
+  const grade = c.gradeLevel ? `Grade ${GRADE_LABELS[c.gradeLevel]}` : "Any grade";
+  return `${c.name} — ${gender} · ${grade}`;
+}
+
 function GenderBadge({ gender }: { gender: string | null }) {
   if (!gender) return <span className="text-xs text-gray-400">Any</span>;
   const map: Record<string, string> = {
@@ -449,7 +460,7 @@ export default function AdminTeachersPage() {
                           {a.teacherProfile.firstName} {a.teacherProfile.lastName}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{a.activityTemplate.name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{activityTemplateLabel(a.activityTemplate)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{a.schoolYear.name}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${a.isActive ? "bg-green-50 text-green-700 border-green-100" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
@@ -550,7 +561,7 @@ export default function AdminTeachersPage() {
               <Select value={assignForm.activityTemplateId} onValueChange={(v) => { setAssignForm((f) => ({ ...f, activityTemplateId: v })); if (assignFormErrors.activityTemplateId) setAssignFormErrors((fe) => ({ ...fe, activityTemplateId: "" })); }}>
                 <SelectTrigger id="assign-class"><SelectValue placeholder="Select class" /></SelectTrigger>
                 <SelectContent>
-                  {activityTemplates.filter((c) => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {activityTemplates.filter((c) => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{activityTemplateLabel(c)}</SelectItem>)}
                 </SelectContent>
               </Select>
               {assignFormErrors.activityTemplateId && <p className="text-xs text-red-600">{assignFormErrors.activityTemplateId}</p>}
@@ -659,7 +670,7 @@ export default function AdminTeachersPage() {
                   <Select value={teacherReassignForm.activityTemplateId} onValueChange={(v) => setTeacherReassignForm((f) => ({ ...f, activityTemplateId: v }))}>
                     <SelectTrigger id="reassign-teacher-class"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {activityTemplates.filter((c) => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      {activityTemplates.filter((c) => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{activityTemplateLabel(c)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
