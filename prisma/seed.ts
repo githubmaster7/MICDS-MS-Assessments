@@ -13,6 +13,9 @@ import { seedActivityRubric } from '../src/lib/skills/seed-rubric'
 const db = new PrismaClient()
 
 const PASSWORD_HASH = bcrypt.hashSync('MICDS2024!', 12)
+// Admin gets its own password, distinct from the shared demo-account password
+// above, since the admin account is a real credential used outside of demos.
+const ADMIN_PASSWORD_HASH = bcrypt.hashSync('MICDS2026!', 12)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -29,16 +32,16 @@ async function main() {
   // School Year
   // =========================================================================
   const schoolYear = await db.schoolYear.upsert({
-    where: { name: '2024-2025' },
+    where: { name: '2026-2027' },
     update: {},
     create: {
-      name: '2024-2025',
-      startDate: new Date('2024-08-26'),
-      endDate: new Date('2025-06-05'),
+      name: '2026-2027',
+      startDate: new Date('2026-08-26'),
+      endDate: new Date('2027-06-05'),
       isActive: true,
     },
   })
-  log('School year 2024-2025 upserted')
+  log('School year 2026-2027 upserted')
 
   // =========================================================================
   // Activity Templates
@@ -75,10 +78,10 @@ async function main() {
     update: {},
     create: {
       email: 'admin@micds.org',
-      passwordHash: PASSWORD_HASH,
+      passwordHash: ADMIN_PASSWORD_HASH,
       role: Role.ADMIN,
       status: AccountStatus.ACTIVE,
-      emailVerifiedAt: new Date('2024-08-01'),
+      emailVerifiedAt: new Date('2026-08-01'),
     },
   })
   log('Admin user upserted (admin@micds.org)')
@@ -101,7 +104,7 @@ async function main() {
         passwordHash: PASSWORD_HASH,
         role: Role.TEACHER,
         status: AccountStatus.ACTIVE,
-        emailVerifiedAt: new Date('2024-08-01'),
+        emailVerifiedAt: new Date('2026-08-01'),
       },
     })
     const found = await db.teacherProfile.findUnique({ where: { userId: user.id } })
@@ -136,7 +139,7 @@ async function main() {
         passwordHash: PASSWORD_HASH,
         role: Role.STUDENT,
         status: AccountStatus.ACTIVE,
-        emailVerifiedAt: new Date('2024-08-15'),
+        emailVerifiedAt: new Date('2026-08-15'),
       },
     })
     const found = await db.studentProfile.findUnique({ where: { userId: user.id } })
@@ -165,7 +168,7 @@ async function main() {
       passwordHash: PASSWORD_HASH,
       role: Role.PARENT,
       status: AccountStatus.ACTIVE,
-      emailVerifiedAt: new Date('2024-08-15'),
+      emailVerifiedAt: new Date('2026-08-15'),
     },
   })
   const foundParent = await db.parentProfile.findUnique({ where: { userId: parentUser.id } })
@@ -200,7 +203,7 @@ async function main() {
       name: '6th Grade Boys - Group A',
       gradeLevel: GradeLevel.GRADE_6,
       gender: Gender.MALE,
-      description: 'Sixth-grade boys rotation group for 2024-2025.',
+      description: 'Sixth-grade boys rotation group for 2026-2027.',
       isActive: true,
     },
   })
@@ -212,7 +215,7 @@ async function main() {
       name: '6th Grade Girls - Group B',
       gradeLevel: GradeLevel.GRADE_6,
       gender: Gender.FEMALE,
-      description: 'Sixth-grade girls rotation group for 2024-2025.',
+      description: 'Sixth-grade girls rotation group for 2026-2027.',
       isActive: true,
     },
   })
@@ -288,12 +291,12 @@ async function main() {
   ]
 
   const existingPlan = await db.carouselPlan.findFirst({
-    where: { schoolYearId: schoolYear.id, name: '2024-2025 6th Grade Carousel' },
+    where: { schoolYearId: schoolYear.id, name: '2026-2027 6th Grade Carousel' },
   })
   const plan = existingPlan ?? await db.carouselPlan.create({
     data: {
       schoolYearId: schoolYear.id,
-      name: '2024-2025 6th Grade Carousel',
+      name: '2026-2027 6th Grade Carousel',
       isActive: true,
       createdBy: adminUser.id,
     },
@@ -329,13 +332,13 @@ async function main() {
   // =========================================================================
   // Rotation dates (~6 weeks each)
   const rotationDates = [
-    { start: new Date('2024-08-26'), end: new Date('2024-09-27') },
-    { start: new Date('2024-09-30'), end: new Date('2024-11-08') },
-    { start: new Date('2024-11-11'), end: new Date('2024-12-20') },
-    { start: new Date('2025-01-06'), end: new Date('2025-02-14') },
-    { start: new Date('2025-02-17'), end: new Date('2025-03-28') },
-    { start: new Date('2025-03-31'), end: new Date('2025-05-09') },
-    { start: new Date('2025-05-12'), end: new Date('2025-06-05') },
+    { start: new Date('2026-08-26'), end: new Date('2026-09-27') },
+    { start: new Date('2026-09-30'), end: new Date('2026-11-08') },
+    { start: new Date('2026-11-11'), end: new Date('2026-12-20') },
+    { start: new Date('2027-01-06'), end: new Date('2027-02-14') },
+    { start: new Date('2027-02-17'), end: new Date('2027-03-28') },
+    { start: new Date('2027-03-31'), end: new Date('2027-05-09') },
+    { start: new Date('2027-05-12'), end: new Date('2027-06-05') },
   ]
 
   // For 9 activities across 2 groups we pair them:
@@ -424,11 +427,11 @@ async function main() {
 
   const hciDefs: HCIDef[] = [
     // Rotation 1
-    { graKey: 'A-1', groupId: groupA.id, activityName: 'Athletic Development', status: RotationStatus.LOCKED,  lockedAt: new Date('2024-09-28') },
-    { graKey: 'B-1', groupId: groupB.id, activityName: 'Volleyball',           status: RotationStatus.LOCKED,  lockedAt: new Date('2024-09-28') },
+    { graKey: 'A-1', groupId: groupA.id, activityName: 'Athletic Development', status: RotationStatus.LOCKED,  lockedAt: new Date('2026-09-28') },
+    { graKey: 'B-1', groupId: groupB.id, activityName: 'Volleyball',           status: RotationStatus.LOCKED,  lockedAt: new Date('2026-09-28') },
     // Rotation 2
-    { graKey: 'A-2', groupId: groupA.id, activityName: 'Ultimate Frisbee',     status: RotationStatus.LOCKED,  lockedAt: new Date('2024-11-09') },
-    { graKey: 'B-2', groupId: groupB.id, activityName: 'Floor Hockey',         status: RotationStatus.LOCKED,  lockedAt: new Date('2024-11-09') },
+    { graKey: 'A-2', groupId: groupA.id, activityName: 'Ultimate Frisbee',     status: RotationStatus.LOCKED,  lockedAt: new Date('2026-11-09') },
+    { graKey: 'B-2', groupId: groupB.id, activityName: 'Floor Hockey',         status: RotationStatus.LOCKED,  lockedAt: new Date('2026-11-09') },
     // Rotation 3
     { graKey: 'A-3', groupId: groupA.id, activityName: 'Flag Football',        status: RotationStatus.ACTIVE },
     { graKey: 'B-3', groupId: groupB.id, activityName: 'Wrestling',            status: RotationStatus.ACTIVE },
@@ -692,9 +695,9 @@ async function main() {
       {
         standardNumber: 2,
         status: SubmissionStatus.SUBMITTED,
-        honorCodeAcknowledgedAt: new Date('2024-09-18'),
+        honorCodeAcknowledgedAt: new Date('2026-09-18'),
         honorCodeVersion: '1.0',
-        submittedAt: new Date('2024-09-18'),
+        submittedAt: new Date('2026-09-18'),
         latestAttemptNumber: 1,
         responses: [
           {
@@ -710,15 +713,15 @@ async function main() {
       {
         standardNumber: 3,
         status: SubmissionStatus.REASSESSMENT_SUBMITTED,
-        honorCodeAcknowledgedAt: new Date('2024-09-19'),
+        honorCodeAcknowledgedAt: new Date('2026-09-19'),
         honorCodeVersion: '1.0',
-        submittedAt: new Date('2024-09-19'),
-        reassessmentSubmittedAt: new Date('2024-09-25'),
+        submittedAt: new Date('2026-09-19'),
+        reassessmentSubmittedAt: new Date('2026-09-25'),
         latestAttemptNumber: 2,
         // Attempt 1 (superseded) — frozen into a history entry below.
         priorAttempt: {
           attemptNumber: 1,
-          submittedAt: new Date('2024-09-19'),
+          submittedAt: new Date('2026-09-19'),
           responses: [
             { key: 'Athletic Development|3-1', text: 'Strength training makes your muscles stronger.' },
             {
@@ -742,9 +745,9 @@ async function main() {
       {
         standardNumber: 4,
         status: SubmissionStatus.SUBMITTED,
-        honorCodeAcknowledgedAt: new Date('2024-09-20'),
+        honorCodeAcknowledgedAt: new Date('2026-09-20'),
         honorCodeVersion: '1.0',
-        submittedAt: new Date('2024-09-20'),
+        submittedAt: new Date('2026-09-20'),
         latestAttemptNumber: 1,
         responses: [
           {
@@ -1004,8 +1007,8 @@ async function main() {
   // Summary
   // =========================================================================
   console.log('\n=== Seed complete ===\n')
-  console.log('Demo accounts (password: MICDS2024!)')
-  console.log('  Admin:    admin@micds.org')
+  console.log('Demo accounts (password: MICDS2024!, except admin below)')
+  console.log('  Admin:    admin@micds.org (password: MICDS2026!)')
   console.log('  Teacher:  sarah.johnson@micds.org')
   console.log('  Teacher:  michael.chen@micds.org')
   console.log('  Student:  alex.thompson@micds.org')

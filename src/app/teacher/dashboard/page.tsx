@@ -17,6 +17,7 @@ export default async function TeacherDashboard() {
   if (!session) return null
 
   const teacher = await db.teacherProfile.findUnique({ where: { userId: session.user.id } })
+  const activeSchoolYear = await db.schoolYear.findFirst({ where: { isActive: true }, select: { name: true } })
   if (!teacher) {
     return (
       <div className="p-6">
@@ -116,7 +117,7 @@ export default async function TeacherDashboard() {
       <PageHeader
         variant="primary"
         title={<>Welcome, {teacher.firstName}!</>}
-        description="School Year 2024–2025"
+        description={activeSchoolYear ? `School Year ${activeSchoolYear.name}` : undefined}
       />
 
       {activeClassCards.length > 0 ? (
