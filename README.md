@@ -2,6 +2,8 @@
 
 A web application for managing Physical Education assessments at MICDS Middle School. Teachers grade students across four standards per activity unit; students submit written responses and self-ratings; parents view their child's progress. All data persists in PostgreSQL and the app runs on Next.js 16.
 
+See `ROADMAP.md` for planned extensions not yet built.
+
 ---
 
 ## Tech Stack
@@ -181,11 +183,7 @@ Tests are co-located with source files as `*.test.ts` / `*.test.tsx`. Integratio
 
 ### Self-hosted (Docker + Postgres)
 
-A `Dockerfile` and `docker-compose.yml` are provided for self-hosted deployments. Set environment variables via a `.env` file or your host's secret manager, then:
-
-```bash
-docker compose up -d
-```
+Planned, not yet available — see `ROADMAP.md`. Vercel + Supabase is the only deployment path in use today.
 
 ### Secret Rotation
 
@@ -202,5 +200,6 @@ docker compose up -d
 - All list endpoints (students, grades, audit logs) are paginated. Default page size is 25; maximum is 100.
 - Common query patterns are covered by database indexes defined in `schema.prisma` (see `@@index` declarations on each model).
 - Filtering (by school year, grade level, gender, rotation status) is done server-side in Prisma queries, not in JavaScript after fetching.
-- Grade exports (CSV/PDF) are handled as background jobs to avoid blocking the request thread.
 - `GradeCalculationSnapshot` is pre-computed and stored; grade summary pages read the snapshot rather than recalculating on every request.
+
+Grade export (CSV/PDF) is planned but not yet built — see `ROADMAP.md`. The only export that exists today is the Audit Log CSV download, which is a plain synchronous response, not a background job.
