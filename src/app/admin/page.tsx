@@ -106,6 +106,7 @@ function formatRelative(iso: string): string {
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = React.useState<Stats | null>(null);
+  const [statsError, setStatsError] = React.useState(false);
   const [auditLogs, setAuditLogs] = React.useState<AuditEntry[]>([]);
   const [statsLoading, setStatsLoading] = React.useState(true);
   const [logsLoading, setLogsLoading] = React.useState(true);
@@ -127,14 +128,12 @@ export default function AdminDashboardPage() {
           activeRotations: classes?.data?.length ?? 0,
         });
       })
-      .catch(() =>
-        setStats({
-          pendingSignups: 0,
-          activeUsers: 0,
-          studentGroups: 0,
-          activeRotations: 0,
-        })
-      )
+      .catch(() => {
+        // Leave stats null (not zeroed) - a fetch failure rendering as "0 of
+        // everything" is indistinguishable from a genuinely-empty school, so
+        // an explicit error state is shown instead of a silently-wrong number.
+        setStatsError(true);
+      })
       .finally(() => setStatsLoading(false));
 
     fetch("/api/admin/audit-logs?limit=8")
@@ -202,11 +201,19 @@ export default function AdminDashboardPage() {
         variant="primary"
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {statCards.map((card) => (
-          <StatCard key={card.label} {...card} loading={statsLoading} />
-        ))}
-      </div>
+      {statsError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Couldn&apos;t load dashboard counts. The numbers below are not shown until this loads successfully - refresh to try again.
+        </div>
+      )}
+
+      {!statsError && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {statCards.map((card) => (
+            <StatCard key={card.label} {...card} loading={statsLoading} />
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Audit log */}

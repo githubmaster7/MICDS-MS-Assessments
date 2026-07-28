@@ -41,10 +41,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
 
   const { studentId, instanceId } = await params
 
-  const canGrade = await canTeacherGrade(session.user.id, instanceId)
+  const canGrade = await canTeacherGrade(session.user.id, instanceId, studentId)
   if (!canGrade) {
     return NextResponse.json(
-      { error: 'You are not authorized to grade this class instance, or it is locked.' },
+      { error: 'You are not authorized to grade this student in this class instance, or it is locked.' },
       { status: 403 },
     )
   }

@@ -35,6 +35,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ACTIVITY_SKILLS } from "@/lib/skills/definitions";
+import { GenderBadge, GENDER_LABELS } from "@/components/shared/GenderIndicator";
 
 // The base rubric only has grading content (skills/questions) for these
 // names — see src/lib/skills/seed-rubric.ts. Picking one from this list
@@ -84,7 +85,6 @@ interface ReassignConflict {
 }
 
 const GRADE_LABELS: Record<string, string> = { GRADE_5: "5", GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
-const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
 
 // Multiple classes can share the same sport name (e.g. two "Squash" rows for
 // Boys Grade 8 vs Girls Grade 6 — see ActivityTemplate's
@@ -95,19 +95,6 @@ function activityTemplateLabel(c: { name: string; gender: string | null; gradeLe
   const gender = c.gender ? GENDER_LABELS[c.gender] ?? c.gender : "Any";
   const grade = c.gradeLevel ? `Grade ${GRADE_LABELS[c.gradeLevel]}` : "Any grade";
   return `${c.name} - ${gender} · ${grade}`;
-}
-
-function GenderBadge({ gender }: { gender: string | null }) {
-  if (!gender) return <span className="text-xs text-gray-400">Any</span>;
-  const map: Record<string, string> = {
-    MALE: "bg-blue-50 text-blue-700 border-blue-100",
-    FEMALE: "bg-pink-50 text-pink-700 border-pink-100",
-  };
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${map[gender] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}>
-      {GENDER_LABELS[gender] ?? gender}
-    </span>
-  );
 }
 
 export default function AdminTeachersPage() {
@@ -397,7 +384,7 @@ export default function AdminTeachersPage() {
                     <Layers className="h-4 w-4 text-emerald-600" aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{cls.name}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{cls.name}</p>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {cls.gradeLevel ? `Grade ${GRADE_LABELS[cls.gradeLevel]}` : "Any grade"}
                       {" · "}
@@ -531,6 +518,7 @@ export default function AdminTeachersPage() {
                 <Input
                   className="mt-2"
                   placeholder="e.g. Basketball"
+                  maxLength={100}
                   value={classForm.customName}
                   onChange={(e) => { setClassForm((f) => ({ ...f, customName: e.target.value })); if (classFormErrors.name) setClassFormErrors((fe) => ({ ...fe, name: "" })); }}
                   error={!!classFormErrors.name}

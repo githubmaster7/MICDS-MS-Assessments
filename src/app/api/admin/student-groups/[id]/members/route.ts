@@ -3,9 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { createAuditLog, AuditAction } from '@/lib/audit'
-import { Role } from '@prisma/client'
+import { Prisma, Role } from '@prisma/client'
 import { z } from 'zod'
-import { ipRateLimitKey } from '@/lib/rate-limit'
+import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 import { canEnrollStudent } from '@/lib/enrollment'
 
 interface RouteParams {
@@ -60,6 +60,14 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
+  const rl = await checkRateLimit(apiLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
+  }
+
   const { id } = await params
 
   let body: unknown
@@ -103,14 +111,51 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
 
   const ip = ipRateLimitKey(req)
 
-  if (existing) {
-    if (existing.leftAt === null) {
-      return NextResponse.json({ error: 'Student is already a member of this group.' }, { status: 409 })
+  if (existing?.leftAt === null) {
+    return NextResponse.json({ error: 'Student is already a member of this group.' }, { status: 409 })
+  }
+
+  // A student can only be active in one group at a time (a group rotates
+  // through its own independent class sequence, so being in two at once
+  // would mean conflicting "current class" and grade history for the same
+  // student). This is also enforced by a partial unique DB index
+  // (leftAt IS NULL) as the source of truth against a race between two
+  // concurrent adds - this check just gives a clear error on the common path.
+  const otherActiveMembership = await db.studentGroupMembership.findFirst({
+    where: { studentProfileId, leftAt: null, studentGroupId: { not: id } },
+    select: { studentGroup: { select: { name: true } } },
+  })
+  if (otherActiveMembership) {
+    return NextResponse.json(
+      { error: `Student is already an active member of "${otherActiveMembership.studentGroup.name}". Remove them from that group first.` },
+      { status: 409 },
+    )
+  }
+
+  try {
+    if (existing) {
+      // Rejoin — update leftAt to null
+      const membership = await db.studentGroupMembership.update({
+        where: { id: existing.id },
+        data: { leftAt: null, joinedAt: new Date() },
+      })
+
+      await createAuditLog({
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        action: AuditAction.STUDENT_GROUP_MEMBERSHIP_ADDED,
+        targetType: 'StudentGroupMembership',
+        targetId: membership.id,
+        targetLabel: `${studentProfile.firstName} ${studentProfile.lastName} → ${group.name}`,
+        ipAddress: ip,
+        userAgent: req.headers.get('user-agent') ?? undefined,
+      })
+
+      return NextResponse.json({ data: membership }, { status: 201 })
     }
-    // Rejoin — update leftAt to null
-    const membership = await db.studentGroupMembership.update({
-      where: { id: existing.id },
-      data: { leftAt: null, joinedAt: new Date() },
+
+    const membership = await db.studentGroupMembership.create({
+      data: { studentGroupId: id, studentProfileId },
     })
 
     await createAuditLog({
@@ -125,30 +170,31 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
     })
 
     return NextResponse.json({ data: membership }, { status: 201 })
+  } catch (e) {
+    // Race: two concurrent requests both passed the check above before
+    // either committed. The partial unique index is the real guarantee here.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Student was just added to another active group. Please refresh and try again.' },
+        { status: 409 },
+      )
+    }
+    throw e
   }
-
-  const membership = await db.studentGroupMembership.create({
-    data: { studentGroupId: id, studentProfileId },
-  })
-
-  await createAuditLog({
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    action: AuditAction.STUDENT_GROUP_MEMBERSHIP_ADDED,
-    targetType: 'StudentGroupMembership',
-    targetId: membership.id,
-    targetLabel: `${studentProfile.firstName} ${studentProfile.lastName} → ${group.name}`,
-    ipAddress: ip,
-    userAgent: req.headers.get('user-agent') ?? undefined,
-  })
-
-  return NextResponse.json({ data: membership }, { status: 201 })
 }
 
 export async function DELETE(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+
+  const rl = await checkRateLimit(apiLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
+  }
 
   const { id } = await params
 

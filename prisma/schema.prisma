@@ -413,6 +413,15 @@ model StudentGroup {
   @@index([isActive])
 }
 
+// NOTE: a hand-written migration (20260728000000_student_group_membership_
+// one_active) adds a partial unique index — UNIQUE (studentProfileId) WHERE
+// "leftAt" IS NULL — enforcing that a student can only be an active member
+// of one group at a time. Prisma's schema language has no way to express a
+// filtered/partial unique constraint, so it isn't declared below; do not
+// remove or "clean up" that migration file assuming it's redundant with
+// @@unique([studentGroupId, studentProfileId]) - that constraint only
+// prevents a duplicate row within the SAME group, not simultaneous active
+// membership across two different groups.
 model StudentGroupMembership {
   id               String    @id @default(uuid()) @db.Uuid
   studentGroupId   String    @db.Uuid

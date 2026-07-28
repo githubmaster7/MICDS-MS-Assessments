@@ -110,7 +110,7 @@ function RequestRow({
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
       <td className="px-4 py-3">
-        <p className="text-sm font-medium text-gray-900">{req.email}</p>
+        <p className="text-sm font-medium text-gray-900 max-w-xs truncate" title={req.email}>{req.email}</p>
       </td>
       <td className="px-4 py-3">
         <RoleBadge role={req.requestedRole} />

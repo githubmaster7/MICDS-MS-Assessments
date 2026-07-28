@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { GenderBadge } from "@/components/shared/GenderIndicator";
 
 interface StudentGroup {
   id: string;
@@ -76,19 +77,6 @@ function currentAssignmentLabel(group: StudentGroup): string | null {
   const assignment = group.groupRotationAssignments[0]?.carouselPosition.teacherClassAssignment;
   if (!assignment) return null;
   return `${assignment.activityTemplate.name} · ${assignment.teacherProfile.firstName} ${assignment.teacherProfile.lastName}`;
-}
-
-function GenderBadge({ gender }: { gender: string }) {
-  const map: Record<string, string> = {
-    MALE: "bg-blue-50 text-blue-700 border-blue-100",
-    FEMALE: "bg-pink-50 text-pink-700 border-pink-100",
-  };
-  const labels: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${map[gender] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}>
-      {labels[gender] ?? gender}
-    </span>
-  );
 }
 
 export default function StudentGroupsPage() {

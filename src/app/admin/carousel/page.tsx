@@ -28,6 +28,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { formatDate } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { GenderDot } from "@/components/shared/GenderIndicator";
 
 interface Position {
   id: string;
@@ -81,7 +82,6 @@ interface AssignmentOption {
 }
 
 const GRADE_LABELS: Record<string, string> = { GRADE_5: "5", GRADE_6: "6", GRADE_7: "7", GRADE_8: "8" };
-const GENDER_LABELS: Record<string, string> = { MALE: "Boys", FEMALE: "Girls" };
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
@@ -94,11 +94,6 @@ function defaultDates() {
   const twoWeeksOut = new Date(today);
   twoWeeksOut.setDate(twoWeeksOut.getDate() + 14);
   return { start: toInputDate(today), end: toInputDate(twoWeeksOut) };
-}
-
-function GenderDot({ gender }: { gender: string }) {
-  const colors: Record<string, string> = { MALE: "bg-blue-400", FEMALE: "bg-pink-400" };
-  return <span className={`inline-block h-2 w-2 rounded-full ${colors[gender] ?? "bg-gray-400"}`} title={GENDER_LABELS[gender] ?? gender} />;
 }
 
 export default function CarouselPage() {
@@ -195,9 +190,17 @@ export default function CarouselPage() {
         const historyData = await historyRes.json();
         setHistory(historyData?.data ?? []);
       })
-      .catch(() => { setGroups([]); setHistory([]); })
+      .catch((e) => {
+        // Previously reset to empty arrays silently, which renders
+        // identically to "no groups configured yet" - indistinguishable from
+        // a genuine fetch failure on the page that runs the app's most
+        // consequential bulk action (rotating classes).
+        setGroups([]);
+        setHistory([]);
+        toast({ title: "Failed to load carousel data", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   React.useEffect(() => { fetchData(); }, [fetchData]);
 

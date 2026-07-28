@@ -11,10 +11,17 @@ const PUBLIC_PATHS = [
   "/api/auth",
 ];
 
-const ADMIN_PATHS = ["/admin"];
-const TEACHER_PATHS = ["/teacher"];
-const STUDENT_PATHS = ["/student"];
-const PARENT_PATHS = ["/parent"];
+// Each role's page routes and API routes share the same role-gating rule, so
+// a single path list covers both - e.g. "/admin" also matches "/api/admin/*".
+// Every route under these API prefixes already re-checks its own role
+// requirement independently (this was verified route-by-route), so this is
+// purely a defense-in-depth backstop: it means a future route that forgets
+// its own check is still not reachable by the wrong role, rather than being
+// wide open until someone notices.
+const ADMIN_PATHS = ["/admin", "/api/admin"];
+const TEACHER_PATHS = ["/teacher", "/api/teacher"];
+const STUDENT_PATHS = ["/student", "/api/student"];
+const PARENT_PATHS = ["/parent", "/api/parent"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(
@@ -69,6 +76,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const isApiPath = pathname.startsWith("/api/");
+
+  // API callers expect a JSON response, not an HTML redirect - a fetch()
+  // that got redirected to a login/error page would otherwise silently
+  // receive that page's HTML back as if it were the API response.
+  function denied(status: number, message: string, redirectTo: string) {
+    if (isApiPath) {
+      return NextResponse.json({ error: message }, { status });
+    }
+    return NextResponse.redirect(new URL(redirectTo, request.url));
+  }
+
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
@@ -78,7 +97,7 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    return denied(401, "Unauthorized.", loginUrl.pathname + loginUrl.search);
   }
 
   const role = token.role as string | undefined;
@@ -90,31 +109,29 @@ export async function middleware(request: NextRequest) {
     (status === "PENDING_EMAIL_VERIFICATION" || status === "PENDING_ADMIN_APPROVAL") &&
     pathname !== "/pending-approval"
   ) {
-    return NextResponse.redirect(new URL("/pending-approval", request.url));
+    return denied(403, "Your account is not yet active.", "/pending-approval");
   }
 
   // REJECTED/DEACTIVATED users are bounced to login
   if (status === "REJECTED" || status === "DEACTIVATED") {
-    return NextResponse.redirect(
-      new URL("/login?error=AccountDisabled", request.url)
-    );
+    return denied(403, "Your account has been disabled.", "/login?error=AccountDisabled");
   }
 
   // Role-based route protection
   if (isAdminPath(pathname) && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/unauthorized", request.url));
+    return denied(403, "Forbidden.", "/unauthorized");
   }
 
   if (isTeacherPath(pathname) && role !== "TEACHER" && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/unauthorized", request.url));
+    return denied(403, "Forbidden.", "/unauthorized");
   }
 
   if (isStudentPath(pathname) && role !== "STUDENT" && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/unauthorized", request.url));
+    return denied(403, "Forbidden.", "/unauthorized");
   }
 
   if (isParentPath(pathname) && role !== "PARENT" && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/unauthorized", request.url));
+    return denied(403, "Forbidden.", "/unauthorized");
   }
 
   return NextResponse.next();

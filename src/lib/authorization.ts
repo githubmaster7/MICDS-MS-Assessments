@@ -138,7 +138,8 @@ async function isTeacherCurrentlyAssigned(
  */
 export async function canTeacherGrade(
   teacherId: string,
-  classInstanceId: string
+  classInstanceId: string,
+  studentProfileId: string
 ): Promise<boolean> {
   const teacherProfile = await db.teacherProfile.findUnique({
     where: { userId: teacherId },
@@ -150,6 +151,7 @@ export async function canTeacherGrade(
     where: { id: classInstanceId },
     select: {
       status: true,
+      studentGroupId: true,
       teacherClassAssignment: {
         select: { teacherProfileId: true, isActive: true },
       },
@@ -161,7 +163,23 @@ export async function canTeacherGrade(
   // active rotation — never a future (UPCOMING) one, and never a LOCKED one.
   if (instance.status !== RotationStatus.ACTIVE) return false
   if (!instance.teacherClassAssignment.isActive) return false
-  return instance.teacherClassAssignment.teacherProfileId === teacherProfile.id
+  if (instance.teacherClassAssignment.teacherProfileId !== teacherProfile.id) return false
+
+  // Owning the instance is not enough on its own — studentProfileId is a
+  // separate, caller-supplied value. Without this check any teacher could
+  // grade (and mint an official GradeCalculationSnapshot for) any student
+  // school-wide just by supplying an arbitrary studentProfileId alongside
+  // one of their own instanceIds.
+  const membership = await db.studentGroupMembership.findUnique({
+    where: {
+      studentGroupId_studentProfileId: {
+        studentGroupId: instance.studentGroupId,
+        studentProfileId,
+      },
+    },
+    select: { id: true },
+  })
+  return membership !== null
 }
 
 /**

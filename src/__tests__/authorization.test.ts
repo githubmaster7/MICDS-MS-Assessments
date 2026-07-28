@@ -13,7 +13,7 @@ jest.mock('@/lib/db', () => {
     parentProfile: { findUnique: jest.fn() },
     parentStudentLink: { findUnique: jest.fn() },
     teacherProfile: { findUnique: jest.fn() },
-    studentGroupMembership: { findMany: jest.fn() },
+    studentGroupMembership: { findMany: jest.fn(), findUnique: jest.fn() },
     groupRotationAssignment: { findFirst: jest.fn() },
     historicalClassInstance: { findUnique: jest.fn() },
   }
@@ -36,7 +36,7 @@ const mockDb = db as unknown as {
   parentProfile: { findUnique: jest.Mock }
   parentStudentLink: { findUnique: jest.Mock }
   teacherProfile: { findUnique: jest.Mock }
-  studentGroupMembership: { findMany: jest.Mock }
+  studentGroupMembership: { findMany: jest.Mock; findUnique: jest.Mock }
   groupRotationAssignment: { findFirst: jest.Mock }
   historicalClassInstance: { findUnique: jest.Mock }
 }
@@ -169,33 +169,61 @@ describe('canViewStudent — TEACHER', () => {
 // ─── canTeacherGrade ──────────────────────────────────────────────────────────
 
 describe('canTeacherGrade', () => {
-  it('teacher can grade their own active, unlocked instance', async () => {
+  it('teacher can grade a student enrolled in their own active, unlocked instance', async () => {
     mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
     mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
       status: RotationStatus.ACTIVE,
+      studentGroupId: 'group-1',
       teacherClassAssignment: { teacherProfileId: 'tp-1', isActive: true },
     })
-    const result = await canTeacherGrade('teacher-user-1', 'instance-1')
+    mockDb.studentGroupMembership.findUnique.mockResolvedValueOnce({ id: 'membership-1' })
+    const result = await canTeacherGrade('teacher-user-1', 'instance-1', 'sp-1')
     expect(result).toBe(true)
+  })
+
+  it('SECURITY: teacher cannot grade a student not enrolled in that instance\'s group, even though they own the instance', async () => {
+    mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
+    mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
+      status: RotationStatus.ACTIVE,
+      studentGroupId: 'group-1',
+      teacherClassAssignment: { teacherProfileId: 'tp-1', isActive: true },
+    })
+    mockDb.studentGroupMembership.findUnique.mockResolvedValueOnce(null)
+    const result = await canTeacherGrade('teacher-user-1', 'instance-1', 'sp-NOT-ENROLLED')
+    expect(result).toBe(false)
+    expect(mockDb.studentGroupMembership.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          studentGroupId_studentProfileId: {
+            studentGroupId: 'group-1',
+            studentProfileId: 'sp-NOT-ENROLLED',
+          },
+        },
+      })
+    )
   })
 
   it('teacher cannot grade a locked instance — locking is permanent, no override', async () => {
     mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
     mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
       status: RotationStatus.LOCKED,
+      studentGroupId: 'group-1',
       teacherClassAssignment: { teacherProfileId: 'tp-1', isActive: true },
     })
-    const result = await canTeacherGrade('teacher-user-1', 'instance-1')
+    const result = await canTeacherGrade('teacher-user-1', 'instance-1', 'sp-1')
     expect(result).toBe(false)
+    // Should short-circuit on lock status before even checking membership.
+    expect(mockDb.studentGroupMembership.findUnique).not.toHaveBeenCalled()
   })
 
   it('teacher cannot grade an instance assigned to another teacher', async () => {
     mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
     mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
       status: RotationStatus.ACTIVE,
+      studentGroupId: 'group-1',
       teacherClassAssignment: { teacherProfileId: 'tp-OTHER', isActive: true },
     })
-    const result = await canTeacherGrade('teacher-user-1', 'instance-1')
+    const result = await canTeacherGrade('teacher-user-1', 'instance-1', 'sp-1')
     expect(result).toBe(false)
   })
 
@@ -203,22 +231,23 @@ describe('canTeacherGrade', () => {
     mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
     mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
       status: RotationStatus.ACTIVE,
+      studentGroupId: 'group-1',
       teacherClassAssignment: { teacherProfileId: 'tp-1', isActive: false },
     })
-    const result = await canTeacherGrade('teacher-user-1', 'instance-1')
+    const result = await canTeacherGrade('teacher-user-1', 'instance-1', 'sp-1')
     expect(result).toBe(false)
   })
 
   it('returns false when teacher profile not found', async () => {
     mockDb.teacherProfile.findUnique.mockResolvedValueOnce(null)
-    const result = await canTeacherGrade('teacher-ghost', 'instance-1')
+    const result = await canTeacherGrade('teacher-ghost', 'instance-1', 'sp-1')
     expect(result).toBe(false)
   })
 
   it('returns false when class instance not found', async () => {
     mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'tp-1' })
     mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce(null)
-    const result = await canTeacherGrade('teacher-user-1', 'nonexistent-instance')
+    const result = await canTeacherGrade('teacher-user-1', 'nonexistent-instance', 'sp-1')
     expect(result).toBe(false)
   })
 })

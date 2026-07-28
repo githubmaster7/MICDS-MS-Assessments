@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Check, Circle } from 'lucide-react'
 import { calculateStandardScore } from '@/lib/grading/standard-score'
 import { calculateApproachToLearning, calculateDaysLateScore } from '@/lib/grading/approach-to-learning'
@@ -134,6 +134,116 @@ const SUBMISSION_STATUS_LABEL: Record<string, string> = {
 }
 
 // ---------------------------------------------------------------------------
+// Pure rollup calculations
+//
+// Hoisted to module scope (rather than closures inside the main component)
+// so the roster list below can memoize each row on its own StudentGradeData
+// without needing the whole GradingInterface to re-render/recompute every
+// other student's rollup just because one field changed for one student.
+// ---------------------------------------------------------------------------
+
+function calcStandard1Pure(d: StudentGradeData, skillDefinitions: SkillDefinition[]) {
+  const items = skillDefinitions
+    .filter((s) => d.skillScores[s.id] !== undefined)
+    .map((s) => ({ skillId: s.id, score: d.skillScores[s.id] }))
+  if (items.length === 0) return null
+  return calculateStandardScore(items)
+}
+
+function calcStandard23Pure(d: StudentGradeData, std: 2 | 3, promptsByStandard: Record<2 | 3 | 4, PromptDef[]>) {
+  const prompts = promptsByStandard[std]
+  const items = prompts
+    .filter((p) => d.promptScores[p.id] !== undefined)
+    .map((p) => ({ itemId: p.id, score: d.promptScores[p.id] }))
+  if (items.length === 0) return null
+  return calculateStandardScore(items)
+}
+
+function calcStandard4Pure(d: StudentGradeData, promptsByStandard: Record<2 | 3 | 4, PromptDef[]>) {
+  const prompts = promptsByStandard[4]
+  const items: { itemId: string; score: Score }[] = prompts
+    .filter((p) => d.promptScores[p.id] !== undefined)
+    .map((p) => ({ itemId: p.id, score: d.promptScores[p.id] }))
+  if (d.standard4TeacherRating !== null) {
+    items.push({ itemId: 'teacher-rating', score: d.standard4TeacherRating })
+  }
+  if (d.standard4StudentSelfRating !== null) {
+    items.push({ itemId: 'student-self-rating', score: d.standard4StudentSelfRating })
+  }
+  if (items.length === 0) return null
+  return calculateStandardScore(items)
+}
+
+function calcOverallPure(
+  d: StudentGradeData,
+  skillDefinitions: SkillDefinition[],
+  promptsByStandard: Record<2 | 3 | 4, PromptDef[]>,
+) {
+  const s1 = calcStandard1Pure(d, skillDefinitions)?.score
+  const s2 = calcStandard23Pure(d, 2, promptsByStandard)?.score
+  const s3 = calcStandard23Pure(d, 3, promptsByStandard)?.score
+  const s4 = calcStandard4Pure(d, promptsByStandard)?.score
+  if (!s1 || !s2 || !s3 || !s4) return null
+  try {
+    return calculateOverallGrade({ s1, s2, s3, s4 })
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Roster row (memoized)
+//
+// React.memo's default shallow-prop comparison is what actually makes this
+// pay off: updateStudent's setData replaces only the edited student's entry
+// (`{ ...prev, [studentId]: updater(prev[studentId]) }`), so every OTHER
+// student's StudentGradeData object keeps the exact same reference across
+// the re-render. A row whose studentData prop is referentially unchanged
+// skips re-rendering (and recomputing its rollup) entirely.
+// ---------------------------------------------------------------------------
+
+const RosterRow = memo(function RosterRow({
+  student,
+  studentData,
+  skillDefinitions,
+  promptsByStandard,
+  isSelected,
+  isSaved,
+  gradeColor,
+  onSelect,
+}: {
+  student: Student
+  studentData: StudentGradeData
+  skillDefinitions: SkillDefinition[]
+  promptsByStandard: Record<2 | 3 | 4, PromptDef[]>
+  isSelected: boolean
+  isSaved: boolean
+  gradeColor: Record<string, string>
+  onSelect: (id: string) => void
+}) {
+  const liveOverall = calcOverallPure(studentData, skillDefinitions, promptsByStandard)
+  const grade = liveOverall?.letterGrade ?? student.currentGrade ?? '-'
+  return (
+    <button
+      onClick={() => onSelect(student.id)}
+      className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-50 transition-colors ${isSelected ? 'bg-primary-50 border-l-4 border-l-primary-500' : ''}`}
+    >
+      <div>
+        <div className="font-medium text-sm text-gray-900">{student.firstName} {student.lastName}</div>
+        <div className="text-xs text-gray-400 mt-0.5">
+          {isSaved ? (
+            <span className="inline-flex items-center gap-1 text-green-600">
+              <Check className="h-3 w-3" aria-hidden="true" /> Saved
+            </span>
+          ) : ''}
+        </div>
+      </div>
+      <span className={`text-sm font-bold ${gradeColor[grade] ?? 'text-gray-500'}`}>{grade}</span>
+    </button>
+  )
+})
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -175,35 +285,15 @@ export function GradingInterface({
   }
 
   function calcStandard1(d: StudentGradeData) {
-    const items = skillDefinitions
-      .filter((s) => d.skillScores[s.id] !== undefined)
-      .map((s) => ({ skillId: s.id, score: d.skillScores[s.id] }))
-    if (items.length === 0) return null
-    return calculateStandardScore(items)
+    return calcStandard1Pure(d, skillDefinitions)
   }
 
   function calcStandard23(d: StudentGradeData, std: 2 | 3) {
-    const prompts = promptsByStandard[std]
-    const items = prompts
-      .filter((p) => d.promptScores[p.id] !== undefined)
-      .map((p) => ({ itemId: p.id, score: d.promptScores[p.id] }))
-    if (items.length === 0) return null
-    return calculateStandardScore(items)
+    return calcStandard23Pure(d, std, promptsByStandard)
   }
 
   function calcStandard4(d: StudentGradeData) {
-    const prompts = promptsByStandard[4]
-    const items: { itemId: string; score: Score }[] = prompts
-      .filter((p) => d.promptScores[p.id] !== undefined)
-      .map((p) => ({ itemId: p.id, score: d.promptScores[p.id] }))
-    if (d.standard4TeacherRating !== null) {
-      items.push({ itemId: 'teacher-rating', score: d.standard4TeacherRating })
-    }
-    if (d.standard4StudentSelfRating !== null) {
-      items.push({ itemId: 'student-self-rating', score: d.standard4StudentSelfRating })
-    }
-    if (items.length === 0) return null
-    return calculateStandardScore(items)
+    return calcStandard4Pure(d, promptsByStandard)
   }
 
   function calcAtl(d: StudentGradeData) {
@@ -253,16 +343,7 @@ export function GradingInterface({
   }
 
   function calcOverall(d: StudentGradeData) {
-    const s1 = calcStandard1(d)?.score
-    const s2 = calcStandard23(d, 2)?.score
-    const s3 = calcStandard23(d, 3)?.score
-    const s4 = calcStandard4(d)?.score
-    if (!s1 || !s2 || !s3 || !s4) return null
-    try {
-      return calculateOverallGrade({ s1, s2, s3, s4 })
-    } catch {
-      return null
-    }
+    return calcOverallPure(d, skillDefinitions, promptsByStandard)
   }
 
   const std1Result = selectedData ? calcStandard1(selectedData) : null
@@ -385,29 +466,25 @@ export function GradingInterface({
           />
         </div>
         <div className="flex-1 overflow-y-auto">
-          {filtered.map((s) => {
-            const liveOverall = calcOverall(data[s.id])
-            const grade = liveOverall?.letterGrade ?? s.currentGrade ?? '-'
-            return (
-              <button
+          {filtered.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-gray-400">
+              {students.length === 0 ? 'No students in this class.' : 'No students match your search.'}
+            </div>
+          ) : (
+            filtered.map((s) => (
+              <RosterRow
                 key={s.id}
-                onClick={() => setSelectedId(s.id)}
-                className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-50 transition-colors ${selectedId === s.id ? 'bg-primary-50 border-l-4 border-l-primary-500' : ''}`}
-              >
-                <div>
-                  <div className="font-medium text-sm text-gray-900">{s.firstName} {s.lastName}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    {saved === s.id ? (
-                      <span className="inline-flex items-center gap-1 text-green-600">
-                        <Check className="h-3 w-3" aria-hidden="true" /> Saved
-                      </span>
-                    ) : ''}
-                  </div>
-                </div>
-                <span className={`text-sm font-bold ${gradeColor[grade] ?? 'text-gray-500'}`}>{grade}</span>
-              </button>
-            )
-          })}
+                student={s}
+                studentData={data[s.id]}
+                skillDefinitions={skillDefinitions}
+                promptsByStandard={promptsByStandard}
+                isSelected={selectedId === s.id}
+                isSaved={saved === s.id}
+                gradeColor={gradeColor}
+                onSelect={setSelectedId}
+              />
+            ))
+          )}
         </div>
       </div>
 

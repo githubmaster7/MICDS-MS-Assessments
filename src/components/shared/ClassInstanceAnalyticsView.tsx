@@ -178,9 +178,9 @@ export function ClassInstanceAnalyticsView({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {data.roster.map((row) => (
             <div key={row.studentProfileId} className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-gray-900">{row.studentName}</span>
-                <span className="text-sm font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-800">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="font-semibold text-gray-900 truncate min-w-0" title={row.studentName}>{row.studentName}</span>
+                <span className="text-sm font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-800 shrink-0">
                   {row.letterGrade ?? '-'}
                 </span>
               </div>

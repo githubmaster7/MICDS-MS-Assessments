@@ -203,6 +203,13 @@ export default async function MassGradingPage({
             </tr>
           </thead>
           <tbody>
+            {students.length === 0 && (
+              <tr>
+                <td colSpan={columns.length + 2} className="px-3 py-8 text-center text-gray-400 border border-gray-200 bg-white">
+                  No students in this group.
+                </td>
+              </tr>
+            )}
             {students.map((student) => {
               const studentSnaps = snapMap[student.id] ?? {}
               const latestSnap = snapshots

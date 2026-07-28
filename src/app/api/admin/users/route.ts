@@ -3,11 +3,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { createAuditLog, AuditAction } from '@/lib/audit'
-import { Role, AccountStatus } from '@prisma/client'
+import { Role, AccountStatus, GradeLevel, Gender } from '@prisma/client'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { PAGINATION_DEFAULTS, ALLOWED_EMAIL_DOMAIN } from '@/lib/constants'
-import { ipRateLimitKey } from '@/lib/rate-limit'
+import { ipRateLimitKey, apiLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 const CreateUserSchema = z.object({
   email: z
@@ -36,6 +36,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const roleFilter = searchParams.get('role') as Role | null
   const statusFilter = searchParams.get('status') as AccountStatus | null
   const search = searchParams.get('search')?.trim()
+  const gradeLevelFilter = searchParams.get('gradeLevel')
+  const genderFilter = searchParams.get('gender')
 
   const where: Record<string, unknown> = {}
   if (roleFilter && (Object.values(Role) as string[]).includes(roleFilter)) {
@@ -46,6 +48,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
   if (search) {
     where.email = { contains: search, mode: 'insensitive' }
+  }
+  // Only meaningful for role=STUDENT - lets callers (e.g. the "add student to
+  // group" picker) filter to a specific grade/gender server-side instead of
+  // over-fetching a page of students and filtering client-side, which used
+  // to silently drop eligible students once a school had more than one page
+  // of active students (the page-size cap was applied before the eligibility
+  // filter, not after).
+  if (gradeLevelFilter && (Object.values(GradeLevel) as string[]).includes(gradeLevelFilter)) {
+    where.studentProfile = { ...(where.studentProfile as object), gradeLevel: gradeLevelFilter }
+  }
+  if (genderFilter && (Object.values(Gender) as string[]).includes(genderFilter)) {
+    where.studentProfile = { ...(where.studentProfile as object), gender: genderFilter }
   }
 
   const [total, users] = await Promise.all([
@@ -88,6 +102,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   if (session.user.role !== Role.ADMIN) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+  }
+
+  const rl = await checkRateLimit(apiLimiter, userRateLimitKey(session.user.id))
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.msBeforeNext / 1000)) } },
+    )
   }
 
   let body: unknown

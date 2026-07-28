@@ -155,19 +155,24 @@ export default function StudentGroupDetailPage() {
 
   React.useEffect(() => {
     if (!addOpen || !group) return;
-    fetch(`/api/admin/users?role=STUDENT&status=ACTIVE&limit=100`)
+    // Filtered server-side by grade/gender (not fetched-then-filtered
+    // client-side) so a school with more than one page of active students
+    // can't have genuinely-eligible students silently disappear from this
+    // picker once the page-size cap is hit before the eligibility filter runs.
+    const params = new URLSearchParams({
+      role: 'STUDENT',
+      status: 'ACTIVE',
+      gradeLevel: group.gradeLevel,
+      gender: group.gender,
+      pageSize: '100',
+    });
+    fetch(`/api/admin/users?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => {
         const memberIds = new Set(members.map((m) => m.studentProfileId));
         const users: Array<{ studentProfile?: { id: string; firstName: string; lastName: string; gradeLevel: string; gender: string }; email: string }> = d?.data ?? [];
         const students = users
-          .filter(
-            (u) =>
-              u.studentProfile &&
-              !memberIds.has(u.studentProfile.id) &&
-              u.studentProfile.gradeLevel === group.gradeLevel &&
-              u.studentProfile.gender === group.gender
-          )
+          .filter((u) => u.studentProfile && !memberIds.has(u.studentProfile.id))
           .map((u) => ({
             id: u.studentProfile!.id,
             firstName: u.studentProfile!.firstName,
