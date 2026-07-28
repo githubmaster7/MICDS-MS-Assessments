@@ -1,19 +1,19 @@
 # MICDS PE Grading Platform
 
-A web application for managing Physical Education assessments at MICDS Middle School. Teachers grade students across four standards per activity unit; students submit written responses and self-ratings; parents view their child's progress. All data persists in PostgreSQL and the app runs on Next.js 14.
+A web application for managing Physical Education assessments at MICDS Middle School. Teachers grade students across four standards per activity unit; students submit written responses and self-ratings; parents view their child's progress. All data persists in PostgreSQL and the app runs on Next.js 16.
 
 ---
 
-## Architecture
+## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend + Backend | Next.js 14 App Router (React Server Components + Server Actions) |
-| Database | PostgreSQL 15 via Prisma ORM |
-| Authentication | NextAuth.js v4 with credentials provider + custom approval workflow |
-| Styling | Tailwind CSS + Radix UI primitives |
-| Email | Nodemailer (SMTP) for verification and approval notifications |
-| Testing | Jest + React Testing Library |
+* **Framework:** Next.js 16 (App Router, Turbopack)
+* **Frontend:** React 19 + TypeScript, Tailwind CSS, Radix UI (Dialog, Select, Tabs, Dropdown, Popover, Checkbox, Avatar, Toast), Recharts for analytics charts
+* **Backend:** Next.js API routes + Prisma ORM (PostgreSQL)
+* **Database:** Supabase
+* **Authentication:** NextAuth.js (Credentials provider, JWT sessions) + bcrypt for password hashing
+* **Hosting:** Vercel
+* **Email:** Nodemailer (SMTP) for verification and approval notifications
+* **Testing:** Jest + React Testing Library
 
 ### Key design decisions
 
@@ -31,7 +31,7 @@ npm install
 
 # Set up environment
 cp .env.example .env
-# Edit .env with your database URL and secrets (see Environment Variables below)
+# Edit .env with your database URL and secrets
 
 # Run database migrations
 npx prisma migrate dev
@@ -44,37 +44,6 @@ npm run dev
 ```
 
 The app will be available at `http://localhost:3000`.
-
----
-
-## Environment Variables
-
-All variables are required unless marked optional.
-
-```bash
-# PostgreSQL connection string
-# Format: postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-DATABASE_URL="postgresql://user:password@localhost:5432/micds_pe"
-
-# NextAuth.js secret — must be at least 32 random characters.
-# Generate with: openssl rand -base64 32
-NEXTAUTH_SECRET="your-secret-here-min-32-chars"
-
-# The canonical URL of the app (no trailing slash)
-NEXTAUTH_URL="http://localhost:3000"
-
-# Only users with this email domain may register.
-ALLOWED_EMAIL_DOMAIN="micds.org"
-
-# SMTP configuration for transactional email
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER="noreply@micds.org"
-SMTP_PASS="your-smtp-app-password"
-SMTP_FROM="MICDS PE <noreply@micds.org>"
-
-NODE_ENV="development"
-```
 
 ---
 
