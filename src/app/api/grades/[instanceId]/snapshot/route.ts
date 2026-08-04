@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
 
   if (studentId) {
     // Authorization: verify the caller can view this student
-    const allowed = await canViewStudent(session.user.id, session.user.role, studentId)
+    const allowed = await canViewStudent(session.user.id, session.user.role, studentId, instanceId)
     if (!allowed) {
       return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
     }
