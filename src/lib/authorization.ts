@@ -41,7 +41,8 @@ function forbidden(message: string): never {
 export async function canViewStudent(
   actorId: string,
   actorRole: Role,
-  studentProfileId: string
+  studentProfileId: string,
+  instanceId?: string
 ): Promise<boolean> {
   if (actorRole === Role.ADMIN) return true
 
@@ -79,10 +80,52 @@ export async function canViewStudent(
     })
     if (!teacherProfile) return false
 
+    // When a specific class instance is in scope, tighten to that instance
+    // only - a teacher's general "currently assigned to this student's
+    // group" access shouldn't extend to every instance in the group's
+    // rotation history, only the one(s) they actually taught.
+    if (instanceId) {
+      return isTeacherAssignedToInstance(teacherProfile.id, studentProfileId, instanceId)
+    }
+
     return isTeacherCurrentlyAssigned(teacherProfile.id, studentProfileId)
   }
 
   return false
+}
+
+/**
+ * Returns true if the teacher owns the given class instance AND the student
+ * is enrolled in that instance's group - the instance-scoped counterpart to
+ * isTeacherCurrentlyAssigned, used when a specific historicalClassInstanceId
+ * is in scope (e.g. viewing a grade snapshot for one particular class)
+ * rather than "any of the student's active groups".
+ */
+async function isTeacherAssignedToInstance(
+  teacherProfileId: string,
+  studentProfileId: string,
+  instanceId: string
+): Promise<boolean> {
+  const instance = await db.historicalClassInstance.findUnique({
+    where: { id: instanceId },
+    select: {
+      studentGroupId: true,
+      teacherClassAssignment: { select: { teacherProfileId: true } },
+    },
+  })
+  if (!instance) return false
+  if (instance.teacherClassAssignment.teacherProfileId !== teacherProfileId) return false
+
+  const membership = await db.studentGroupMembership.findUnique({
+    where: {
+      studentGroupId_studentProfileId: {
+        studentGroupId: instance.studentGroupId,
+        studentProfileId,
+      },
+    },
+    select: { id: true },
+  })
+  return membership !== null
 }
 
 /**

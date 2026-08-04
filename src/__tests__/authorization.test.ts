@@ -166,6 +166,51 @@ describe('canViewStudent — TEACHER', () => {
   })
 })
 
+describe('canViewStudent — TEACHER with instanceId (instance-scoped)', () => {
+  it('teacher can view a student enrolled in an instance they own', async () => {
+    mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'teacher-profile-1' })
+    mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
+      studentGroupId: 'group-1',
+      teacherClassAssignment: { teacherProfileId: 'teacher-profile-1' },
+    })
+    mockDb.studentGroupMembership.findUnique.mockResolvedValueOnce({ id: 'membership-1' })
+    const result = await canViewStudent('teacher-user-1', Role.TEACHER as any, 'student-profile-1', 'instance-1')
+    expect(result).toBe(true)
+    // The group-based path must not be consulted once instanceId is supplied.
+    expect(mockDb.studentGroupMembership.findMany).not.toHaveBeenCalled()
+    expect(mockDb.groupRotationAssignment.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('teacher cannot view a student via an instance they do not own, even if currently assigned to the student\'s group elsewhere', async () => {
+    mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'teacher-profile-1' })
+    mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
+      studentGroupId: 'group-1',
+      teacherClassAssignment: { teacherProfileId: 'some-other-teacher' },
+    })
+    const result = await canViewStudent('teacher-user-1', Role.TEACHER as any, 'student-profile-1', 'instance-1')
+    expect(result).toBe(false)
+    expect(mockDb.studentGroupMembership.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('teacher cannot view a student not enrolled in the owned instance\'s group', async () => {
+    mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'teacher-profile-1' })
+    mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce({
+      studentGroupId: 'group-1',
+      teacherClassAssignment: { teacherProfileId: 'teacher-profile-1' },
+    })
+    mockDb.studentGroupMembership.findUnique.mockResolvedValueOnce(null)
+    const result = await canViewStudent('teacher-user-1', Role.TEACHER as any, 'student-profile-1', 'instance-1')
+    expect(result).toBe(false)
+  })
+
+  it('returns false for a nonexistent instance', async () => {
+    mockDb.teacherProfile.findUnique.mockResolvedValueOnce({ id: 'teacher-profile-1' })
+    mockDb.historicalClassInstance.findUnique.mockResolvedValueOnce(null)
+    const result = await canViewStudent('teacher-user-1', Role.TEACHER as any, 'student-profile-1', 'nonexistent-instance')
+    expect(result).toBe(false)
+  })
+})
+
 // ─── canTeacherGrade ──────────────────────────────────────────────────────────
 
 describe('canTeacherGrade', () => {
