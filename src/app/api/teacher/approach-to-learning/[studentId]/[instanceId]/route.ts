@@ -37,11 +37,24 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
 
   const instance = await db.historicalClassInstance.findUnique({
     where: { id: instanceId },
-    select: { teacherClassAssignment: { select: { teacherProfileId: true } } },
+    select: { studentGroupId: true, teacherClassAssignment: { select: { teacherProfileId: true } } },
   })
   if (!instance) return NextResponse.json({ error: 'Class instance not found.' }, { status: 404 })
   if (instance.teacherClassAssignment.teacherProfileId !== teacherProfile.id) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+  }
+
+  // Owning the instance is not enough on its own - studentId is a separate,
+  // caller-supplied value. Without this check a teacher could read (though,
+  // per canTeacherGrade's own guard on the PUT below, never actually create)
+  // an arbitrary student's ATL record by supplying an unrelated studentId
+  // alongside one of their own instanceIds.
+  const membership = await db.studentGroupMembership.findUnique({
+    where: { studentGroupId_studentProfileId: { studentGroupId: instance.studentGroupId, studentProfileId: studentId } },
+    select: { id: true },
+  })
+  if (!membership) {
+    return NextResponse.json({ error: 'This student is not enrolled in this class.' }, { status: 403 })
   }
 
   const record = await db.approachToLearningRecord.findUnique({
