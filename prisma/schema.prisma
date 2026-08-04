@@ -1,0 +1,968 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum AccountStatus {
+  PENDING_EMAIL_VERIFICATION
+  PENDING_ADMIN_APPROVAL
+  ACTIVE
+  DEACTIVATED
+  REJECTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum GradeLevel {
+  GRADE_5
+  GRADE_6
+  GRADE_7
+  GRADE_8
+}
+
+enum RotationStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  LOCKED
+}
+
+enum SubmissionStatus {
+  NOT_STARTED
+  DRAFT
+  SUBMITTED
+  REASSESSMENT_SUBMITTED
+}
+
+enum SkillType {
+  FUNDAMENTAL
+  SPECIFIC
+}
+
+enum AuditAction {
+  // Auth
+  USER_REGISTERED
+  USER_EMAIL_VERIFIED
+  USER_LOGIN
+  USER_LOGIN_FAILED
+  USER_LOGOUT
+  USER_PASSWORD_RESET_REQUESTED
+  USER_PASSWORD_RESET
+  // Admin approval
+  SIGNUP_REQUEST_APPROVED
+  SIGNUP_REQUEST_REJECTED
+  USER_DEACTIVATED
+  USER_REACTIVATED
+  // Profile
+  STUDENT_PROFILE_CREATED
+  STUDENT_PROFILE_UPDATED
+  TEACHER_PROFILE_CREATED
+  TEACHER_PROFILE_UPDATED
+  PARENT_PROFILE_CREATED
+  PARENT_STUDENT_LINK_CREATED
+  PARENT_STUDENT_LINK_REMOVED
+  // School year / term
+  SCHOOL_YEAR_CREATED
+  SCHOOL_YEAR_UPDATED
+  TERM_CREATED
+  TERM_UPDATED
+  // Groups
+  STUDENT_GROUP_CREATED
+  STUDENT_GROUP_UPDATED
+  STUDENT_GROUP_DELETED
+  STUDENT_GROUP_MEMBERSHIP_ADDED
+  STUDENT_GROUP_MEMBERSHIP_REMOVED
+  // Carousel / rotation
+  CAROUSEL_PLAN_CREATED
+  CAROUSEL_PLAN_UPDATED
+  ROTATION_ADVANCED
+  ROTATION_REVERSED
+  GROUP_ROTATION_ASSIGNED
+  GROUP_ROTATION_UPDATED
+  // Class instance
+  CLASS_INSTANCE_LOCKED
+  CLASS_INSTANCE_REOPENED
+  // Rubric
+  RUBRIC_VERSION_CREATED
+  RUBRIC_VERSION_UPDATED
+  SKILL_DEFINITION_CREATED
+  SKILL_DEFINITION_UPDATED
+  PROMPT_DEFINITION_CREATED
+  PROMPT_DEFINITION_UPDATED
+  // Grading
+  STUDENT_SUBMISSION_CREATED
+  STUDENT_SUBMISSION_UPDATED
+  STUDENT_SUBMISSION_SUBMITTED
+  WRITTEN_RESPONSE_SAVED
+  SKILL_SELF_RATING_SAVED
+  TEACHER_ASSESSMENT_CREATED
+  TEACHER_ASSESSMENT_UPDATED
+  TEACHER_SKILL_SCORE_SAVED
+  TEACHER_STANDARD4_RATING_SAVED
+  STUDENT_STANDARD4_SELF_RATING_SAVED
+  ATL_RECORD_CREATED
+  ATL_RECORD_UPDATED
+  GRADE_SNAPSHOT_CREATED
+  // Teachers & classes
+  ACTIVITY_TEMPLATE_CREATED
+  ACTIVITY_TEMPLATE_UPDATED
+  TEACHER_CLASS_ASSIGNMENT_CREATED
+  TEACHER_CLASS_ASSIGNMENT_UPDATED
+  // Regrade grants
+  REGRADE_GRANT_OPENED
+  REGRADE_GRANT_CLOSED
+  REGRADE_GRANT_BULK_OPENED
+  REGRADE_GRANT_BULK_CLOSED
+}
+
+// ---------------------------------------------------------------------------
+// Auth / Users
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String        @id @default(uuid()) @db.Uuid
+  email           String        @unique
+  passwordHash    String
+  role            Role
+  status          AccountStatus @default(PENDING_EMAIL_VERIFICATION)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  signupRequest           SignupRequest?
+  studentProfile          StudentProfile?
+  teacherProfile          TeacherProfile?
+  parentProfile           ParentProfile?
+
+  // Audit: actions this user performed
+  auditLogs AuditLog[] @relation("AuditActor")
+
+  // Admin actions
+  signupRequestsReviewed SignupRequest[] @relation("SignupReviewer")
+  classInstancesLocked   HistoricalClassInstance[] @relation("ClassLocker")
+  carouselPlansCreated   CarouselPlan[]
+  rotationHistoriesExecuted RotationHistory[] @relation("RotationExecutor")
+  rotationHistoriesReversed RotationHistory[] @relation("RotationReverser")
+  parentStudentLinksCreated ParentStudentLink[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model SignupRequest {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @unique @db.Uuid
+  requestedRole Role
+  // The name the requester typed at signup — informational only, so the
+  // admin can see who's asking before approving. Never authoritative: the
+  // admin still enters (and can correct) firstName/lastName on the actual
+  // profile at approval time.
+  requestedName String?
+  adminNote     String?
+  reviewedBy    String?       @db.Uuid
+  reviewedAt    DateTime?
+  status        AccountStatus @default(PENDING_ADMIN_APPROVAL)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("SignupReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  requestedStudentLinks SignupRequestStudentLink[]
+
+  @@index([status])
+  @@index([reviewedBy])
+}
+
+// A parent signup request names the student(s) they claim to be the
+// guardian of, at signup time — the admin reviews this list (and may
+// deselect any that shouldn't be confirmed) before approval actually
+// creates the corresponding ParentStudentLink rows.
+model SignupRequestStudentLink {
+  id               String   @id @default(uuid()) @db.Uuid
+  signupRequestId  String   @db.Uuid
+  studentProfileId String   @db.Uuid
+  createdAt        DateTime @default(now())
+
+  signupRequest  SignupRequest  @relation(fields: [signupRequestId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([signupRequestId, studentProfileId])
+  @@index([signupRequestId])
+  @@index([studentProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// Profiles
+// ---------------------------------------------------------------------------
+
+model StudentProfile {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @unique @db.Uuid
+  firstName   String
+  lastName    String
+  gradeLevel  GradeLevel
+  gender      Gender
+  studentId   String     @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  parentLinks           ParentStudentLink[]
+  signupRequestLinks    SignupRequestStudentLink[]
+  groupMemberships      StudentGroupMembership[]
+  submissions           StudentSubmission[]
+  teacherAssessments    TeacherAssessment[]
+  atlRecords            ApproachToLearningRecord[]
+  gradeSnapshots        GradeCalculationSnapshot[]
+  studentSkillRatings   StudentSkillSelfRating[]
+  studentPromptRatings  StudentPromptRating[]
+  studentStd4Ratings    StudentStandard4SelfRating[]
+
+  @@index([gradeLevel])
+  @@index([gender])
+  @@index([studentId])
+}
+
+model TeacherProfile {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @unique @db.Uuid
+  firstName  String
+  lastName   String
+  employeeId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  classAssignments   TeacherClassAssignment[]
+  teacherAssessments TeacherAssessment[]
+  atlRecords         ApproachToLearningRecord[]
+
+  @@index([employeeId])
+}
+
+model ParentProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  firstName String
+  lastName  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentLinks ParentStudentLink[]
+}
+
+model ParentStudentLink {
+  id               String   @id @default(uuid()) @db.Uuid
+  parentProfileId  String   @db.Uuid
+  studentProfileId String   @db.Uuid
+  createdAt        DateTime @default(now())
+  createdBy        String   @db.Uuid
+
+  parentProfile  ParentProfile  @relation(fields: [parentProfileId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  creator        User           @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@unique([parentProfileId, studentProfileId])
+  @@index([parentProfileId])
+  @@index([studentProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// School Year / Term
+// ---------------------------------------------------------------------------
+
+model SchoolYear {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  terms                  Term[]
+  studentGroups          StudentGroup[]
+  teacherClassAssignments TeacherClassAssignment[]
+  carouselPlans          CarouselPlan[]
+  groupRotationAssignments GroupRotationAssignment[]
+  historicalClassInstances HistoricalClassInstance[]
+  gradeSnapshots         GradeCalculationSnapshot[]
+
+  @@index([isActive])
+}
+
+model Term {
+  id           String   @id @default(uuid()) @db.Uuid
+  schoolYearId String   @db.Uuid
+  name         String
+  startDate    DateTime @db.Date
+  endDate      DateTime @db.Date
+  termNumber   Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schoolYear               SchoolYear                @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  historicalClassInstances HistoricalClassInstance[]
+
+  @@unique([schoolYearId, termNumber])
+  @@index([schoolYearId])
+}
+
+// ---------------------------------------------------------------------------
+// Activity Templates
+// ---------------------------------------------------------------------------
+
+model ActivityTemplate {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  gender      Gender?
+  gradeLevel  GradeLevel?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  teacherClassAssignments TeacherClassAssignment[]
+  rubricVersions          RubricVersion[]
+
+  @@unique([name, gender, gradeLevel])
+  @@index([isActive])
+  @@index([gender])
+  @@index([gradeLevel])
+}
+
+// ---------------------------------------------------------------------------
+// Student Groups
+// ---------------------------------------------------------------------------
+
+model StudentGroup {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @db.Uuid
+  name         String
+  gradeLevel   GradeLevel
+  gender       Gender
+  description  String?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  schoolYear               SchoolYear                @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  memberships              StudentGroupMembership[]
+  carouselPositions        CarouselPosition[]
+  groupRotationAssignments GroupRotationAssignment[]
+  historicalClassInstances HistoricalClassInstance[]
+  rotationHistories        RotationHistory[]
+
+  @@unique([schoolYearId, name])
+  @@index([schoolYearId])
+  @@index([gradeLevel])
+  @@index([gender])
+  @@index([isActive])
+}
+
+// NOTE: a hand-written migration (20260728000000_student_group_membership_
+// one_active) adds a partial unique index — UNIQUE (studentProfileId) WHERE
+// "leftAt" IS NULL — enforcing that a student can only be an active member
+// of one group at a time. Prisma's schema language has no way to express a
+// filtered/partial unique constraint, so it isn't declared below; do not
+// remove or "clean up" that migration file assuming it's redundant with
+// @@unique([studentGroupId, studentProfileId]) - that constraint only
+// prevents a duplicate row within the SAME group, not simultaneous active
+// membership across two different groups.
+model StudentGroupMembership {
+  id               String    @id @default(uuid()) @db.Uuid
+  studentGroupId   String    @db.Uuid
+  studentProfileId String    @db.Uuid
+  joinedAt         DateTime  @default(now())
+  leftAt           DateTime?
+
+  studentGroup   StudentGroup   @relation(fields: [studentGroupId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([studentGroupId, studentProfileId])
+  @@index([studentGroupId])
+  @@index([studentProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// Teacher Class Assignments
+// ---------------------------------------------------------------------------
+
+model TeacherClassAssignment {
+  id                 String   @id @default(uuid()) @db.Uuid
+  teacherProfileId   String   @db.Uuid
+  activityTemplateId String   @db.Uuid
+  schoolYearId       String   @db.Uuid
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  teacherProfile   TeacherProfile   @relation(fields: [teacherProfileId], references: [id], onDelete: Restrict)
+  activityTemplate ActivityTemplate @relation(fields: [activityTemplateId], references: [id], onDelete: Restrict)
+  schoolYear       SchoolYear       @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+
+  carouselPositions        CarouselPosition[]
+  historicalClassInstances HistoricalClassInstance[]
+
+  @@unique([teacherProfileId, activityTemplateId, schoolYearId])
+  @@index([teacherProfileId])
+  @@index([activityTemplateId])
+  @@index([schoolYearId])
+  @@index([isActive])
+}
+
+// ---------------------------------------------------------------------------
+// Carousel Plans / Positions
+// ---------------------------------------------------------------------------
+
+model CarouselPlan {
+  id           String   @id @default(uuid()) @db.Uuid
+  schoolYearId String   @db.Uuid
+  name         String
+  isActive     Boolean  @default(false)
+  createdBy    String   @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schoolYear       SchoolYear         @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  creator          User               @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  positions        CarouselPosition[]
+  rotationHistories RotationHistory[]
+
+  @@unique([schoolYearId, name])
+  @@index([schoolYearId])
+  @@index([isActive])
+}
+
+// Each position belongs to exactly one student group's own carousel — groups
+// no longer share a single round-robin. The same TeacherClassAssignment can
+// (and often does) appear in multiple groups' position lists.
+model CarouselPosition {
+  id                      String @id @default(uuid()) @db.Uuid
+  carouselPlanId          String @db.Uuid
+  studentGroupId          String @db.Uuid
+  positionOrder           Int
+  teacherClassAssignmentId String @db.Uuid
+
+  carouselPlan          CarouselPlan           @relation(fields: [carouselPlanId], references: [id], onDelete: Cascade)
+  studentGroup          StudentGroup           @relation(fields: [studentGroupId], references: [id], onDelete: Restrict)
+  teacherClassAssignment TeacherClassAssignment @relation(fields: [teacherClassAssignmentId], references: [id], onDelete: Restrict)
+
+  groupRotationAssignments GroupRotationAssignment[]
+
+  @@unique([studentGroupId, positionOrder])
+  @@index([carouselPlanId])
+  @@index([studentGroupId])
+  @@index([teacherClassAssignmentId])
+}
+
+// ---------------------------------------------------------------------------
+// Group Rotation Assignments
+// ---------------------------------------------------------------------------
+
+model GroupRotationAssignment {
+  id                 String         @id @default(uuid()) @db.Uuid
+  schoolYearId       String         @db.Uuid
+  studentGroupId     String         @db.Uuid
+  carouselPositionId String         @db.Uuid
+  startDate          DateTime       @db.Date
+  endDate            DateTime       @db.Date
+  status             RotationStatus @default(UPCOMING)
+  rotationNumber     Int
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  schoolYear       SchoolYear       @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  studentGroup     StudentGroup     @relation(fields: [studentGroupId], references: [id], onDelete: Restrict)
+  carouselPosition CarouselPosition @relation(fields: [carouselPositionId], references: [id], onDelete: Restrict)
+
+  historicalClassInstances HistoricalClassInstance[]
+
+  @@unique([studentGroupId, carouselPositionId, rotationNumber])
+  @@index([schoolYearId])
+  @@index([studentGroupId])
+  @@index([carouselPositionId])
+  @@index([status])
+}
+
+// One row per group per rotation event — rotations are now per-group, so a
+// single "rotate selected groups" action produces one row for each group
+// rotated, each recording that group's own before/after activity.
+model RotationHistory {
+  id             String    @id @default(uuid()) @db.Uuid
+  carouselPlanId String    @db.Uuid
+  studentGroupId String    @db.Uuid
+  rotationNumber Int
+  fromActivityName String?
+  toActivityName    String
+  executedAt     DateTime  @default(now())
+  executedBy     String    @db.Uuid
+  notes          String?
+  reversedAt     DateTime?
+  reversedBy     String?   @db.Uuid
+  reversalReason String?
+
+  carouselPlan CarouselPlan @relation(fields: [carouselPlanId], references: [id], onDelete: Restrict)
+  studentGroup StudentGroup @relation(fields: [studentGroupId], references: [id], onDelete: Restrict)
+  executor     User         @relation("RotationExecutor", fields: [executedBy], references: [id], onDelete: Restrict)
+  reverser     User?        @relation("RotationReverser", fields: [reversedBy], references: [id], onDelete: SetNull)
+
+  @@index([carouselPlanId])
+  @@index([studentGroupId])
+  @@index([executedBy])
+}
+
+// ---------------------------------------------------------------------------
+// Historical Class Instances
+// ---------------------------------------------------------------------------
+
+model HistoricalClassInstance {
+  id                       String    @id @default(uuid()) @db.Uuid
+  groupRotationAssignmentId String   @db.Uuid
+  studentGroupId           String    @db.Uuid
+  teacherClassAssignmentId  String   @db.Uuid
+  schoolYearId             String    @db.Uuid
+  termId                   String?   @db.Uuid
+  status                   RotationStatus @default(UPCOMING)
+  lockedAt                 DateTime?
+  lockedBy                 String?   @db.Uuid
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  groupRotationAssignment GroupRotationAssignment @relation(fields: [groupRotationAssignmentId], references: [id], onDelete: Restrict)
+  studentGroup            StudentGroup            @relation(fields: [studentGroupId], references: [id], onDelete: Restrict)
+  teacherClassAssignment  TeacherClassAssignment  @relation(fields: [teacherClassAssignmentId], references: [id], onDelete: Restrict)
+  schoolYear              SchoolYear              @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  term                    Term?                   @relation(fields: [termId], references: [id], onDelete: SetNull)
+  locker                  User?                   @relation("ClassLocker", fields: [lockedBy], references: [id], onDelete: SetNull)
+
+  studentSubmissions       StudentSubmission[]
+  teacherAssessments       TeacherAssessment[]
+  atlRecords               ApproachToLearningRecord[]
+  gradeSnapshots           GradeCalculationSnapshot[]
+
+  @@unique([groupRotationAssignmentId, studentGroupId, teacherClassAssignmentId])
+  @@index([schoolYearId])
+  @@index([studentGroupId])
+  @@index([teacherClassAssignmentId])
+  @@index([status])
+  @@index([termId])
+}
+
+// ---------------------------------------------------------------------------
+// Rubric Versions
+// ---------------------------------------------------------------------------
+
+model RubricVersion {
+  id               String   @id @default(uuid()) @db.Uuid
+  activityTemplateId String  @db.Uuid
+  standardNumber   Int
+  activityName     String
+  version          Int      @default(1)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  activityTemplate ActivityTemplate  @relation(fields: [activityTemplateId], references: [id], onDelete: Restrict)
+  skillDefinitions SkillDefinition[]
+  promptDefinitions PromptDefinition[]
+
+  @@unique([activityTemplateId, standardNumber, version])
+  @@index([activityTemplateId])
+  @@index([standardNumber])
+  @@index([isActive])
+}
+
+model SkillDefinition {
+  id               String    @id @default(uuid()) @db.Uuid
+  rubricVersionId  String    @db.Uuid
+  skillType        SkillType
+  skillName        String
+  displayOrder     Int
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  rubricVersion     RubricVersion          @relation(fields: [rubricVersionId], references: [id], onDelete: Cascade)
+  studentSelfRatings StudentSkillSelfRating[]
+  teacherSkillScores TeacherSkillScore[]
+
+  @@unique([rubricVersionId, displayOrder])
+  @@index([rubricVersionId])
+  @@index([skillType])
+  @@index([isActive])
+}
+
+model PromptDefinition {
+  id             String   @id @default(uuid()) @db.Uuid
+  rubricVersionId String  @db.Uuid
+  standardNumber Int
+  promptText     String
+  displayOrder   Int
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  rubricVersion        RubricVersion         @relation(fields: [rubricVersionId], references: [id], onDelete: Cascade)
+  writtenResponses     WrittenResponse[]
+  teacherPromptScores  TeacherPromptScore[]
+  studentPromptRatings StudentPromptRating[]
+
+  @@unique([rubricVersionId, standardNumber, displayOrder])
+  @@index([rubricVersionId])
+  @@index([standardNumber])
+  @@index([isActive])
+}
+
+// ---------------------------------------------------------------------------
+// Student Submissions
+// ---------------------------------------------------------------------------
+
+model StudentSubmission {
+  id                          String           @id @default(uuid()) @db.Uuid
+  studentProfileId            String           @db.Uuid
+  historicalClassInstanceId   String           @db.Uuid
+  standardNumber              Int
+  status                      SubmissionStatus @default(NOT_STARTED)
+  honorCodeAcknowledgedAt     DateTime?
+  honorCodeVersion            String?
+  submittedAt                 DateTime?
+  reassessmentSubmittedAt     DateTime?
+  // Number of the current live attempt (1 = original submission, 2+ = a
+  // resubmission). Earlier attempts are frozen in SubmissionHistoryEntry
+  // rows; the "live" WrittenResponse/self-rating rows always mirror this
+  // latest attempt.
+  latestAttemptNumber         Int              @default(1)
+  createdAt                   DateTime         @default(now())
+  updatedAt                   DateTime         @updatedAt
+
+  studentProfile          StudentProfile          @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
+  historicalClassInstance HistoricalClassInstance @relation(fields: [historicalClassInstanceId], references: [id], onDelete: Restrict)
+
+  writtenResponses         WrittenResponse[]
+  studentSkillSelfRatings  StudentSkillSelfRating[]
+  studentPromptRatings     StudentPromptRating[]
+  studentStandard4Ratings  StudentStandard4SelfRating[]
+  historyEntries           SubmissionHistoryEntry[]
+
+  @@unique([studentProfileId, historicalClassInstanceId, standardNumber])
+  @@index([studentProfileId])
+  @@index([historicalClassInstanceId])
+  @@index([status])
+  @@index([standardNumber])
+}
+
+// A frozen snapshot of everything a student had submitted for one attempt,
+// captured right before a resubmission overwrites the "live" rows. Lets a
+// teacher browse the full history of every past attempt, not just the
+// current one.
+model SubmissionHistoryEntry {
+  id                  String   @id @default(uuid()) @db.Uuid
+  studentSubmissionId String   @db.Uuid
+  attemptNumber       Int
+  submittedAt         DateTime
+  snapshotData        Json
+
+  studentSubmission StudentSubmission @relation(fields: [studentSubmissionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentSubmissionId, attemptNumber])
+  @@index([studentSubmissionId])
+}
+
+model WrittenResponse {
+  id                  String    @id @default(uuid()) @db.Uuid
+  studentSubmissionId String    @db.Uuid
+  promptDefinitionId  String    @db.Uuid
+  responseText        String
+  submittedAt         DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  studentSubmission StudentSubmission @relation(fields: [studentSubmissionId], references: [id], onDelete: Cascade)
+  promptDefinition  PromptDefinition  @relation(fields: [promptDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([studentSubmissionId, promptDefinitionId])
+  @@index([studentSubmissionId])
+  @@index([promptDefinitionId])
+}
+
+model StudentSkillSelfRating {
+  id                  String   @id @default(uuid()) @db.Uuid
+  studentSubmissionId String   @db.Uuid
+  studentProfileId    String   @db.Uuid
+  skillDefinitionId   String   @db.Uuid
+  rating              Int      // 1–4
+  ratedAt             DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  studentSubmission StudentSubmission @relation(fields: [studentSubmissionId], references: [id], onDelete: Cascade)
+  studentProfile    StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
+  skillDefinition   SkillDefinition   @relation(fields: [skillDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([studentSubmissionId, skillDefinitionId])
+  @@index([studentSubmissionId])
+  @@index([studentProfileId])
+  @@index([skillDefinitionId])
+}
+
+// Student self-score on a Standard 2/3 concept question. Informational only —
+// displayed on both student and teacher views, but the teacher's
+// TeacherPromptScore always wins for grade calculation.
+model StudentPromptRating {
+  id                  String   @id @default(uuid()) @db.Uuid
+  studentSubmissionId String   @db.Uuid
+  studentProfileId    String   @db.Uuid
+  promptDefinitionId  String   @db.Uuid
+  rating              Int      // 1–4
+  ratedAt             DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  studentSubmission StudentSubmission @relation(fields: [studentSubmissionId], references: [id], onDelete: Cascade)
+  studentProfile    StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
+  promptDefinition  PromptDefinition  @relation(fields: [promptDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([studentSubmissionId, promptDefinitionId])
+  @@index([studentSubmissionId])
+  @@index([studentProfileId])
+  @@index([promptDefinitionId])
+}
+
+model StudentStandard4SelfRating {
+  id                  String   @id @default(uuid()) @db.Uuid
+  studentSubmissionId String   @db.Uuid
+  studentProfileId    String   @db.Uuid
+  rating              Int      // 1–4
+  ratedAt             DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  studentSubmission StudentSubmission @relation(fields: [studentSubmissionId], references: [id], onDelete: Cascade)
+  studentProfile    StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
+
+  @@unique([studentSubmissionId])
+  @@index([studentSubmissionId])
+  @@index([studentProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// Teacher Assessments
+// ---------------------------------------------------------------------------
+
+model TeacherAssessment {
+  id                        String    @id @default(uuid()) @db.Uuid
+  teacherProfileId          String    @db.Uuid
+  historicalClassInstanceId String    @db.Uuid
+  studentProfileId          String    @db.Uuid
+  standardNumber            Int
+  score                     Decimal?  @db.Decimal(4, 2)
+  feedback                  String?
+  isFeedbackStudentVisible  Boolean   @default(false)
+  assessedAt                DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  teacherProfile          TeacherProfile          @relation(fields: [teacherProfileId], references: [id], onDelete: Restrict)
+  historicalClassInstance HistoricalClassInstance @relation(fields: [historicalClassInstanceId], references: [id], onDelete: Restrict)
+  studentProfile          StudentProfile          @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
+
+  teacherSkillScores      TeacherSkillScore[]
+  teacherPromptScores     TeacherPromptScore[]
+  teacherStandard4Ratings TeacherStandard4Rating[]
+
+  @@unique([teacherProfileId, historicalClassInstanceId, studentProfileId, standardNumber])
+  @@index([teacherProfileId])
+  @@index([historicalClassInstanceId])
+  @@index([studentProfileId])
+  @@index([standardNumber])
+}
+
+model TeacherSkillScore {
+  id                  String   @id @default(uuid()) @db.Uuid
+  teacherAssessmentId String   @db.Uuid
+  skillDefinitionId   String   @db.Uuid
+  score               Int      // 1–4
+  scoredAt            DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  teacherAssessment TeacherAssessment @relation(fields: [teacherAssessmentId], references: [id], onDelete: Cascade)
+  skillDefinition   SkillDefinition   @relation(fields: [skillDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([teacherAssessmentId, skillDefinitionId])
+  @@index([teacherAssessmentId])
+  @@index([skillDefinitionId])
+}
+
+// Per-question teacher score for a Standard 2/3/4 concept question — the
+// teacher grades the student's WrittenResponse against the rubric shown on
+// hover, one score per prompt, aggregated via calculateStandard234.
+model TeacherPromptScore {
+  id                  String   @id @default(uuid()) @db.Uuid
+  teacherAssessmentId String   @db.Uuid
+  promptDefinitionId  String   @db.Uuid
+  score               Int      // 1–4
+  scoredAt            DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  teacherAssessment TeacherAssessment @relation(fields: [teacherAssessmentId], references: [id], onDelete: Cascade)
+  promptDefinition  PromptDefinition  @relation(fields: [promptDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([teacherAssessmentId, promptDefinitionId])
+  @@index([teacherAssessmentId])
+  @@index([promptDefinitionId])
+}
+
+model TeacherStandard4Rating {
+  id                  String   @id @default(uuid()) @db.Uuid
+  teacherAssessmentId String   @db.Uuid
+  rating              Int      // 1–4
+  ratedAt             DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  teacherAssessment TeacherAssessment @relation(fields: [teacherAssessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherAssessmentId])
+  @@index([teacherAssessmentId])
+}
+
+// ---------------------------------------------------------------------------
+// Approach to Learning
+// ---------------------------------------------------------------------------
+
+model ApproachToLearningRecord {
+  id                        String    @id @default(uuid()) @db.Uuid
+  studentProfileId          String    @db.Uuid
+  historicalClassInstanceId String    @db.Uuid
+  teacherProfileId          String    @db.Uuid
+  // Teacher-only ratings (1-4) — no student self-rating counterpart.
+  responsiblePrepared      Decimal?  @db.Decimal(4, 2)
+  respectfulWorks          Decimal?  @db.Decimal(4, 2)
+  effortTeacherScore        Decimal?  @db.Decimal(4, 2)
+  effortStudentScore        Decimal?  @db.Decimal(4, 2)
+  daysLateUnprepared        Int       @default(0)
+  calculatedScore           Decimal?  @db.Decimal(5, 2)
+  recordedAt                DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  studentProfile          StudentProfile          @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
+  historicalClassInstance HistoricalClassInstance @relation(fields: [historicalClassInstanceId], references: [id], onDelete: Restrict)
+  teacherProfile          TeacherProfile          @relation(fields: [teacherProfileId], references: [id], onDelete: Restrict)
+
+  @@unique([studentProfileId, historicalClassInstanceId])
+  @@index([studentProfileId])
+  @@index([historicalClassInstanceId])
+  @@index([teacherProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// Grade Calculation Snapshots
+// ---------------------------------------------------------------------------
+
+model GradeCalculationSnapshot {
+  id                        String   @id @default(uuid()) @db.Uuid
+  studentProfileId          String   @db.Uuid
+  historicalClassInstanceId String   @db.Uuid
+  schoolYearId              String   @db.Uuid
+  standard1Score            Decimal? @db.Decimal(5, 2)
+  standard2Score            Decimal? @db.Decimal(5, 2)
+  standard3Score            Decimal? @db.Decimal(5, 2)
+  standard4Score            Decimal? @db.Decimal(5, 2)
+  atlScore                  Decimal? @db.Decimal(5, 2)
+  overallAverage            Decimal? @db.Decimal(5, 2)
+  letterGrade               String?
+  calculatedAt              DateTime @default(now())
+  snapshotData              Json?
+
+  studentProfile          StudentProfile          @relation(fields: [studentProfileId], references: [id], onDelete: Restrict)
+  historicalClassInstance HistoricalClassInstance @relation(fields: [historicalClassInstanceId], references: [id], onDelete: Restrict)
+  schoolYear              SchoolYear              @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+
+  // Composite (not standalone) indexes: every call site filters by
+  // studentProfileId and/or historicalClassInstanceId (often as an IN-list)
+  // and always orders by calculatedAt desc to get the latest snapshot — a
+  // composite index serves both the filter and the sort in one index scan,
+  // so the old standalone studentProfileId/historicalClassInstanceId/
+  // calculatedAt indexes were replaced rather than kept alongside these
+  // (extra indexes only add write overhead on a model that gets a new row
+  // every time a grade is recalculated).
+  @@index([studentProfileId, calculatedAt])
+  @@index([historicalClassInstanceId, calculatedAt])
+  @@index([schoolYearId])
+}
+
+// ---------------------------------------------------------------------------
+// Audit Log
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  actorId     String?     @db.Uuid
+  actorRole   Role?
+  action      AuditAction
+  targetType  String
+  targetId    String?
+  targetLabel String?
+  beforeValue Json?
+  afterValue  Json?
+  reason      String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType])
+  @@index([targetId])
+  @@index([createdAt])
+}

@@ -1,0 +1,356 @@
+"use client";
+
+import * as React from "react";
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronRight as ChevronRightIcon,
+  Download,
+  ScrollText,
+  Filter,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { PageHeader } from "@/components/layout/PageHeader";
+
+interface AuditLog {
+  id: string;
+  actor: { id: string; email: string; role: string } | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  targetLabel: string | null;
+  beforeValue?: Record<string, unknown> | null;
+  afterValue?: Record<string, unknown> | null;
+  reason?: string | null;
+  createdAt: string;
+  ipAddress?: string | null;
+}
+
+const PAGE_SIZE = 25;
+
+const ACTION_TYPES = [
+  "USER_REGISTERED", "USER_EMAIL_VERIFIED", "USER_LOGIN", "USER_LOGIN_FAILED",
+  "USER_LOGOUT", "USER_PASSWORD_RESET_REQUESTED", "USER_PASSWORD_RESET",
+  "SIGNUP_REQUEST_APPROVED", "SIGNUP_REQUEST_REJECTED", "USER_DEACTIVATED", "USER_REACTIVATED",
+  "STUDENT_PROFILE_CREATED", "STUDENT_PROFILE_UPDATED",
+  "TEACHER_PROFILE_CREATED", "TEACHER_PROFILE_UPDATED",
+  "PARENT_PROFILE_CREATED", "PARENT_STUDENT_LINK_CREATED", "PARENT_STUDENT_LINK_REMOVED",
+  "SCHOOL_YEAR_CREATED", "SCHOOL_YEAR_UPDATED", "TERM_CREATED", "TERM_UPDATED",
+  "STUDENT_GROUP_CREATED", "STUDENT_GROUP_UPDATED",
+  "STUDENT_GROUP_MEMBERSHIP_ADDED", "STUDENT_GROUP_MEMBERSHIP_REMOVED",
+  "CAROUSEL_PLAN_CREATED", "CAROUSEL_PLAN_UPDATED",
+  "ROTATION_ADVANCED", "ROTATION_REVERSED",
+  "GROUP_ROTATION_ASSIGNED", "GROUP_ROTATION_UPDATED",
+  "CLASS_INSTANCE_LOCKED",
+  "RUBRIC_VERSION_CREATED", "RUBRIC_VERSION_UPDATED",
+  "SKILL_DEFINITION_CREATED", "SKILL_DEFINITION_UPDATED",
+  "PROMPT_DEFINITION_CREATED", "PROMPT_DEFINITION_UPDATED",
+  "STUDENT_SUBMISSION_CREATED", "STUDENT_SUBMISSION_UPDATED", "STUDENT_SUBMISSION_SUBMITTED",
+  "WRITTEN_RESPONSE_SAVED", "SKILL_SELF_RATING_SAVED",
+  "TEACHER_ASSESSMENT_CREATED", "TEACHER_ASSESSMENT_UPDATED",
+  "TEACHER_SKILL_SCORE_SAVED", "TEACHER_STANDARD4_RATING_SAVED",
+  "STUDENT_STANDARD4_SELF_RATING_SAVED",
+  "ATL_RECORD_CREATED", "ATL_RECORD_UPDATED", "GRADE_SNAPSHOT_CREATED",
+];
+
+const TARGET_TYPES = [
+  "User", "SignupRequest", "StudentGroup", "StudentGroupMembership",
+  "CarouselPlan", "HistoricalClassInstance", "TeacherAssessment",
+  "StudentSubmission", "ApproachToLearningRecord", "GradeCalculationSnapshot",
+];
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
+function ActionBadge({ action }: { action: string }) {
+  const isDestructive = action.includes("REJECTED") || action.includes("DEACTIVATED") || action.includes("REMOVED") || action.includes("REVERTED");
+  const isPositive = action.includes("APPROVED") || action.includes("CREATED") || action.includes("REACTIVATED") || action.includes("ADDED");
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+      isDestructive ? "bg-red-50 text-red-600 border-red-100" :
+      isPositive ? "bg-green-50 text-green-700 border-green-100" :
+      "bg-gray-50 text-gray-600 border-gray-200"
+    }`}>
+      {action.replace(/_/g, " ")}
+    </span>
+  );
+}
+
+function JsonView({ data }: { data: Record<string, unknown> }) {
+  return (
+    <pre className="text-xs bg-gray-50 border border-gray-200 rounded-md p-3 overflow-x-auto max-h-40 font-mono text-gray-700 whitespace-pre-wrap break-all">
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
+}
+
+function LogRow({ log }: { log: AuditLog }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const hasDetail = log.beforeValue ?? log.afterValue ?? log.reason;
+
+  return (
+    <>
+      <tr className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${expanded ? "bg-primary-50/40" : ""}`}>
+        <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">{formatDate(log.createdAt)}</td>
+        <td className="px-4 py-3">
+          <p className="text-sm font-medium text-gray-900">{log.actor?.email ?? "System"}</p>
+          {log.actor && <p className="text-xs text-gray-400">{log.actor.role}</p>}
+        </td>
+        <td className="px-4 py-3"><ActionBadge action={log.action} /></td>
+        <td className="px-4 py-3">
+          <p className="text-sm text-gray-700">{log.targetLabel ?? "-"}</p>
+          <p className="text-xs text-gray-400">{log.targetType}</p>
+        </td>
+        <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{log.ipAddress ?? "-"}</td>
+        <td className="px-4 py-3">
+          {hasDetail && (
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              className="flex items-center gap-1 text-xs text-primary-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+              aria-expanded={expanded}
+              aria-label={expanded ? "Collapse detail" : "Expand detail"}
+            >
+              {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRightIcon className="h-3.5 w-3.5" />}
+              Detail
+            </button>
+          )}
+        </td>
+      </tr>
+      {expanded && hasDetail && (
+        <tr className="border-b border-gray-100 bg-primary-50/20">
+          <td colSpan={6} className="px-4 py-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {log.reason && (
+                <div className="col-span-2">
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Reason</p>
+                  <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md p-3">{log.reason}</p>
+                </div>
+              )}
+              {log.beforeValue && (
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Before</p>
+                  <JsonView data={log.beforeValue} />
+                </div>
+              )}
+              {log.afterValue && (
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">After</p>
+                  <JsonView data={log.afterValue} />
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+export default function AuditLogsPage() {
+  const { toast } = useToast();
+  const [logs, setLogs] = React.useState<AuditLog[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+  const [page, setPage] = React.useState(1);
+
+  const [actorSearch, setActorSearch] = React.useState("");
+  const [debouncedActor, setDebouncedActor] = React.useState("");
+  const [actionType, setActionType] = React.useState("ALL");
+  const [targetType, setTargetType] = React.useState("ALL");
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo] = React.useState("");
+  const [exporting, setExporting] = React.useState(false);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedActor(actorSearch), 300);
+    return () => clearTimeout(t);
+  }, [actorSearch]);
+
+  React.useEffect(() => { setPage(1); }, [debouncedActor, actionType, targetType, dateFrom, dateTo]);
+
+  const fetchLogs = React.useCallback(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+    if (debouncedActor) params.set("actor", debouncedActor);
+    if (actionType !== "ALL") params.set("action", actionType);
+    if (targetType !== "ALL") params.set("targetType", targetType);
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+
+    fetch(`/api/admin/audit-logs?${params}`)
+      .then((r) => r.json())
+      .then((d) => { setLogs(d?.data ?? []); setTotal(d?.pagination?.total ?? 0); })
+      .catch(() => { setLogs([]); setTotal(0); })
+      .finally(() => setLoading(false));
+  }, [page, debouncedActor, actionType, targetType, dateFrom, dateTo]);
+
+  React.useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams({ format: "csv", limit: "10000" });
+      if (debouncedActor) params.set("actor", debouncedActor);
+      if (actionType !== "ALL") params.set("action", actionType);
+      if (targetType !== "ALL") params.set("targetType", targetType);
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+
+      const res = await fetch(`/api/admin/audit-logs?${params}`);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `audit-logs-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Export failed", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasFilters = debouncedActor || actionType !== "ALL" || targetType !== "ALL" || dateFrom || dateTo;
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <PageHeader
+        title="Audit Logs"
+        description="Full history of administrative actions."
+        actions={
+          <Button variant="outline" size="sm" onClick={handleExport} loading={exporting}>
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            Export CSV
+          </Button>
+        }
+      />
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filters</span>
+          {hasFilters && (
+            <button
+              onClick={() => { setActorSearch(""); setActionType("ALL"); setTargetType("ALL"); setDateFrom(""); setDateTo(""); }}
+              className="ml-auto text-xs text-primary-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="filter-actor" className="text-xs text-gray-500">Actor</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+              <Input id="filter-actor" placeholder="Name or email" value={actorSearch} onChange={(e) => setActorSearch(e.target.value)} className="pl-8 h-8 text-sm" />
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <Label htmlFor="filter-action" className="text-xs text-gray-500">Action</Label>
+            <Select value={actionType} onValueChange={setActionType}>
+              <SelectTrigger id="filter-action" className="h-8 text-sm"><SelectValue placeholder="All actions" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All actions</SelectItem>
+                {ACTION_TYPES.map((a) => <SelectItem key={a} value={a}>{a.replace(/_/g, " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-0.5">
+            <Label htmlFor="filter-target" className="text-xs text-gray-500">Target type</Label>
+            <Select value={targetType} onValueChange={setTargetType}>
+              <SelectTrigger id="filter-target" className="h-8 text-sm"><SelectValue placeholder="All targets" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All targets</SelectItem>
+                {TARGET_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-0.5">
+            <Label htmlFor="date-from" className="text-xs text-gray-500">From</Label>
+            <Input id="date-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div className="space-y-0.5">
+            <Label htmlFor="date-to" className="text-xs text-gray-500">To</Label>
+            <Input id="date-to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <div className="text-xs text-gray-400 tabular-nums">{total.toLocaleString()} log{total !== 1 ? "s" : ""}</div>
+
+      <div className="bg-white rounded-xl border border-primary-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[700px]">
+            <thead>
+              <tr className="border-b border-gray-100 bg-primary-50">
+                <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Timestamp</th>
+                <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actor</th>
+                <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
+                <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Target</th>
+                <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">IP Address</th>
+                <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide sr-only">Expand</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="border-b border-gray-100">
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[100px]" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center">
+                    <ScrollText className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">{hasFilters ? "No logs match your filters." : "No audit logs yet."}</p>
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => <LogRow key={log.id} log={log} />)
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
+            <span>{Math.min((page - 1) * PAGE_SIZE + 1, total)}–{Math.min(page * PAGE_SIZE, total)} of {total.toLocaleString()}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage((p) => p - 1)} disabled={page <= 1} className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500" aria-label="Previous page">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="px-2 tabular-nums">{page} / {totalPages}</span>
+              <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages} className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500" aria-label="Next page">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

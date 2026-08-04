@@ -1,0 +1,226 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Cyntho Next — body/UI typeface. Falls back to the system UI stack until
+ * the licensed files are dropped into public/fonts/ (see public/fonts/README.md).
+ * font-display: swap means missing files simply fail silently to the fallback.
+ */
+@font-face {
+  font-family: "Cyntho Next";
+  src: url("/fonts/CynthoNext-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cyntho Next";
+  src: url("/fonts/CynthoNext-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cyntho Next";
+  src: url("/fonts/CynthoNext-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cyntho Next";
+  src: url("/fonts/CynthoNext-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Role-theme ramp (Tailwind `primary-*`) and its paired foreground —
+       default/fallback here is Admin's forest green, for anything rendered
+       outside a role scope (login, auth pages). Each role's RoleAppShell
+       root carries `data-role="…"` which re-anchors these same variables
+       to that role's single brand hue below — see the four blocks after
+       this one. */
+    --p-50: 237 242 241;
+    --p-100: 219 229 227;
+    --p-200: 183 202 200;
+    --p-300: 147 176 172;
+    --p-400: 112 150 145;
+    --p-500: 76 124 117;
+    --p-600: 40 97 90;
+    --p-700: 4 71 62;
+    --p-800: 3 47 41;
+    --p-900: 1 23 20;
+    --p-950: 1 11 9;
+    --role-fg: 255 255 255;
+
+    /* Semantic surface tokens — brand palette (white / near-black / forest
+       #04473e / wine #581021 / red #d2232a / stone #bdbcb6). The grading
+       system's own colors are untouched by these. */
+    --background: 0 0% 100%;
+    --foreground: 60 2% 10%;
+    --muted: 60 3% 93%;
+    --muted-foreground: 51 5% 45%;
+    --border: 51 5% 73%;
+    --input: 51 5% 73%;
+    --ring: 172 89% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 60 2% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 60 2% 10%;
+    --primary: 172 89% 15%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 346 69% 20%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 60 3% 93%;
+    --accent-foreground: 60 2% 10%;
+    --destructive: 358 71% 48%;
+    --destructive-foreground: 0 0% 100%;
+  }
+
+  /* Role theme overrides — one brand hue per role, anchored at shade 700 to
+     match the existing "bold button" convention. Admin's block just restates
+     the :root default explicitly for robustness. */
+  [data-role="admin"] {
+    --p-50: 237 242 241;
+    --p-100: 219 229 227;
+    --p-200: 183 202 200;
+    --p-300: 147 176 172;
+    --p-400: 112 150 145;
+    --p-500: 76 124 117;
+    --p-600: 40 97 90;
+    --p-700: 4 71 62;
+    --p-800: 3 47 41;
+    --p-900: 1 23 20;
+    --p-950: 1 11 9;
+    --role-fg: 255 255 255;
+  }
+  [data-role="teacher"] {
+    --p-50: 243 238 239;
+    --p-100: 231 221 223;
+    --p-200: 207 187 192;
+    --p-300: 183 153 160;
+    --p-400: 160 118 128;
+    --p-500: 136 84 96;
+    --p-600: 112 50 65;
+    --p-700: 88 16 33;
+    --p-800: 58 11 22;
+    --p-900: 28 5 11;
+    --p-950: 13 2 5;
+    --role-fg: 255 255 255;
+  }
+  [data-role="student"] {
+    --p-50: 252 242 242;
+    --p-100: 248 222 223;
+    --p-200: 241 185 187;
+    --p-300: 232 145 148;
+    --p-400: 224 105 110;
+    --p-500: 217 70 76;
+    --p-600: 213 48 55;
+    --p-700: 210 35 42;
+    --p-800: 147 24 29;
+    --p-900: 94 16 19;
+    --p-950: 63 10 13;
+    --role-fg: 255 255 255;
+  }
+  /* Parent's brand hue is a light neutral gray — every other role is dark
+     enough for white foreground text/icons, but #bdbcb6 at shade 700 only
+     hits ~1.9:1 contrast against white (vs. ~11:1 against near-black), so
+     Parent alone gets a dark foreground. */
+  [data-role="parent"] {
+    --p-50: 251 251 251;
+    --p-100: 245 245 244;
+    --p-200: 234 234 232;
+    --p-300: 222 222 218;
+    --p-400: 210 209 205;
+    --p-500: 200 199 194;
+    --p-600: 193 192 186;
+    --p-700: 189 188 182;
+    --p-800: 132 132 127;
+    --p-900: 85 85 82;
+    --p-950: 57 56 55;
+    --role-fg: 20 20 19;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /*
+   * Major headings (page titles, section titles) use the heading typeface
+   * and a deliberately large, consistent size so they stand out regardless
+   * of whatever Tailwind text-size utility a given page happens to carry —
+   * !important is intentional here, this is the single source of truth for
+   * heading hierarchy, not a one-off override. Everything else — including
+   * smaller in-card headings like CardTitle's <h3> — stays in the body font
+   * at its existing size, matching the design spec's "major headings only"
+   * rule.
+   */
+  h1 {
+    font-family: theme("fontFamily.heading");
+    font-weight: 700 !important;
+    font-size: 2.25rem !important;
+    line-height: 1.15 !important;
+  }
+  h2 {
+    font-family: theme("fontFamily.heading");
+    font-weight: 700 !important;
+    font-size: 1.5rem !important;
+    line-height: 1.25 !important;
+  }
+
+  /* Tabular numerals for data columns */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Score chip variants */
+  .score-chip-red {
+    @apply bg-red-100 text-red-700 border border-red-200;
+  }
+  .score-chip-yellow {
+    @apply bg-yellow-100 text-yellow-800 border border-yellow-200;
+  }
+  .score-chip-lightgreen {
+    @apply bg-green-100 text-green-700 border border-green-200;
+  }
+  .score-chip-brightgreen {
+    @apply bg-green-500 text-white border border-green-600;
+  }
+
+  /* Focus ring utility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
