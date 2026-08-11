@@ -18,8 +18,12 @@ these steps first.
     approve them.
   - Click **Approve** on a request. The person's typed name pre-fills the
     first/last name fields — check them, then fill in the rest:
-    - **Student:** grade level, gender, student ID.
-    - **Teacher:** employee ID.
+    - **Student:** grade level, gender, and a student ID. MICDS doesn't issue
+      one of these for this app to look up — just type any unique value you
+      want (e.g. a running number like S001, S002, ...). It only needs to be
+      unique per student; nothing else depends on its format.
+    - **Teacher:** an employee ID, same idea — make up any unique value
+      (e.g. T001, T002, ...).
     - **Parent:** confirm which child(ren) they searched for at signup
       (uncheck any that shouldn't be linked).
   - Click **Approve** again to finish. Use **Reject** instead if the request
