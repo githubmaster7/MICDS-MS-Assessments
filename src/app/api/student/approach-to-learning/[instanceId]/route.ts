@@ -115,57 +115,71 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   const ip = ipRateLimitKey(req)
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  const existing = await db.approachToLearningRecord.findUnique({
-    where: {
-      studentProfileId_historicalClassInstanceId: {
+  // Locks the same parent StudentProfile row the teacher writer locks (see
+  // src/app/api/teacher/approach-to-learning/[studentId]/[instanceId]/route.ts),
+  // so a concurrent teacher PUT and this student PUT serialize instead of each
+  // computing calculatedScore from the other's pre-commit values.
+  const { record, before, calculatedScore } = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT id FROM "StudentProfile"
+      WHERE id = ${studentProfile.id}::uuid
+      FOR UPDATE
+    `
+
+    const existing = await tx.approachToLearningRecord.findUnique({
+      where: {
+        studentProfileId_historicalClassInstanceId: {
+          studentProfileId: studentProfile.id,
+          historicalClassInstanceId: instanceId,
+        },
+      },
+    })
+
+    const beforeValue = existing
+      ? {
+          effortStudentScore: existing.effortStudentScore?.toNumber() ?? null,
+          calculatedScore: existing.calculatedScore?.toNumber() ?? null,
+        }
+      : null
+
+    const nextResponsiblePrepared = existing?.responsiblePrepared?.toNumber() ?? null
+    const nextRespectfulWorks = existing?.respectfulWorks?.toNumber() ?? null
+    const nextEffortTeacherScore = existing?.effortTeacherScore?.toNumber() ?? null
+    const nextDaysLate = existing?.daysLateUnprepared ?? 0
+
+    let calculatedScoreValue: number | null = null
+    if (nextResponsiblePrepared !== null && nextRespectfulWorks !== null && nextEffortTeacherScore !== null) {
+      calculatedScoreValue = calculateApproachToLearning({
+        responsiblePrepared: nextResponsiblePrepared,
+        respectfulWorks: nextRespectfulWorks,
+        effortTeacherScore: nextEffortTeacherScore,
+        effortStudentScore,
+        daysLateUnprepared: nextDaysLate,
+      }).calculatedScore
+    }
+
+    const savedRecord = await tx.approachToLearningRecord.upsert({
+      where: {
+        studentProfileId_historicalClassInstanceId: {
+          studentProfileId: studentProfile.id,
+          historicalClassInstanceId: instanceId,
+        },
+      },
+      create: {
         studentProfileId: studentProfile.id,
         historicalClassInstanceId: instanceId,
+        teacherProfileId: instance.teacherClassAssignment.teacherProfileId,
+        effortStudentScore,
+        calculatedScore: calculatedScoreValue,
       },
-    },
-  })
-
-  const before = existing
-    ? {
-        effortStudentScore: existing.effortStudentScore?.toNumber() ?? null,
-        calculatedScore: existing.calculatedScore?.toNumber() ?? null,
-      }
-    : null
-
-  const nextResponsiblePrepared = existing?.responsiblePrepared?.toNumber() ?? null
-  const nextRespectfulWorks = existing?.respectfulWorks?.toNumber() ?? null
-  const nextEffortTeacherScore = existing?.effortTeacherScore?.toNumber() ?? null
-  const nextDaysLate = existing?.daysLateUnprepared ?? 0
-
-  let calculatedScore: number | null = null
-  if (nextResponsiblePrepared !== null && nextRespectfulWorks !== null && nextEffortTeacherScore !== null) {
-    calculatedScore = calculateApproachToLearning({
-      responsiblePrepared: nextResponsiblePrepared,
-      respectfulWorks: nextRespectfulWorks,
-      effortTeacherScore: nextEffortTeacherScore,
-      effortStudentScore,
-      daysLateUnprepared: nextDaysLate,
-    }).calculatedScore
-  }
-
-  const record = await db.approachToLearningRecord.upsert({
-    where: {
-      studentProfileId_historicalClassInstanceId: {
-        studentProfileId: studentProfile.id,
-        historicalClassInstanceId: instanceId,
+      update: {
+        effortStudentScore,
+        calculatedScore: calculatedScoreValue,
       },
-    },
-    create: {
-      studentProfileId: studentProfile.id,
-      historicalClassInstanceId: instanceId,
-      teacherProfileId: instance.teacherClassAssignment.teacherProfileId,
-      effortStudentScore,
-      calculatedScore,
-    },
-    update: {
-      effortStudentScore,
-      calculatedScore,
-    },
-    select: { effortStudentScore: true, effortTeacherScore: true, daysLateUnprepared: true, calculatedScore: true },
+      select: { effortStudentScore: true, effortTeacherScore: true, daysLateUnprepared: true, calculatedScore: true },
+    })
+
+    return { record: savedRecord, before: beforeValue, calculatedScore: calculatedScoreValue }
   })
 
   await auditAtlRecord({
@@ -173,7 +187,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     actorRole: session.user.role,
     studentProfileId: studentProfile.id,
     historicalClassInstanceId: instanceId,
-    action: existing ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
+    action: before ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
     before,
     after: { effortStudentScore, calculatedScore },
     ipAddress: ip,
