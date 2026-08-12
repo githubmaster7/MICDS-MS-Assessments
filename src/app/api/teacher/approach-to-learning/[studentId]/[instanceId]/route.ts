@@ -20,6 +20,11 @@ const UpdateAtlSchema = z.object({
   daysLateUnprepared: z.number().int().min(0).optional(),
 })
 
+// Thrown when the StudentProfile row disappears between canTeacherGrade's
+// check and the locking transaction, so it can be told apart from other
+// transaction failures below.
+class StudentProfileGoneError extends Error {}
+
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -139,11 +144,14 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   try {
     const { record, before, nextResponsiblePrepared, nextRespectfulWorks, nextEffortTeacherScore, nextDaysLate, calculatedScore } =
       await db.$transaction(async (tx) => {
-        await tx.$queryRaw`
+        const locked = await tx.$queryRaw<{ id: string }[]>`
           SELECT id FROM "StudentProfile"
           WHERE id = ${studentId}::uuid
           FOR UPDATE
         `
+        if (locked.length === 0) {
+          throw new StudentProfileGoneError()
+        }
 
         const existing = await tx.approachToLearningRecord.findUnique({
           where: {
@@ -243,6 +251,9 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
 
     return NextResponse.json({ data: record })
   } catch (err) {
+    if (err instanceof StudentProfileGoneError) {
+      return NextResponse.json({ error: 'Student not found.' }, { status: 404 })
+    }
     console.error('[teacher/approach-to-learning] Failed to save ATL record:', err)
     return NextResponse.json({ error: 'Failed to save Approach to Learning. Please try again.' }, { status: 500 })
   }
