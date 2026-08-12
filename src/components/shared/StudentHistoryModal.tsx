@@ -74,15 +74,21 @@ export function StudentHistoryModal({
 }) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<GradesResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<1 | 2 | 3 | 4>(1)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setError(null)
     fetch(apiUrl)
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(d?.error ?? 'Failed to load history.')
         if (!cancelled) setData(d?.data ?? null)
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load history.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -124,8 +130,8 @@ export function StudentHistoryModal({
         <div className="p-4">
           {loading ? (
             <p className="text-sm text-gray-400 text-center py-6">Loading…</p>
-          ) : !data ? (
-            <p className="text-sm text-red-500 text-center py-6">Failed to load history.</p>
+          ) : error || !data ? (
+            <p className="text-sm text-red-500 text-center py-6">{error ?? 'Failed to load history.'}</p>
           ) : mode === 'resubmission' ? (
             <ResubmissionTimeline attempts={data.studentHistory[tab]} />
           ) : (

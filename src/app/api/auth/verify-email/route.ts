@@ -40,41 +40,46 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ message: 'Email address already verified.' })
   }
 
-  await db.$transaction(async (tx: TxClient) => {
-    await tx.emailVerificationToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
+  try {
+    await db.$transaction(async (tx: TxClient) => {
+      await tx.emailVerificationToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      })
+
+      await tx.user.update({
+        where: { id: record.userId },
+        data: {
+          status: AccountStatus.PENDING_ADMIN_APPROVAL,
+          emailVerifiedAt: new Date(),
+        },
+      })
+
+      // Advance the signup request status too
+      await tx.signupRequest.updateMany({
+        where: {
+          userId: record.userId,
+          status: AccountStatus.PENDING_EMAIL_VERIFICATION,
+        },
+        data: { status: AccountStatus.PENDING_ADMIN_APPROVAL },
+      })
     })
 
-    await tx.user.update({
-      where: { id: record.userId },
-      data: {
-        status: AccountStatus.PENDING_ADMIN_APPROVAL,
-        emailVerifiedAt: new Date(),
-      },
+    await createAuditLog({
+      actorId: record.userId,
+      action: AuditAction.USER_EMAIL_VERIFIED,
+      targetType: 'User',
+      targetId: record.userId,
+      targetLabel: record.user.email,
+      ipAddress: ip,
+      userAgent: req.headers.get('user-agent') ?? undefined,
     })
 
-    // Advance the signup request status too
-    await tx.signupRequest.updateMany({
-      where: {
-        userId: record.userId,
-        status: AccountStatus.PENDING_EMAIL_VERIFICATION,
-      },
-      data: { status: AccountStatus.PENDING_ADMIN_APPROVAL },
+    return NextResponse.json({
+      message: 'Email verified. Your account is pending administrator approval.',
     })
-  })
-
-  await createAuditLog({
-    actorId: record.userId,
-    action: AuditAction.USER_EMAIL_VERIFIED,
-    targetType: 'User',
-    targetId: record.userId,
-    targetLabel: record.user.email,
-    ipAddress: ip,
-    userAgent: req.headers.get('user-agent') ?? undefined,
-  })
-
-  return NextResponse.json({
-    message: 'Email verified. Your account is pending administrator approval.',
-  })
+  } catch (err) {
+    console.error('[auth/verify-email] Failed to verify email:', err)
+    return NextResponse.json({ error: 'Something went wrong verifying your email. Please try again.' }, { status: 500 })
+  }
 }

@@ -131,113 +131,119 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   // fields (e.g. one setting responsiblePrepared, another setting
   // respectfulWorks moments later) can each read the same pre-update row and
   // compute calculatedScore from a stale merge, silently leaving a
-  // subsequently-out-of-date derived score. `SELECT ... FOR UPDATE` inside a
-  // transaction locks the row so a second concurrent PUT blocks until the
-  // first commits, then reads the first PUT's result rather than a stale one.
-  const { record, before, nextResponsiblePrepared, nextRespectfulWorks, nextEffortTeacherScore, nextDaysLate, calculatedScore } =
-    await db.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT id FROM "ApproachToLearningRecord"
-        WHERE "studentProfileId" = ${studentId}::uuid
-          AND "historicalClassInstanceId" = ${instanceId}::uuid
-        FOR UPDATE
-      `
+  // subsequently-out-of-date derived score. `SELECT ... FOR UPDATE` on the
+  // parent StudentProfile row (guaranteed to exist, unlike
+  // ApproachToLearningRecord on a first write) serializes concurrent PUTs so
+  // the second blocks until the first commits, then reads its result rather
+  // than a stale one.
+  try {
+    const { record, before, nextResponsiblePrepared, nextRespectfulWorks, nextEffortTeacherScore, nextDaysLate, calculatedScore } =
+      await db.$transaction(async (tx) => {
+        await tx.$queryRaw`
+          SELECT id FROM "StudentProfile"
+          WHERE id = ${studentId}::uuid
+          FOR UPDATE
+        `
 
-      const existing = await tx.approachToLearningRecord.findUnique({
-        where: {
-          studentProfileId_historicalClassInstanceId: {
+        const existing = await tx.approachToLearningRecord.findUnique({
+          where: {
+            studentProfileId_historicalClassInstanceId: {
+              studentProfileId: studentId,
+              historicalClassInstanceId: instanceId,
+            },
+          },
+        })
+
+        const beforeValue = existing
+          ? {
+              responsiblePrepared: existing.responsiblePrepared?.toNumber() ?? null,
+              respectfulWorks: existing.respectfulWorks?.toNumber() ?? null,
+              effortTeacherScore: existing.effortTeacherScore?.toNumber() ?? null,
+              daysLateUnprepared: existing.daysLateUnprepared,
+              calculatedScore: existing.calculatedScore?.toNumber() ?? null,
+            }
+          : null
+
+        const responsiblePreparedValue = responsiblePrepared ?? existing?.responsiblePrepared?.toNumber() ?? null
+        const respectfulWorksValue = respectfulWorks ?? existing?.respectfulWorks?.toNumber() ?? null
+        const effortTeacherScoreValue = effortTeacherScore ?? existing?.effortTeacherScore?.toNumber() ?? null
+        const effortStudentScoreValue = existing?.effortStudentScore?.toNumber() ?? null
+        const daysLateValue = daysLateUnprepared ?? existing?.daysLateUnprepared ?? 0
+
+        let calculatedScoreValue: number | null = null
+        if (
+          responsiblePreparedValue !== null &&
+          respectfulWorksValue !== null &&
+          effortTeacherScoreValue !== null &&
+          effortStudentScoreValue !== null
+        ) {
+          calculatedScoreValue = calculateApproachToLearning({
+            responsiblePrepared: responsiblePreparedValue,
+            respectfulWorks: respectfulWorksValue,
+            effortTeacherScore: effortTeacherScoreValue,
+            effortStudentScore: effortStudentScoreValue,
+            daysLateUnprepared: daysLateValue,
+          }).calculatedScore
+        }
+
+        const savedRecord = await tx.approachToLearningRecord.upsert({
+          where: {
+            studentProfileId_historicalClassInstanceId: {
+              studentProfileId: studentId,
+              historicalClassInstanceId: instanceId,
+            },
+          },
+          create: {
             studentProfileId: studentId,
             historicalClassInstanceId: instanceId,
+            teacherProfileId: teacherProfile.id,
+            responsiblePrepared: responsiblePreparedValue,
+            respectfulWorks: respectfulWorksValue,
+            effortTeacherScore: effortTeacherScoreValue,
+            daysLateUnprepared: daysLateValue,
+            calculatedScore: calculatedScoreValue,
           },
-        },
+          update: {
+            ...(responsiblePrepared !== undefined ? { responsiblePrepared } : {}),
+            ...(respectfulWorks !== undefined ? { respectfulWorks } : {}),
+            ...(effortTeacherScore !== undefined ? { effortTeacherScore } : {}),
+            ...(daysLateUnprepared !== undefined ? { daysLateUnprepared } : {}),
+            calculatedScore: calculatedScoreValue,
+          },
+        })
+
+        return {
+          record: savedRecord,
+          before: beforeValue,
+          nextResponsiblePrepared: responsiblePreparedValue,
+          nextRespectfulWorks: respectfulWorksValue,
+          nextEffortTeacherScore: effortTeacherScoreValue,
+          nextDaysLate: daysLateValue,
+          calculatedScore: calculatedScoreValue,
+        }
       })
 
-      const beforeValue = existing
-        ? {
-            responsiblePrepared: existing.responsiblePrepared?.toNumber() ?? null,
-            respectfulWorks: existing.respectfulWorks?.toNumber() ?? null,
-            effortTeacherScore: existing.effortTeacherScore?.toNumber() ?? null,
-            daysLateUnprepared: existing.daysLateUnprepared,
-            calculatedScore: existing.calculatedScore?.toNumber() ?? null,
-          }
-        : null
-
-      const responsiblePreparedValue = responsiblePrepared ?? existing?.responsiblePrepared?.toNumber() ?? null
-      const respectfulWorksValue = respectfulWorks ?? existing?.respectfulWorks?.toNumber() ?? null
-      const effortTeacherScoreValue = effortTeacherScore ?? existing?.effortTeacherScore?.toNumber() ?? null
-      const effortStudentScoreValue = existing?.effortStudentScore?.toNumber() ?? null
-      const daysLateValue = daysLateUnprepared ?? existing?.daysLateUnprepared ?? 0
-
-      let calculatedScoreValue: number | null = null
-      if (
-        responsiblePreparedValue !== null &&
-        respectfulWorksValue !== null &&
-        effortTeacherScoreValue !== null &&
-        effortStudentScoreValue !== null
-      ) {
-        calculatedScoreValue = calculateApproachToLearning({
-          responsiblePrepared: responsiblePreparedValue,
-          respectfulWorks: respectfulWorksValue,
-          effortTeacherScore: effortTeacherScoreValue,
-          effortStudentScore: effortStudentScoreValue,
-          daysLateUnprepared: daysLateValue,
-        }).calculatedScore
-      }
-
-      const savedRecord = await tx.approachToLearningRecord.upsert({
-        where: {
-          studentProfileId_historicalClassInstanceId: {
-            studentProfileId: studentId,
-            historicalClassInstanceId: instanceId,
-          },
-        },
-        create: {
-          studentProfileId: studentId,
-          historicalClassInstanceId: instanceId,
-          teacherProfileId: teacherProfile.id,
-          responsiblePrepared: responsiblePreparedValue,
-          respectfulWorks: respectfulWorksValue,
-          effortTeacherScore: effortTeacherScoreValue,
-          daysLateUnprepared: daysLateValue,
-          calculatedScore: calculatedScoreValue,
-        },
-        update: {
-          ...(responsiblePrepared !== undefined ? { responsiblePrepared } : {}),
-          ...(respectfulWorks !== undefined ? { respectfulWorks } : {}),
-          ...(effortTeacherScore !== undefined ? { effortTeacherScore } : {}),
-          ...(daysLateUnprepared !== undefined ? { daysLateUnprepared } : {}),
-          calculatedScore: calculatedScoreValue,
-        },
-      })
-
-      return {
-        record: savedRecord,
-        before: beforeValue,
-        nextResponsiblePrepared: responsiblePreparedValue,
-        nextRespectfulWorks: respectfulWorksValue,
-        nextEffortTeacherScore: effortTeacherScoreValue,
-        nextDaysLate: daysLateValue,
-        calculatedScore: calculatedScoreValue,
-      }
+    await auditAtlRecord({
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      studentProfileId: studentId,
+      historicalClassInstanceId: instanceId,
+      action: before ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
+      before,
+      after: {
+        responsiblePrepared: nextResponsiblePrepared,
+        respectfulWorks: nextRespectfulWorks,
+        effortTeacherScore: nextEffortTeacherScore,
+        daysLateUnprepared: nextDaysLate,
+        calculatedScore,
+      },
+      ipAddress: ip,
+      userAgent,
     })
 
-  await auditAtlRecord({
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    studentProfileId: studentId,
-    historicalClassInstanceId: instanceId,
-    action: before ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
-    before,
-    after: {
-      responsiblePrepared: nextResponsiblePrepared,
-      respectfulWorks: nextRespectfulWorks,
-      effortTeacherScore: nextEffortTeacherScore,
-      daysLateUnprepared: nextDaysLate,
-      calculatedScore,
-    },
-    ipAddress: ip,
-    userAgent,
-  })
-
-  return NextResponse.json({ data: record })
+    return NextResponse.json({ data: record })
+  } catch (err) {
+    console.error('[teacher/approach-to-learning] Failed to save ATL record:', err)
+    return NextResponse.json({ error: 'Failed to save Approach to Learning. Please try again.' }, { status: 500 })
+  }
 }
