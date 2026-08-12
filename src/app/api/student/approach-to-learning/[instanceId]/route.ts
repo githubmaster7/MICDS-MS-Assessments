@@ -16,6 +16,10 @@ const UpdateAtlSelfSchema = z.object({
   effortStudentScore: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
 })
 
+// instanceId reaches a Prisma lookup unvalidated; a malformed value throws
+// there instead of failing cleanly, so reject non-UUID shapes up front.
+const InstanceIdSchema = z.string().uuid()
+
 // Thrown when the StudentProfile row disappears between the initial lookup
 // and the locking transaction (e.g. an admin deletes the account mid-request),
 // so it can be told apart from other transaction failures below.
@@ -72,6 +76,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { instanceId } = await params
+
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const studentProfile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
@@ -191,17 +199,23 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
       return { record: savedRecord, before: beforeValue, calculatedScore: calculatedScoreValue }
     })
 
-    await auditAtlRecord({
-      actorId: session.user.id,
-      actorRole: session.user.role,
-      studentProfileId: studentProfile.id,
-      historicalClassInstanceId: instanceId,
-      action: before ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
-      before,
-      after: { effortStudentScore, calculatedScore },
-      ipAddress: ip,
-      userAgent,
-    })
+    // The save already committed above; an audit-log failure here shouldn't
+    // report a false "failed to save" back to a client that succeeded.
+    try {
+      await auditAtlRecord({
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        studentProfileId: studentProfile.id,
+        historicalClassInstanceId: instanceId,
+        action: before ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
+        before,
+        after: { effortStudentScore, calculatedScore },
+        ipAddress: ip,
+        userAgent,
+      })
+    } catch (auditErr) {
+      console.error('[student/approach-to-learning] Failed to write audit log for ATL record:', auditErr)
+    }
 
     return NextResponse.json({ data: record })
   } catch (err) {
