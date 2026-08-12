@@ -20,6 +20,19 @@ const UpdateAtlSchema = z.object({
   daysLateUnprepared: z.number().int().min(0).optional(),
 })
 
+// Both IDs reach canTeacherGrade's Prisma lookups and the raw ::uuid cast
+// below unvalidated; a malformed value throws there (before any try/catch)
+// instead of failing cleanly, so reject non-UUID shapes up front.
+const RouteParamIdsSchema = z.object({
+  studentId: z.string().uuid(),
+  instanceId: z.string().uuid(),
+})
+
+// Thrown when the StudentProfile row disappears between canTeacherGrade's
+// check and the locking transaction, so it can be told apart from other
+// transaction failures below.
+class StudentProfileGoneError extends Error {}
+
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -86,6 +99,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
 
   const { studentId, instanceId } = await params
 
+  if (!RouteParamIdsSchema.safeParse({ studentId, instanceId }).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   const canGrade = await canTeacherGrade(session.user.id, instanceId, studentId)
   if (!canGrade) {
     return NextResponse.json(
@@ -139,11 +156,14 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   try {
     const { record, before, nextResponsiblePrepared, nextRespectfulWorks, nextEffortTeacherScore, nextDaysLate, calculatedScore } =
       await db.$transaction(async (tx) => {
-        await tx.$queryRaw`
+        const locked = await tx.$queryRaw<{ id: string }[]>`
           SELECT id FROM "StudentProfile"
           WHERE id = ${studentId}::uuid
           FOR UPDATE
         `
+        if (locked.length === 0) {
+          throw new StudentProfileGoneError()
+        }
 
         const existing = await tx.approachToLearningRecord.findUnique({
           where: {
@@ -223,26 +243,35 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
         }
       })
 
-    await auditAtlRecord({
-      actorId: session.user.id,
-      actorRole: session.user.role,
-      studentProfileId: studentId,
-      historicalClassInstanceId: instanceId,
-      action: before ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
-      before,
-      after: {
-        responsiblePrepared: nextResponsiblePrepared,
-        respectfulWorks: nextRespectfulWorks,
-        effortTeacherScore: nextEffortTeacherScore,
-        daysLateUnprepared: nextDaysLate,
-        calculatedScore,
-      },
-      ipAddress: ip,
-      userAgent,
-    })
+    // The save already committed above; an audit-log failure here shouldn't
+    // report a false "failed to save" back to a client that succeeded.
+    try {
+      await auditAtlRecord({
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        studentProfileId: studentId,
+        historicalClassInstanceId: instanceId,
+        action: before ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
+        before,
+        after: {
+          responsiblePrepared: nextResponsiblePrepared,
+          respectfulWorks: nextRespectfulWorks,
+          effortTeacherScore: nextEffortTeacherScore,
+          daysLateUnprepared: nextDaysLate,
+          calculatedScore,
+        },
+        ipAddress: ip,
+        userAgent,
+      })
+    } catch (auditErr) {
+      console.error('[teacher/approach-to-learning] Failed to write audit log for ATL record:', auditErr)
+    }
 
     return NextResponse.json({ data: record })
   } catch (err) {
+    if (err instanceof StudentProfileGoneError) {
+      return NextResponse.json({ error: 'Student not found.' }, { status: 404 })
+    }
     console.error('[teacher/approach-to-learning] Failed to save ATL record:', err)
     return NextResponse.json({ error: 'Failed to save Approach to Learning. Please try again.' }, { status: 500 })
   }
