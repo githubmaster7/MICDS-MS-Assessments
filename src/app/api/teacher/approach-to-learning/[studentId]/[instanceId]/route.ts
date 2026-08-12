@@ -131,16 +131,17 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   // fields (e.g. one setting responsiblePrepared, another setting
   // respectfulWorks moments later) can each read the same pre-update row and
   // compute calculatedScore from a stale merge, silently leaving a
-  // subsequently-out-of-date derived score. `SELECT ... FOR UPDATE` inside a
-  // transaction locks the row so a second concurrent PUT blocks until the
-  // first commits, then reads the first PUT's result rather than a stale one.
+  // subsequently-out-of-date derived score. `SELECT ... FOR UPDATE` on the
+  // parent StudentProfile row (guaranteed to exist, unlike
+  // ApproachToLearningRecord on a first write) serializes concurrent PUTs so
+  // the second blocks until the first commits, then reads its result rather
+  // than a stale one.
   try {
     const { record, before, nextResponsiblePrepared, nextRespectfulWorks, nextEffortTeacherScore, nextDaysLate, calculatedScore } =
       await db.$transaction(async (tx) => {
         await tx.$queryRaw`
-          SELECT id FROM "ApproachToLearningRecord"
-          WHERE "studentProfileId" = ${studentId}::uuid
-            AND "historicalClassInstanceId" = ${instanceId}::uuid
+          SELECT id FROM "StudentProfile"
+          WHERE id = ${studentId}::uuid
           FOR UPDATE
         `
 
