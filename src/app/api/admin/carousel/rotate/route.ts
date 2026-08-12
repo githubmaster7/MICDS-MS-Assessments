@@ -202,11 +202,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const userAgent = req.headers.get('user-agent') ?? undefined
   const rotated: Array<{ studentGroupId: string; groupName: string; rotationNumber: number }> = []
+  const executionErrors: Array<{ studentGroupId: string; groupName: string; error: string }> = []
 
   for (const plan_ of executionPlans) {
-    const nextRotationNumber = plan_.currentAssignmentId
-      ? (await db.groupRotationAssignment.findUnique({ where: { id: plan_.currentAssignmentId }, select: { rotationNumber: true } }))!.rotationNumber + 1
-      : 1
+   try {
+    let nextRotationNumber = 1
+    if (plan_.currentAssignmentId) {
+      const currentAssignment = await db.groupRotationAssignment.findUnique({
+        where: { id: plan_.currentAssignmentId },
+        select: { rotationNumber: true },
+      })
+      // The current assignment existed moments ago when executionPlans was
+      // built, but a concurrent request rotating the same group could have
+      // already completed/removed it - fail this group cleanly instead of
+      // crashing the whole request with an unhandled null-dereference.
+      if (!currentAssignment) {
+        throw new Error('This group\'s current rotation assignment no longer exists (it may have just been rotated by another request).')
+      }
+      nextRotationNumber = currentAssignment.rotationNumber + 1
+    }
 
     // A group's next rotation may already be pre-scheduled as an UPCOMING
     // row — promote it instead of inserting a duplicate for the same
@@ -313,12 +327,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     })
 
     rotated.push({ studentGroupId: plan_.studentGroupId, groupName: plan_.groupName, rotationNumber: nextRotationNumber })
+   } catch (err) {
+    // One group failing to rotate (a race condition, a transient DB error,
+    // etc.) must not crash the whole request and lose the groups that
+    // already succeeded in this same loop - report it and move on.
+    console.error(`[admin/carousel/rotate] Failed to rotate group ${plan_.groupName}:`, err)
+    executionErrors.push({
+      studentGroupId: plan_.studentGroupId,
+      groupName: plan_.groupName,
+      error: err instanceof Error ? err.message : 'Failed to rotate this group.',
+    })
+   }
   }
 
   return NextResponse.json({
     data: {
       rotated,
-      errors: results.filter((r) => r.error).map((r) => ({ studentGroupId: r.studentGroupId, groupName: r.groupName, error: r.error })),
+      errors: [
+        ...results.filter((r) => r.error).map((r) => ({ studentGroupId: r.studentGroupId, groupName: r.groupName, error: r.error })),
+        ...executionErrors,
+      ],
       message: `${rotated.length} group${rotated.length !== 1 ? 's' : ''} rotated.`,
     },
   })
