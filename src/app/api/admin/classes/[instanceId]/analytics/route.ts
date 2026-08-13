@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { Role } from '@prisma/client'
+import { z } from 'zod'
 import { getClassInstanceAnalytics } from '@/lib/analytics/class-instance-analytics'
 
 interface RouteParams {
   params: Promise<{ instanceId: string }>
 }
+
+const InstanceIdSchema = z.string().uuid()
 
 /**
  * Admin-scoped read-only analytics for one class instance — same shared
@@ -23,6 +26,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { instanceId } = await params
+
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const analytics = await getClassInstanceAnalytics(instanceId)
   if (!analytics) return NextResponse.json({ error: 'Class instance not found.' }, { status: 404 })

@@ -45,6 +45,11 @@ const UpdateAssessmentSchema = z.object({
   standard4Rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
 })
 
+const RouteParamIdsSchema = z.object({
+  studentId: z.string().uuid(),
+  instanceId: z.string().uuid(),
+})
+
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -53,6 +58,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { studentId, instanceId } = await params
+
+  if (!RouteParamIdsSchema.safeParse({ studentId, instanceId }).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const canGrade = await canTeacherGrade(session.user.id, instanceId, studentId)
   // Allow read even if locked; only block mutations. canGrade itself can't
@@ -115,6 +124,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { studentId, instanceId } = await params
+
+  if (!RouteParamIdsSchema.safeParse({ studentId, instanceId }).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   // Authorization check
   const canGrade = await canTeacherGrade(session.user.id, instanceId, studentId)

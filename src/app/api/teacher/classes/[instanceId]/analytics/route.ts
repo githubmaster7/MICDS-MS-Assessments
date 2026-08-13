@@ -3,11 +3,14 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role } from '@prisma/client'
+import { z } from 'zod'
 import { getClassInstanceAnalytics } from '@/lib/analytics/class-instance-analytics'
 
 interface RouteParams {
   params: Promise<{ instanceId: string }>
 }
+
+const InstanceIdSchema = z.string().uuid()
 
 // Read-only group analytics for a single class instance: per-standard score
 // distributions pooled across every student (byStudent breakdown), a
@@ -23,6 +26,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { instanceId } = await params
+
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const teacherProfile = await db.teacherProfile.findUnique({
     where: { userId: session.user.id },

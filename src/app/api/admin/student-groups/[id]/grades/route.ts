@@ -3,10 +3,13 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role } from '@prisma/client'
+import { z } from 'zod'
 
 interface RouteParams {
   params: Promise<{ id: string }>
 }
+
+const IdSchema = z.string().uuid()
 
 /**
  * Every student in this group, and every graded class they've had within
@@ -20,6 +23,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { id: studentGroupId } = await params
+
+  if (!IdSchema.safeParse(studentGroupId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const group = await db.studentGroup.findUnique({ where: { id: studentGroupId }, select: { id: true, name: true } })
   if (!group) return NextResponse.json({ error: 'Student group not found.' }, { status: 404 })

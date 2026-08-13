@@ -12,6 +12,8 @@ interface RouteParams {
   params: Promise<{ instanceId: string; standardNumber: string }>
 }
 
+const InstanceIdSchema = z.string().uuid()
+
 const UpdateSubmissionSchema = z.object({
   writtenResponses: z
     .array(
@@ -51,6 +53,11 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { instanceId, standardNumber: stdStr } = await params
+
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   const standardNumber = parseInt(stdStr, 10)
   if (![1, 2, 3, 4].includes(standardNumber)) {
     return NextResponse.json({ error: 'Invalid standard number.' }, { status: 400 })
@@ -125,6 +132,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { instanceId, standardNumber: stdStr } = await params
+
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   const standardNumber = parseInt(stdStr, 10)
   if (![1, 2, 3, 4].includes(standardNumber)) {
     return NextResponse.json({ error: 'Invalid standard number.' }, { status: 400 })

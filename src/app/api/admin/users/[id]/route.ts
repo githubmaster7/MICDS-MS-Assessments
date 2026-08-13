@@ -18,6 +18,8 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+const IdSchema = z.string().uuid()
+
 async function requireAdmin(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return null
@@ -32,6 +34,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const user = await db.user.findUnique({
     where: { id },
@@ -72,6 +78,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   let body: unknown
   try {
@@ -147,6 +157,10 @@ export async function DELETE(req: NextRequest, { params }: RouteParams): Promise
   }
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   if (id === session.user.id) {
     return NextResponse.json({ error: 'You cannot deactivate your own account.' }, { status: 400 })
