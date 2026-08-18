@@ -4,9 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { RotationStatus } from '@prisma/client'
 import Link from 'next/link'
-import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution, getStudentCumulativeStandardAverages } from '@/lib/analytics/score-distribution'
+import { getStudentStandardItemDistribution, getStudentApproachToLearningDistribution } from '@/lib/analytics/score-distribution'
 import { StandardDistributionGrid, ScoreDistributionChart } from '@/components/student/ScoreDistributionChart'
-import { calculateCumulativeGrade } from '@/lib/grading/conversion'
 import { formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/PageHeader'
 
@@ -74,6 +73,11 @@ export default async function ParentDashboard({
         include: {
           teacherClassAssignment: {
             include: { activityTemplate: true, teacherProfile: true },
+          },
+          gradeSnapshots: {
+            where: { studentProfileId: student.id },
+            orderBy: { calculatedAt: 'desc' },
+            take: 1,
           },
         },
       })
@@ -167,14 +171,22 @@ export default async function ParentDashboard({
   const scoreDistribution = await getStudentStandardItemDistribution(student.id)
   const atlDistribution = await getStudentApproachToLearningDistribution(student.id)
 
-  // Overall Grade is cumulative — every class's own rubric-converted
-  // standard score, averaged across every class this student has been in
-  // this year, NOT just whichever class most recently had a grade
-  // calculated. Each individual class still shows its own isolated grade in
-  // "Class History" below.
-  const standardAverages = await getStudentCumulativeStandardAverages(student.id)
-  const cumulative = calculateCumulativeGrade(standardAverages)
-  const grade = cumulative?.letterGrade
+  // Overall Grade here is the CURRENT class's own official grade, not pooled
+  // across every class the student has ever taken (see the student
+  // dashboard for the same convention). A freshly-rotated class has no
+  // GradeCalculationSnapshot yet, so these are null until the teacher enters
+  // a first score - the `!= null` checks below render that as "-", not 0.
+  // Each individual class still shows its own isolated grade in "Class
+  // History" below.
+  const currentSnapshot = activeInstance?.gradeSnapshots[0]
+  const toNum = (v: unknown): number | null => (v == null ? null : Number(v))
+  const standardAverages = {
+    s1: toNum(currentSnapshot?.standard1Score),
+    s2: toNum(currentSnapshot?.standard2Score),
+    s3: toNum(currentSnapshot?.standard3Score),
+    s4: toNum(currentSnapshot?.standard4Score),
+  }
+  const grade = currentSnapshot?.letterGrade ?? null
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
