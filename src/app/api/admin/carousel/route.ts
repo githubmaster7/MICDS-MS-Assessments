@@ -5,6 +5,7 @@ import { db, type TxClient } from '@/lib/db'
 import { createAuditLog, AuditAction } from '@/lib/audit'
 import { Role } from '@prisma/client'
 import { z } from 'zod'
+import { canAssignActivityToGroup } from '@/lib/enrollment'
 import { ipRateLimitKey, rotationLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 const CreatePlanSchema = z.object({
@@ -119,14 +120,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const groupIds = Array.from(byGroup.keys())
     const tcaIds = positions.map((p) => p.teacherClassAssignmentId)
     const [groupsFound, tcas] = await Promise.all([
-      db.studentGroup.findMany({ where: { id: { in: groupIds } }, select: { id: true } }),
-      db.teacherClassAssignment.findMany({ where: { id: { in: tcaIds } }, select: { id: true } }),
+      db.studentGroup.findMany({ where: { id: { in: groupIds } }, select: { id: true, gender: true, gradeLevel: true } }),
+      db.teacherClassAssignment.findMany({
+        where: { id: { in: tcaIds } },
+        select: { id: true, activityTemplate: { select: { name: true, gender: true, gradeLevel: true } } },
+      }),
     ])
     if (groupsFound.length !== groupIds.length) {
       return NextResponse.json({ error: 'One or more student groups not found.' }, { status: 404 })
     }
     if (tcas.length !== new Set(tcaIds).size) {
       return NextResponse.json({ error: 'One or more teacher class assignments not found.' }, { status: 404 })
+    }
+
+    const groupById = new Map(groupsFound.map((g) => [g.id, g]))
+    const tcaById = new Map(tcas.map((t) => [t.id, t]))
+    for (const p of positions) {
+      const group = groupById.get(p.studentGroupId)!
+      const tca = tcaById.get(p.teacherClassAssignmentId)!
+      const compat = canAssignActivityToGroup(tca.activityTemplate, group)
+      if (!compat.allowed) {
+        return NextResponse.json(
+          { error: `"${tca.activityTemplate.name}" can't be added to this group — ${compat.reason}.` },
+          { status: 400 },
+        )
+      }
     }
   }
 

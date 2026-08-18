@@ -11,7 +11,7 @@
  * function the student-group membership API route calls server-side.
  */
 
-import { canEnrollStudent, validateGroupCreation, type Gender, type GradeLevel } from '@/lib/enrollment'
+import { canEnrollStudent, validateGroupCreation, canAssignActivityToGroup, type Gender, type GradeLevel } from '@/lib/enrollment'
 
 // ─── Grade level tests ────────────────────────────────────────────────────────
 
@@ -179,5 +179,69 @@ describe('enrollment — edge cases', () => {
     )
     expect(a.allowed).toBe(false)
     expect(b.allowed).toBe(false)
+  })
+})
+
+// ─── Class-to-group carousel assignment ──────────────────────────────────────
+
+describe('canAssignActivityToGroup — matching class to group', () => {
+  it('class explicitly for GRADE_6/MALE fits a GRADE_6/MALE group', () => {
+    const result = canAssignActivityToGroup(
+      { gradeLevel: 'GRADE_6', gender: 'MALE' },
+      { gradeLevel: 'GRADE_6', gender: 'MALE' }
+    )
+    expect(result.allowed).toBe(true)
+  })
+
+  it('class explicitly for GRADE_7/FEMALE does NOT fit a GRADE_6/FEMALE group (grade mismatch)', () => {
+    const result = canAssignActivityToGroup(
+      { gradeLevel: 'GRADE_7', gender: 'FEMALE' },
+      { gradeLevel: 'GRADE_6', gender: 'FEMALE' }
+    )
+    expect(result.allowed).toBe(false)
+    expect(result.reason).toMatch(/grade/i)
+  })
+
+  it('class explicitly for GRADE_8/MALE does NOT fit a GRADE_8/FEMALE group (gender mismatch)', () => {
+    const result = canAssignActivityToGroup(
+      { gradeLevel: 'GRADE_8', gender: 'MALE' },
+      { gradeLevel: 'GRADE_8', gender: 'FEMALE' }
+    )
+    expect(result.allowed).toBe(false)
+    expect(result.reason).toMatch(/gender/i)
+  })
+
+  it('class with null gradeLevel and null gender fits any group (generic class)', () => {
+    const result = canAssignActivityToGroup(
+      { gradeLevel: null, gender: null },
+      { gradeLevel: 'GRADE_7', gender: 'FEMALE' }
+    )
+    expect(result.allowed).toBe(true)
+  })
+
+  it('class with null gradeLevel but explicit gender only checks gender', () => {
+    const matching = canAssignActivityToGroup(
+      { gradeLevel: null, gender: 'MALE' },
+      { gradeLevel: 'GRADE_5', gender: 'MALE' }
+    )
+    const mismatched = canAssignActivityToGroup(
+      { gradeLevel: null, gender: 'MALE' },
+      { gradeLevel: 'GRADE_5', gender: 'FEMALE' }
+    )
+    expect(matching.allowed).toBe(true)
+    expect(mismatched.allowed).toBe(false)
+  })
+
+  it('class with null gender but explicit gradeLevel only checks grade', () => {
+    const matching = canAssignActivityToGroup(
+      { gradeLevel: 'GRADE_8', gender: null },
+      { gradeLevel: 'GRADE_8', gender: 'FEMALE' }
+    )
+    const mismatched = canAssignActivityToGroup(
+      { gradeLevel: 'GRADE_8', gender: null },
+      { gradeLevel: 'GRADE_6', gender: 'FEMALE' }
+    )
+    expect(matching.allowed).toBe(true)
+    expect(mismatched.allowed).toBe(false)
   })
 })

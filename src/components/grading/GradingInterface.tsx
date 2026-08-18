@@ -4,6 +4,7 @@ import { Check, Circle } from 'lucide-react'
 import { calculateStandardScore } from '@/lib/grading/standard-score'
 import { calculateApproachToLearning, calculateDaysLateScore } from '@/lib/grading/approach-to-learning'
 import { calculateOverallGrade } from '@/lib/grading/conversion'
+import { diffItems, diffWrittenResponses } from '@/lib/grading/history-diff'
 
 type Score = 1 | 2 | 3 | 4
 
@@ -77,12 +78,20 @@ export interface HistoryAttempt {
   standard4SelfRating: Score | null
 }
 
+export interface GradeValueSnapshot {
+  score?: number | null
+  feedback?: string | null
+  skillScores?: { skillDefinitionId: string; skillName: string; score: number }[]
+  promptScores?: { promptDefinitionId: string; promptText: string; score: number }[]
+  standard4Rating?: number | null
+}
+
 export interface GradeHistoryEntry {
   id: string
   createdAt: string
   actorEmail: string | null
-  beforeValue: { score?: number | null; feedback?: string | null } | null
-  afterValue: { score?: number | null; feedback?: string | null } | null
+  beforeValue: GradeValueSnapshot | null
+  afterValue: GradeValueSnapshot | null
 }
 
 export interface StudentGradeData {
@@ -888,36 +897,78 @@ function GradeHistoryModal({
           {entries.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">No grading changes recorded yet.</p>
           ) : (
-            entries.map((entry, i) => (
-              <div key={entry.id} className="border border-gray-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <span className="text-sm font-semibold text-gray-800">
-                    Change {i + 1}{i === entries.length - 1 ? ' (latest)' : ''}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(entry.createdAt).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  {entry.actorEmail && <span className="text-xs text-gray-400">by {entry.actorEmail}</span>}
-                </div>
-                <div className="text-sm text-gray-700 space-y-1">
-                  <div>
-                    Score: {entry.beforeValue?.score ?? '-'} → <strong>{entry.afterValue?.score ?? '-'}</strong>
+            entries.map((entry, i) => {
+              const changedSkills = diffItems(
+                entry.beforeValue?.skillScores,
+                entry.afterValue?.skillScores,
+                (s) => s.skillDefinitionId,
+                (s) => s.score,
+              )
+              const changedPrompts = diffItems(
+                entry.beforeValue?.promptScores,
+                entry.afterValue?.promptScores,
+                (p) => p.promptDefinitionId,
+                (p) => p.score,
+              )
+              const standard4RatingChanged =
+                entry.afterValue?.standard4Rating !== undefined &&
+                entry.beforeValue?.standard4Rating !== entry.afterValue?.standard4Rating
+
+              return (
+                <div key={entry.id} className="border border-gray-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className="text-sm font-semibold text-gray-800">
+                      Change {i + 1}{i === entries.length - 1 ? ' (latest)' : ''}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(entry.createdAt).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    {entry.actorEmail && <span className="text-xs text-gray-400">by {entry.actorEmail}</span>}
                   </div>
-                  {entry.beforeValue?.feedback !== entry.afterValue?.feedback && (
+                  <div className="text-sm text-gray-700 space-y-1">
                     <div>
-                      Feedback: <span className="text-gray-500">{entry.beforeValue?.feedback || '(none)'}</span> →{' '}
-                      <span className="text-gray-900">{entry.afterValue?.feedback || '(none)'}</span>
+                      Score: {entry.beforeValue?.score ?? '-'} → <strong>{entry.afterValue?.score ?? '-'}</strong>
                     </div>
-                  )}
+                    {entry.beforeValue?.feedback !== entry.afterValue?.feedback && (
+                      <div>
+                        Feedback: <span className="text-gray-500">{entry.beforeValue?.feedback || '(none)'}</span> →{' '}
+                        <span className="text-gray-900">{entry.afterValue?.feedback || '(none)'}</span>
+                      </div>
+                    )}
+                    {changedSkills.length > 0 && (
+                      <ul className="pl-4 list-disc space-y-0.5">
+                        {changedSkills.map(({ id, item, beforeValue }) => (
+                          <li key={id}>
+                            {item.skillName}: {beforeValue ?? 'not yet scored'} → <strong>{item.score}</strong>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {changedPrompts.length > 0 && (
+                      <ul className="pl-4 list-disc space-y-0.5">
+                        {changedPrompts.map(({ id, item, beforeValue }) => (
+                          <li key={id}>
+                            {item.promptText}: {beforeValue ?? 'not yet scored'} → <strong>{item.score}</strong>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {standard4RatingChanged && (
+                      <div>
+                        Teacher&apos;s teamwork/leadership rating: {entry.beforeValue?.standard4Rating ?? 'not yet scored'} →{' '}
+                        <strong>{entry.afterValue?.standard4Rating}</strong>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
@@ -1077,7 +1128,18 @@ function HistoryModal({
           </button>
         </div>
         <div className="p-4 space-y-4">
-          {timeline.map((attempt, i) => (
+          {timeline.map((attempt, i) => {
+            const previous = i > 0 ? timeline[i - 1] : null
+            const changedResponses = previous ? diffWrittenResponses(previous.writtenResponses, attempt.writtenResponses) : []
+            const changedSkillRatings = previous
+              ? diffItems(previous.skillSelfRatings, attempt.skillSelfRatings, (sr) => sr.skillDefinitionId, (sr) => sr.rating)
+              : []
+            const changedPromptRatings = previous
+              ? diffItems(previous.promptSelfRatings, attempt.promptSelfRatings, (pr) => pr.promptDefinitionId, (pr) => pr.rating)
+              : []
+            const standard4RatingChanged = previous ? previous.standard4SelfRating !== attempt.standard4SelfRating : false
+
+            return (
             <div key={attempt.attemptNumber} className="border border-gray-200 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-semibold text-gray-800">
@@ -1133,8 +1195,37 @@ function HistoryModal({
                   </span>
                 </div>
               )}
+              {previous && (changedResponses.length > 0 || changedSkillRatings.length > 0 || changedPromptRatings.length > 0 || standard4RatingChanged) && (
+                <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600 space-y-1">
+                  <p className="font-medium text-gray-700">Changed since attempt {previous.attemptNumber}:</p>
+                  {changedResponses.map(({ promptDefinitionId, beforeText, afterText }) => (
+                    <div key={promptDefinitionId}>
+                      {promptTextById[promptDefinitionId] ?? 'Response'}:{' '}
+                      <span className="text-gray-500">{beforeText || '(blank)'}</span> →{' '}
+                      <span className="text-gray-900">{afterText || '(blank)'}</span>
+                    </div>
+                  ))}
+                  {changedSkillRatings.map(({ id, item, beforeValue }) => (
+                    <div key={id}>
+                      {skillNameById[id] ?? 'Skill'}: {beforeValue ?? 'not yet rated'} → <strong>{item.rating}</strong>
+                    </div>
+                  ))}
+                  {changedPromptRatings.map(({ id, item, beforeValue }) => (
+                    <div key={id}>
+                      {promptTextById[id] ?? 'Question'}: {beforeValue ?? 'not yet rated'} → <strong>{item.rating}</strong>
+                    </div>
+                  ))}
+                  {standard4RatingChanged && (
+                    <div>
+                      Teamwork/leadership self-rating: {previous.standard4SelfRating ?? 'not yet rated'} →{' '}
+                      <strong>{attempt.standard4SelfRating}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>

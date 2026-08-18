@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, type TxClient } from '@/lib/db'
 import { auditGradeChange, auditGradeSnapshot, AuditAction, createAuditLog } from '@/lib/audit'
 import { canTeacherGrade } from '@/lib/authorization'
 import { Role } from '@prisma/client'
@@ -49,6 +49,56 @@ const RouteParamIdsSchema = z.object({
   studentId: z.string().uuid(),
   instanceId: z.string().uuid(),
 })
+
+interface PerItemScores {
+  skillScores?: { skillDefinitionId: string; skillName: string; score: number }[]
+  promptScores?: { promptDefinitionId: string; promptText: string; score: number }[]
+  standard4Rating?: number | null
+}
+
+// Every individually-scored item behind one standard's rolled-up score, with
+// human-readable labels — captured both before and after a PUT so the
+// regrade-history view can show e.g. "Passing accuracy: 2 -> 3" instead of
+// just the rolled-up "Score: 2.5 -> 2.75".
+async function fetchPerItemScores(
+  tx: TxClient,
+  teacherAssessmentId: string,
+  standardNumber: 1 | 2 | 3 | 4,
+): Promise<PerItemScores> {
+  if (standardNumber === 1) {
+    const skillScores = await tx.teacherSkillScore.findMany({
+      where: { teacherAssessmentId },
+      select: { skillDefinitionId: true, score: true, skillDefinition: { select: { skillName: true } } },
+    })
+    return {
+      skillScores: skillScores.map((s) => ({
+        skillDefinitionId: s.skillDefinitionId,
+        skillName: s.skillDefinition.skillName,
+        score: s.score,
+      })),
+    }
+  }
+
+  const promptScores = await tx.teacherPromptScore.findMany({
+    where: { teacherAssessmentId },
+    select: { promptDefinitionId: true, score: true, promptDefinition: { select: { promptText: true } } },
+  })
+  const result: PerItemScores = {
+    promptScores: promptScores.map((p) => ({
+      promptDefinitionId: p.promptDefinitionId,
+      promptText: p.promptDefinition.promptText,
+      score: p.score,
+    })),
+  }
+  if (standardNumber === 4) {
+    const rating = await tx.teacherStandard4Rating.findUnique({
+      where: { teacherAssessmentId },
+      select: { rating: true },
+    })
+    result.standard4Rating = rating?.rating ?? null
+  }
+  return result
+}
 
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
@@ -172,6 +222,8 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   // success while the student/parent-facing snapshot silently went stale.
   let assessment: Awaited<ReturnType<typeof db.teacherAssessment.upsert>>
   let before: { score: number | undefined; feedback: string | null } | null
+  let beforeItems: PerItemScores
+  let afterItems: PerItemScores
   try {
     const result = await db.$transaction(async (tx) => {
       const existing = await tx.teacherAssessment.findUnique({
@@ -210,6 +262,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
           ...(isFeedbackStudentVisible !== undefined ? { isFeedbackStudentVisible } : {}),
         },
       })
+
+      // Snapshot of every individually-scored item BEFORE this request's
+      // upserts below, so the caller can diff item-by-item (not just the
+      // rolled-up standard score) for the regrade-history view.
+      const itemsBefore = await fetchPerItemScores(tx, currentAssessment.id, standardNumber)
 
       // Handle Standard 1 skill scores
       if (standardNumber === 1 && skillScores && skillScores.length > 0) {
@@ -339,11 +396,15 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
         schoolYearId: instanceForSnapshot!.schoolYearId,
       })
 
-      return { assessment: currentAssessment, before: beforeValue, snapshotId: snapshot.id }
+      const itemsAfter = await fetchPerItemScores(tx, currentAssessment.id, standardNumber)
+
+      return { assessment: currentAssessment, before: beforeValue, itemsBefore, itemsAfter, snapshotId: snapshot.id }
     })
 
     assessment = result.assessment
     before = result.before
+    beforeItems = result.itemsBefore
+    afterItems = result.itemsAfter
 
     await auditGradeSnapshot({
       actorId: session.user.id,
@@ -367,8 +428,8 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     studentProfileId: studentId,
     historicalClassInstanceId: instanceId,
     standardNumber,
-    before,
-    after: { score: assessment.score?.toNumber() ?? null, feedback },
+    before: { score: before?.score, feedback: before?.feedback ?? null, ...beforeItems },
+    after: { score: assessment.score?.toNumber() ?? null, feedback, ...afterItems },
     ipAddress: ip,
     userAgent,
   })
