@@ -6,6 +6,7 @@ import { createAuditLog, AuditAction } from '@/lib/audit'
 import { Role, RotationStatus } from '@prisma/client'
 import { z } from 'zod'
 import { computeUpcomingSequence } from '@/lib/carousel/engine'
+import { canAssignActivityToGroup } from '@/lib/enrollment'
 import { ipRateLimitKey, rotationLimiter, checkRateLimit, userRateLimitKey } from '@/lib/rate-limit'
 
 // [id] here is a studentGroupId — positions are scoped per group, so
@@ -14,6 +15,8 @@ import { ipRateLimitKey, rotationLimiter, checkRateLimit, userRateLimitKey } fro
 interface RouteParams {
   params: Promise<{ id: string }>
 }
+
+const StudentGroupIdSchema = z.string().uuid()
 
 const ReorderSchema = z.object({
   positions: z.array(
@@ -37,6 +40,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { id: studentGroupId } = await params
+
+  if (!StudentGroupIdSchema.safeParse(studentGroupId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const group = await db.studentGroup.findUnique({ where: { id: studentGroupId }, select: { id: true } })
   if (!group) return NextResponse.json({ error: 'Student group not found.' }, { status: 404 })
@@ -73,6 +80,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { id: studentGroupId } = await params
+
+  if (!StudentGroupIdSchema.safeParse(studentGroupId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   let body: unknown
   try {
@@ -216,6 +227,10 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
 
   const { id: studentGroupId } = await params
 
+  if (!StudentGroupIdSchema.safeParse(studentGroupId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   let body: unknown
   try {
     body = await req.json()
@@ -235,7 +250,10 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
     return NextResponse.json({ error: 'endDate must be after startDate.' }, { status: 400 })
   }
 
-  const group = await db.studentGroup.findUnique({ where: { id: studentGroupId }, select: { id: true, name: true, schoolYearId: true } })
+  const group = await db.studentGroup.findUnique({
+    where: { id: studentGroupId },
+    select: { id: true, name: true, schoolYearId: true, gender: true, gradeLevel: true },
+  })
   if (!group) return NextResponse.json({ error: 'Student group not found.' }, { status: 404 })
 
   const existingCount = await db.carouselPosition.count({ where: { studentGroupId } })
@@ -251,10 +269,20 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
 
   const assignments = await db.teacherClassAssignment.findMany({
     where: { id: { in: teacherClassAssignmentIds }, isActive: true },
-    select: { id: true },
+    select: { id: true, activityTemplate: { select: { name: true, gender: true, gradeLevel: true } } },
   })
   if (assignments.length !== teacherClassAssignmentIds.length) {
     return NextResponse.json({ error: 'One or more teacher/class assignments were not found or are no longer active.' }, { status: 400 })
+  }
+
+  for (const assignment of assignments) {
+    const compat = canAssignActivityToGroup(assignment.activityTemplate, group)
+    if (!compat.allowed) {
+      return NextResponse.json(
+        { error: `"${assignment.activityTemplate.name}" can't be added to this group — ${compat.reason}.` },
+        { status: 400 },
+      )
+    }
   }
 
   const durationMs = end.getTime() - start.getTime()

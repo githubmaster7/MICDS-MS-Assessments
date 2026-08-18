@@ -15,12 +15,18 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+const ParentIdSchema = z.string().uuid()
+
 export async function POST(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { id: parentProfileId } = await params
+
+  if (!ParentIdSchema.safeParse(parentProfileId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   let body: unknown
   try {

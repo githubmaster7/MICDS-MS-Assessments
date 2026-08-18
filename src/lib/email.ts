@@ -18,6 +18,18 @@ const transporter = nodemailer.createTransport({
 const FROM_ADDRESS = process.env.SMTP_FROM ?? `"${APP_NAME}" <noreply@micds.org>`
 const APP_URL      = process.env.NEXTAUTH_URL ?? 'https://pe.micds.org'
 
+// Escapes admin-authored free text (e.g. a rejection reason) before it's
+// interpolated into an HTML email body, so it can't inject markup/scripts
+// into the recipient's inbox.
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // ---------------------------------------------------------------------------
 // Shared template helpers
 // ---------------------------------------------------------------------------
@@ -113,7 +125,7 @@ export async function sendApprovalEmail(email: string, role: string): Promise<vo
 
 export async function sendRejectionEmail(email: string, reason?: string): Promise<void> {
   const reasonText = reason
-    ? `<p>The reason provided was: <em>${reason}</em></p>`
+    ? `<p>The reason provided was: <em>${escapeHtml(reason)}</em></p>`
     : ''
 
   const body = `

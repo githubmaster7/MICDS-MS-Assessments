@@ -54,6 +54,8 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+const IdSchema = z.string().uuid()
+
 export async function POST(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
@@ -72,6 +74,10 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   }
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   let body: unknown
   try {

@@ -4,16 +4,23 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { canViewStudent } from '@/lib/authorization'
 import { Role } from '@prisma/client'
+import { z } from 'zod'
 
 interface RouteParams {
   params: Promise<{ instanceId: string }>
 }
+
+const InstanceIdSchema = z.string().uuid()
 
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
 
   const { instanceId } = await params
+
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   // Optional studentId filter — if provided, return only that student's snapshot
   const studentId = req.nextUrl.searchParams.get('studentId')

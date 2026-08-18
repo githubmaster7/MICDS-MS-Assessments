@@ -23,12 +23,18 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+const IdSchema = z.string().uuid()
+
 export async function PATCH(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   let body: unknown
   try {

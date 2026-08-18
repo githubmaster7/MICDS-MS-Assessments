@@ -12,6 +12,8 @@ interface RouteParams {
   params: Promise<{ instanceId: string; standardNumber: string }>
 }
 
+const InstanceIdSchema = z.string().uuid()
+
 const UpdateSubmissionSchema = z.object({
   writtenResponses: z
     .array(
@@ -51,6 +53,11 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { instanceId, standardNumber: stdStr } = await params
+
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   const standardNumber = parseInt(stdStr, 10)
   if (![1, 2, 3, 4].includes(standardNumber)) {
     return NextResponse.json({ error: 'Invalid standard number.' }, { status: 400 })
@@ -125,6 +132,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { instanceId, standardNumber: stdStr } = await params
+
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   const standardNumber = parseInt(stdStr, 10)
   if (![1, 2, 3, 4].includes(standardNumber)) {
     return NextResponse.json({ error: 'Invalid standard number.' }, { status: 400 })
@@ -260,152 +272,157 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   const ip = ipRateLimitKey(req)
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  await db.$transaction(async (tx: TxClient) => {
-    // A resubmission supersedes the currently-live attempt — freeze it into
-    // history before overwriting it below.
-    if (isResubmission) {
-      await tx.submissionHistoryEntry.create({
-        data: {
-          studentSubmissionId: submission.id,
-          attemptNumber: submission.latestAttemptNumber,
-          submittedAt: submission.submittedAt ?? submission.createdAt,
-          snapshotData: {
-            writtenResponses: submission.writtenResponses.map((wr) => ({
-              promptDefinitionId: wr.promptDefinitionId,
-              responseText: wr.responseText,
-            })),
-            skillSelfRatings: submission.studentSkillSelfRatings.map((sr) => ({
-              skillDefinitionId: sr.skillDefinitionId,
-              rating: sr.rating,
-            })),
-            promptSelfRatings: submission.studentPromptRatings.map((pr) => ({
-              promptDefinitionId: pr.promptDefinitionId,
-              rating: pr.rating,
-            })),
-            standard4SelfRating: submission.studentStandard4Ratings[0]?.rating ?? null,
+  try {
+    await db.$transaction(async (tx: TxClient) => {
+      // A resubmission supersedes the currently-live attempt — freeze it into
+      // history before overwriting it below.
+      if (isResubmission) {
+        await tx.submissionHistoryEntry.create({
+          data: {
+            studentSubmissionId: submission.id,
+            attemptNumber: submission.latestAttemptNumber,
+            submittedAt: submission.submittedAt ?? submission.createdAt,
+            snapshotData: {
+              writtenResponses: submission.writtenResponses.map((wr) => ({
+                promptDefinitionId: wr.promptDefinitionId,
+                responseText: wr.responseText,
+              })),
+              skillSelfRatings: submission.studentSkillSelfRatings.map((sr) => ({
+                skillDefinitionId: sr.skillDefinitionId,
+                rating: sr.rating,
+              })),
+              promptSelfRatings: submission.studentPromptRatings.map((pr) => ({
+                promptDefinitionId: pr.promptDefinitionId,
+                rating: pr.rating,
+              })),
+              standard4SelfRating: submission.studentStandard4Ratings[0]?.rating ?? null,
+            },
           },
-        },
-      })
-    }
+        })
+      }
 
-    // Update written responses
-    if (writtenResponses && writtenResponses.length > 0) {
-      await Promise.all(
-        writtenResponses.map((wr) =>
-          tx.writtenResponse.upsert({
-            where: {
-              studentSubmissionId_promptDefinitionId: {
+      // Update written responses
+      if (writtenResponses && writtenResponses.length > 0) {
+        await Promise.all(
+          writtenResponses.map((wr) =>
+            tx.writtenResponse.upsert({
+              where: {
+                studentSubmissionId_promptDefinitionId: {
+                  studentSubmissionId: submission.id,
+                  promptDefinitionId: wr.promptDefinitionId,
+                },
+              },
+              create: {
                 studentSubmissionId: submission.id,
                 promptDefinitionId: wr.promptDefinitionId,
+                responseText: wr.responseText,
               },
-            },
-            create: {
-              studentSubmissionId: submission.id,
-              promptDefinitionId: wr.promptDefinitionId,
-              responseText: wr.responseText,
-            },
-            update: { responseText: wr.responseText },
-          }),
-        ),
-      )
-    }
+              update: { responseText: wr.responseText },
+            }),
+          ),
+        )
+      }
 
-    // Update skill self-ratings
-    if (skillSelfRatings && skillSelfRatings.length > 0) {
-      await Promise.all(
-        skillSelfRatings.map((sr) =>
-          tx.studentSkillSelfRating.upsert({
-            where: {
-              studentSubmissionId_skillDefinitionId: {
+      // Update skill self-ratings
+      if (skillSelfRatings && skillSelfRatings.length > 0) {
+        await Promise.all(
+          skillSelfRatings.map((sr) =>
+            tx.studentSkillSelfRating.upsert({
+              where: {
+                studentSubmissionId_skillDefinitionId: {
+                  studentSubmissionId: submission.id,
+                  skillDefinitionId: sr.skillDefinitionId,
+                },
+              },
+              create: {
                 studentSubmissionId: submission.id,
+                studentProfileId: studentProfile.id,
                 skillDefinitionId: sr.skillDefinitionId,
+                rating: sr.rating,
               },
-            },
-            create: {
-              studentSubmissionId: submission.id,
-              studentProfileId: studentProfile.id,
-              skillDefinitionId: sr.skillDefinitionId,
-              rating: sr.rating,
-            },
-            update: { rating: sr.rating },
-          }),
-        ),
-      )
-    }
+              update: { rating: sr.rating },
+            }),
+          ),
+        )
+      }
 
-    // Update prompt self-ratings (Standard 2/3 concept questions)
-    if (promptSelfRatings && promptSelfRatings.length > 0) {
-      await Promise.all(
-        promptSelfRatings.map((pr) =>
-          tx.studentPromptRating.upsert({
-            where: {
-              studentSubmissionId_promptDefinitionId: {
+      // Update prompt self-ratings (Standard 2/3 concept questions)
+      if (promptSelfRatings && promptSelfRatings.length > 0) {
+        await Promise.all(
+          promptSelfRatings.map((pr) =>
+            tx.studentPromptRating.upsert({
+              where: {
+                studentSubmissionId_promptDefinitionId: {
+                  studentSubmissionId: submission.id,
+                  promptDefinitionId: pr.promptDefinitionId,
+                },
+              },
+              create: {
                 studentSubmissionId: submission.id,
+                studentProfileId: studentProfile.id,
                 promptDefinitionId: pr.promptDefinitionId,
+                rating: pr.rating,
               },
-            },
-            create: {
-              studentSubmissionId: submission.id,
-              studentProfileId: studentProfile.id,
-              promptDefinitionId: pr.promptDefinitionId,
-              rating: pr.rating,
-            },
-            update: { rating: pr.rating },
-          }),
-        ),
-      )
-    }
+              update: { rating: pr.rating },
+            }),
+          ),
+        )
+      }
 
-    // Standard 4 self-rating
-    if (standard4SelfRating !== undefined) {
-      await tx.studentStandard4SelfRating.upsert({
-        where: { studentSubmissionId: submission.id },
-        create: {
-          studentSubmissionId: submission.id,
-          studentProfileId: studentProfile.id,
-          rating: standard4SelfRating,
-        },
-        update: { rating: standard4SelfRating },
-      })
-    }
+      // Standard 4 self-rating
+      if (standard4SelfRating !== undefined) {
+        await tx.studentStandard4SelfRating.upsert({
+          where: { studentSubmissionId: submission.id },
+          create: {
+            studentSubmissionId: submission.id,
+            studentProfileId: studentProfile.id,
+            rating: standard4SelfRating,
+          },
+          update: { rating: standard4SelfRating },
+        })
+      }
 
-    // Submit / resubmit
-    if (submit) {
-      await tx.studentSubmission.update({
-        where: { id: submission.id },
-        data: {
-          status: isResubmission ? SubmissionStatus.REASSESSMENT_SUBMITTED : SubmissionStatus.SUBMITTED,
-          submittedAt: new Date(),
-          ...(isResubmission
-            ? { reassessmentSubmittedAt: new Date(), latestAttemptNumber: submission.latestAttemptNumber + 1 }
-            : {}),
-        },
-      })
-    }
-  })
+      // Submit / resubmit
+      if (submit) {
+        await tx.studentSubmission.update({
+          where: { id: submission.id },
+          data: {
+            status: isResubmission ? SubmissionStatus.REASSESSMENT_SUBMITTED : SubmissionStatus.SUBMITTED,
+            submittedAt: new Date(),
+            ...(isResubmission
+              ? { reassessmentSubmittedAt: new Date(), latestAttemptNumber: submission.latestAttemptNumber + 1 }
+              : {}),
+          },
+        })
+      }
+    })
 
-  await auditSubmission({
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    studentSubmissionId: submission.id,
-    studentProfileId: studentProfile.id,
-    action: submit
-      ? AuditAction.STUDENT_SUBMISSION_SUBMITTED
-      : AuditAction.STUDENT_SUBMISSION_UPDATED,
-    after: { standardNumber, submitted: submit, resubmission: isResubmission },
-    ipAddress: ip,
-    userAgent,
-  })
+    await auditSubmission({
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      studentSubmissionId: submission.id,
+      studentProfileId: studentProfile.id,
+      action: submit
+        ? AuditAction.STUDENT_SUBMISSION_SUBMITTED
+        : AuditAction.STUDENT_SUBMISSION_UPDATED,
+      after: { standardNumber, submitted: submit, resubmission: isResubmission },
+      ipAddress: ip,
+      userAgent,
+    })
 
-  const updated = await db.studentSubmission.findUnique({
-    where: { id: submission.id },
-    include: {
-      writtenResponses: true,
-      studentSkillSelfRatings: true,
-      studentPromptRatings: true,
-      studentStandard4Ratings: true,
-    },
-  })
+    const updated = await db.studentSubmission.findUnique({
+      where: { id: submission.id },
+      include: {
+        writtenResponses: true,
+        studentSkillSelfRatings: true,
+        studentPromptRatings: true,
+        studentStandard4Ratings: true,
+      },
+    })
 
-  return NextResponse.json({ data: updated })
+    return NextResponse.json({ data: updated })
+  } catch (err) {
+    console.error('[student/submissions] Failed to save submission:', err)
+    return NextResponse.json({ error: 'Failed to save your submission. Please try again.' }, { status: 500 })
+  }
 }

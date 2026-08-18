@@ -18,6 +18,11 @@ const FeedbackSchema = z.object({
   isFeedbackStudentVisible: z.boolean(),
 })
 
+const RouteParamIdsSchema = z.object({
+  studentId: z.string().uuid(),
+  instanceId: z.string().uuid(),
+})
+
 export async function PUT(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -34,6 +39,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { studentId, instanceId } = await params
+
+  if (!RouteParamIdsSchema.safeParse({ studentId, instanceId }).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const canGrade = await canTeacherGrade(session.user.id, instanceId, studentId)
   if (!canGrade) {

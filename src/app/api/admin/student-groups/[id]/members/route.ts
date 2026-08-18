@@ -12,6 +12,8 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+const IdSchema = z.string().uuid()
+
 const AddMemberSchema = z.object({
   studentProfileId: z.string().uuid(),
 })
@@ -26,6 +28,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const group = await db.studentGroup.findUnique({ where: { id }, select: { id: true } })
   if (!group) return NextResponse.json({ error: 'Student group not found.' }, { status: 404 })
@@ -69,6 +75,10 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<N
   }
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   let body: unknown
   try {
@@ -197,6 +207,10 @@ export async function DELETE(req: NextRequest, { params }: RouteParams): Promise
   }
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   let body: unknown
   try {

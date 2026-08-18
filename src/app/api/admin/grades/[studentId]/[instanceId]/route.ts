@@ -3,11 +3,17 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role } from '@prisma/client'
+import { z } from 'zod'
 import { getGradeAndSubmissionHistory } from '@/lib/grading/history'
 
 interface RouteParams {
   params: Promise<{ studentId: string; instanceId: string }>
 }
+
+const RouteParamIdsSchema = z.object({
+  studentId: z.string().uuid(),
+  instanceId: z.string().uuid(),
+})
 
 /**
  * Admin-scoped read-only counterpart to the teacher's own grade-history
@@ -23,6 +29,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   }
 
   const { studentId, instanceId } = await params
+
+  if (!RouteParamIdsSchema.safeParse({ studentId, instanceId }).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const instance = await db.historicalClassInstance.findUnique({
     where: { id: instanceId },

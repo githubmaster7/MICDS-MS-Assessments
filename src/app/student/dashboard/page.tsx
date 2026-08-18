@@ -4,8 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import Link from 'next/link'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { getStudentCumulativeStandardAverages } from '@/lib/analytics/score-distribution'
-import { calculateCumulativeGrade } from '@/lib/grading/conversion'
 
 
 type ClassInst = {
@@ -83,15 +81,24 @@ export default async function StudentDashboard() {
   const currentActivity = activeInstance?.teacherClassAssignment
   const currentTeacher = currentActivity?.teacherProfile
 
-  // Overall Grade is cumulative — every score the student has received for
-  // each standard, pooled across every class they've been in this year (the
-  // same numbers behind the "Score Distribution — All Classes" chart on the
-  // My Classes page), NOT just the currently-active class's own grade. Each
-  // individual class still gets its own isolated grade below, in "My Classes
-  // This Year".
-  const standardAverages = await getStudentCumulativeStandardAverages(student.id)
-  const cumulative = calculateCumulativeGrade(standardAverages)
-  const grade = cumulative?.letterGrade
+  // Overall Grade here is the CURRENT class's own official grade (same
+  // number as that class's own detail page) — not pooled across every class
+  // the student has ever taken. A freshly-rotated class has no
+  // GradeCalculationSnapshot yet, so every field below is null until the
+  // teacher enters a first score; the existing `!= null` checks already
+  // render that as "-" rather than treating it as a 0. The "Score
+  // Distribution — All Classes" pooled view lives on the My Classes page,
+  // not here; each individual class still gets its own isolated grade below,
+  // in "My Classes This Year".
+  const currentSnapshot = activeInstance?.gradeSnapshots[0]
+  const toNum = (v: unknown): number | null => (v == null ? null : Number(v))
+  const standardAverages = {
+    s1: toNum(currentSnapshot?.standard1Score),
+    s2: toNum(currentSnapshot?.standard2Score),
+    s3: toNum(currentSnapshot?.standard3Score),
+    s4: toNum(currentSnapshot?.standard4Score),
+  }
+  const grade = currentSnapshot?.letterGrade ?? null
 
   const scoreColor = (score: number | null) => {
     if (!score) return 'text-gray-400'

@@ -16,6 +16,15 @@ const UpdateAtlSelfSchema = z.object({
   effortStudentScore: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
 })
 
+// instanceId reaches a Prisma lookup unvalidated; a malformed value throws
+// there instead of failing cleanly, so reject non-UUID shapes up front.
+const InstanceIdSchema = z.string().uuid()
+
+// Thrown when the StudentProfile row disappears between the initial lookup
+// and the locking transaction (e.g. an admin deletes the account mid-request),
+// so it can be told apart from other transaction failures below.
+class StudentProfileGoneError extends Error {}
+
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -68,6 +77,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
 
   const { instanceId } = await params
 
+  if (!InstanceIdSchema.safeParse(instanceId).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   const studentProfile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
     select: { id: true },
@@ -115,70 +128,101 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   const ip = ipRateLimitKey(req)
   const userAgent = req.headers.get('user-agent') ?? undefined
 
-  const existing = await db.approachToLearningRecord.findUnique({
-    where: {
-      studentProfileId_historicalClassInstanceId: {
-        studentProfileId: studentProfile.id,
-        historicalClassInstanceId: instanceId,
-      },
-    },
-  })
-
-  const before = existing
-    ? {
-        effortStudentScore: existing.effortStudentScore?.toNumber() ?? null,
-        calculatedScore: existing.calculatedScore?.toNumber() ?? null,
+  // Locks the same parent StudentProfile row the teacher writer locks (see
+  // src/app/api/teacher/approach-to-learning/[studentId]/[instanceId]/route.ts),
+  // so a concurrent teacher PUT and this student PUT serialize instead of each
+  // computing calculatedScore from the other's pre-commit values.
+  try {
+    const { record, before, calculatedScore } = await db.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "StudentProfile"
+        WHERE id = ${studentProfile.id}::uuid
+        FOR UPDATE
+      `
+      if (locked.length === 0) {
+        throw new StudentProfileGoneError()
       }
-    : null
 
-  const nextResponsiblePrepared = existing?.responsiblePrepared?.toNumber() ?? null
-  const nextRespectfulWorks = existing?.respectfulWorks?.toNumber() ?? null
-  const nextEffortTeacherScore = existing?.effortTeacherScore?.toNumber() ?? null
-  const nextDaysLate = existing?.daysLateUnprepared ?? 0
+      const existing = await tx.approachToLearningRecord.findUnique({
+        where: {
+          studentProfileId_historicalClassInstanceId: {
+            studentProfileId: studentProfile.id,
+            historicalClassInstanceId: instanceId,
+          },
+        },
+      })
 
-  let calculatedScore: number | null = null
-  if (nextResponsiblePrepared !== null && nextRespectfulWorks !== null && nextEffortTeacherScore !== null) {
-    calculatedScore = calculateApproachToLearning({
-      responsiblePrepared: nextResponsiblePrepared,
-      respectfulWorks: nextRespectfulWorks,
-      effortTeacherScore: nextEffortTeacherScore,
-      effortStudentScore,
-      daysLateUnprepared: nextDaysLate,
-    }).calculatedScore
-  }
+      const beforeValue = existing
+        ? {
+            effortStudentScore: existing.effortStudentScore?.toNumber() ?? null,
+            calculatedScore: existing.calculatedScore?.toNumber() ?? null,
+          }
+        : null
 
-  const record = await db.approachToLearningRecord.upsert({
-    where: {
-      studentProfileId_historicalClassInstanceId: {
+      const nextResponsiblePrepared = existing?.responsiblePrepared?.toNumber() ?? null
+      const nextRespectfulWorks = existing?.respectfulWorks?.toNumber() ?? null
+      const nextEffortTeacherScore = existing?.effortTeacherScore?.toNumber() ?? null
+      const nextDaysLate = existing?.daysLateUnprepared ?? 0
+
+      let calculatedScoreValue: number | null = null
+      if (nextResponsiblePrepared !== null && nextRespectfulWorks !== null && nextEffortTeacherScore !== null) {
+        calculatedScoreValue = calculateApproachToLearning({
+          responsiblePrepared: nextResponsiblePrepared,
+          respectfulWorks: nextRespectfulWorks,
+          effortTeacherScore: nextEffortTeacherScore,
+          effortStudentScore,
+          daysLateUnprepared: nextDaysLate,
+        }).calculatedScore
+      }
+
+      const savedRecord = await tx.approachToLearningRecord.upsert({
+        where: {
+          studentProfileId_historicalClassInstanceId: {
+            studentProfileId: studentProfile.id,
+            historicalClassInstanceId: instanceId,
+          },
+        },
+        create: {
+          studentProfileId: studentProfile.id,
+          historicalClassInstanceId: instanceId,
+          teacherProfileId: instance.teacherClassAssignment.teacherProfileId,
+          effortStudentScore,
+          calculatedScore: calculatedScoreValue,
+        },
+        update: {
+          effortStudentScore,
+          calculatedScore: calculatedScoreValue,
+        },
+        select: { effortStudentScore: true, effortTeacherScore: true, daysLateUnprepared: true, calculatedScore: true },
+      })
+
+      return { record: savedRecord, before: beforeValue, calculatedScore: calculatedScoreValue }
+    })
+
+    // The save already committed above; an audit-log failure here shouldn't
+    // report a false "failed to save" back to a client that succeeded.
+    try {
+      await auditAtlRecord({
+        actorId: session.user.id,
+        actorRole: session.user.role,
         studentProfileId: studentProfile.id,
         historicalClassInstanceId: instanceId,
-      },
-    },
-    create: {
-      studentProfileId: studentProfile.id,
-      historicalClassInstanceId: instanceId,
-      teacherProfileId: instance.teacherClassAssignment.teacherProfileId,
-      effortStudentScore,
-      calculatedScore,
-    },
-    update: {
-      effortStudentScore,
-      calculatedScore,
-    },
-    select: { effortStudentScore: true, effortTeacherScore: true, daysLateUnprepared: true, calculatedScore: true },
-  })
+        action: before ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
+        before,
+        after: { effortStudentScore, calculatedScore },
+        ipAddress: ip,
+        userAgent,
+      })
+    } catch (auditErr) {
+      console.error('[student/approach-to-learning] Failed to write audit log for ATL record:', auditErr)
+    }
 
-  await auditAtlRecord({
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    studentProfileId: studentProfile.id,
-    historicalClassInstanceId: instanceId,
-    action: existing ? AuditAction.ATL_RECORD_UPDATED : AuditAction.ATL_RECORD_CREATED,
-    before,
-    after: { effortStudentScore, calculatedScore },
-    ipAddress: ip,
-    userAgent,
-  })
-
-  return NextResponse.json({ data: record })
+    return NextResponse.json({ data: record })
+  } catch (err) {
+    if (err instanceof StudentProfileGoneError) {
+      return NextResponse.json({ error: 'Student profile not found.' }, { status: 404 })
+    }
+    console.error('[student/approach-to-learning] Failed to save ATL record:', err)
+    return NextResponse.json({ error: 'Something went wrong saving your rating. Please try again.' }, { status: 500 })
+  }
 }

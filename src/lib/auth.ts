@@ -7,6 +7,15 @@ import { ALLOWED_EMAIL_DOMAIN } from '@/lib/constants'
 import { loginLimiter, checkRateLimit } from '@/lib/rate-limit'
 import { auditLogin } from '@/lib/audit'
 
+function formatWaitTime(ms: number): string {
+  const totalSeconds = Math.ceil(ms / 1000)
+  if (totalSeconds < 60) {
+    return `${totalSeconds} second${totalSeconds === 1 ? '' : 's'}`
+  }
+  const minutes = Math.ceil(totalSeconds / 60)
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`
+}
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
@@ -47,7 +56,7 @@ export const authOptions: NextAuthOptions = {
         const rl = await checkRateLimit(loginLimiter, ip)
         if (!rl.success) {
           await logFailure()
-          throw new Error('Too many login attempts. Please try again later.')
+          throw new Error(`Too many login attempts. Please try again in ${formatWaitTime(rl.msBeforeNext)}.`)
         }
 
         // Enforce school domain

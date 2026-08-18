@@ -17,12 +17,18 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+const IdSchema = z.string().uuid()
+
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const group = await db.studentGroup.findUnique({
     where: { id },
@@ -68,6 +74,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   let body: unknown
   try {
@@ -135,6 +145,10 @@ export async function DELETE(req: NextRequest, { params }: RouteParams): Promise
   if (session.user.role !== Role.ADMIN) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { id } = await params
+
+  if (!IdSchema.safeParse(id).success) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
 
   const existing = await db.studentGroup.findUnique({
     where: { id },
