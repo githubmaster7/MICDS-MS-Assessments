@@ -55,6 +55,7 @@ interface ExistingSubmission {
 interface InitialSubmissionData {
   skillRatings: Record<string, number>
   responses: Record<number, Record<number, string>>
+  reassessmentResponses: Record<number, Record<number, string>>
   promptRatings: Record<number, Record<number, number>>
   standard4SelfRating: number | null
   effortSelfRating: number | null
@@ -68,6 +69,23 @@ interface CurrentClassScores {
   letterGrade: string | null
 }
 
+// The teacher's own scores/feedback, shown alongside the student's self-
+// grading UI - the mirror of the SelfRatingBadge a teacher sees while
+// grading. Feedback is only ever populated when the teacher marked it
+// visible to the student; the numeric scores are never gated.
+interface TeacherGradeData {
+  skillScores: Record<string, number>
+  promptScores: Record<string, number>
+  standard4Rating: number | null
+  feedback: Record<1 | 2 | 3 | 4, string | null>
+  atl: {
+    responsiblePrepared: number | null
+    respectfulWorks: number | null
+    effortTeacherScore: number | null
+    calculatedScore: number | null
+  }
+}
+
 interface SubmissionFormProps {
   instanceId: string
   activityName: string
@@ -78,6 +96,7 @@ interface SubmissionFormProps {
   existingSubmissions?: ExistingSubmission[]
   initialData?: InitialSubmissionData
   currentClassScores?: CurrentClassScores
+  teacherGrades?: TeacherGradeData
   scoreDistribution?: Record<1 | 2 | 3 | 4, ScoreBucket[]>
 }
 
@@ -116,19 +135,37 @@ function ScoreSelector({
   )
 }
 
+// Mirrors the teacher's own SelfRatingBadge (GradingInterface.tsx), just in
+// the other direction - the teacher's score shown to the student.
+function TeacherScoreBadge({ score }: { score: number | null | undefined }) {
+  if (score == null) {
+    return <span className="text-xs text-gray-400 italic">Teacher: not yet graded</span>
+  }
+  return (
+    <span className={cn('px-2 py-0.5 rounded text-xs font-medium border', SCORE_COLORS[score])}>
+      Teacher: {score} – {SCORE_LABELS[score]}
+    </span>
+  )
+}
+
 function SkillSelfRatingRow({
   name,
   value,
   onChange,
+  teacherScore,
 }: {
   name: string
   value: number | null
   onChange: (v: number) => void
+  teacherScore?: number | null
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-1.5">
+    <div className="flex items-center justify-between gap-3 py-1.5 flex-wrap">
       <span className="text-sm text-gray-700">{name}</span>
-      <ScoreSelector value={value} onChange={onChange} name={name} />
+      <div className="flex items-center gap-3">
+        <ScoreSelector value={value} onChange={onChange} name={name} />
+        <TeacherScoreBadge score={teacherScore} />
+      </div>
     </div>
   )
 }
@@ -191,6 +228,7 @@ export function SubmissionForm({
   existingSubmissions = [],
   initialData,
   currentClassScores,
+  teacherGrades,
   scoreDistribution = { 1: [], 2: [], 3: [], 4: [] },
 }: SubmissionFormProps) {
   const finalizedStandards = new Set(
@@ -205,6 +243,9 @@ export function SubmissionForm({
   const [responses, setResponses] = useState<Record<number, Record<number, string>>>(
     initialData?.responses ?? { 2: {}, 3: {}, 4: {} },
   )
+  const [reassessmentResponses, setReassessmentResponses] = useState<Record<number, Record<number, string>>>(
+    initialData?.reassessmentResponses ?? { 2: {}, 3: {}, 4: {} },
+  )
   const [promptRatings, setPromptRatings] = useState<Record<number, Record<number, number>>>(
     initialData?.promptRatings ?? { 2: {}, 3: {} },
   )
@@ -217,6 +258,13 @@ export function SubmissionForm({
 
   function setResponse(std: number, order: number, val: string) {
     setResponses((prev) => ({
+      ...prev,
+      [std]: { ...prev[std], [order]: val },
+    }))
+  }
+
+  function setReassessmentResponse(std: number, order: number, val: string) {
+    setReassessmentResponses((prev) => ({
       ...prev,
       [std]: { ...prev[std], [order]: val },
     }))
@@ -267,18 +315,6 @@ export function SubmissionForm({
     if (stdNum === 1 && skillDefinitions.length === 0) {
       return { stdNum, skipped: true, ok: true, fatal: false }
     }
-    // Drafting only applies to standards not yet finalized — a finalized
-    // standard can only be changed via a full resubmission.
-    if (isDraft && finalizedStandards.has(stdNum)) {
-      return { stdNum, skipped: true, ok: true, fatal: false }
-    }
-    // Resubmission is judged across the whole submission, not standard by
-    // standard (checked once in handleSubmit before any request is sent) — a
-    // finalized standard with no change of its own is left untouched rather
-    // than resent and rejected individually for "nothing changed here."
-    if (!isDraft && finalizedStandards.has(stdNum) && !standardHasChange(stdNum)) {
-      return { stdNum, skipped: true, ok: true, fatal: false }
-    }
 
     const questionSetsForSubmit: Record<2 | 3 | 4, Question[]> = {
       2: standard2Questions,
@@ -286,10 +322,35 @@ export function SubmissionForm({
       4: standard4Questions,
     }
 
+    // The reassessment box is independent of the draft/finalized/resubmit
+    // flow entirely - it's always saveable, so its presence overrides every
+    // skip condition below that would otherwise leave this standard untouched.
+    const reassessmentItems =
+      stdNum === 2 || stdNum === 3 || stdNum === 4
+        ? questionSetsForSubmit[stdNum]
+            .map((q) => ({ promptDefinitionId: q.id, text: (reassessmentResponses[stdNum]?.[q.displayOrder] ?? '').trim() }))
+            .filter((item) => item.text.length > 0)
+        : []
+    const hasReassessmentContent = reassessmentItems.length > 0
+
+    // Drafting only applies to standards not yet finalized — a finalized
+    // standard can only be changed via a full resubmission.
+    if (isDraft && finalizedStandards.has(stdNum) && !hasReassessmentContent) {
+      return { stdNum, skipped: true, ok: true, fatal: false }
+    }
+    // Resubmission is judged across the whole submission, not standard by
+    // standard (checked once in handleSubmit before any request is sent) — a
+    // finalized standard with no change of its own is left untouched rather
+    // than resent and rejected individually for "nothing changed here."
+    if (!isDraft && finalizedStandards.has(stdNum) && !standardHasChange(stdNum) && !hasReassessmentContent) {
+      return { stdNum, skipped: true, ok: true, fatal: false }
+    }
+
     const body: {
       skillSelfRatings?: { skillDefinitionId: string; rating: number }[]
       writtenResponses?: { promptDefinitionId: string; responseText: string }[]
       promptSelfRatings?: { promptDefinitionId: string; rating: number }[]
+      reassessmentResponses?: { promptDefinitionId: string; reassessmentResponseText: string }[]
       submit: boolean
       standard4SelfRating?: number
     } = { submit: !isDraft }
@@ -319,11 +380,17 @@ export function SubmissionForm({
         }
       }
       if (stdNum === 4 && selfRating != null) body.standard4SelfRating = selfRating
+      if (hasReassessmentContent) {
+        body.reassessmentResponses = reassessmentItems.map((item) => ({
+          promptDefinitionId: item.promptDefinitionId,
+          reassessmentResponseText: item.text,
+        }))
+      }
     }
 
     // Nothing to save for this standard yet (student hasn't visited this
     // tab) — skip it rather than creating an empty submission shell.
-    if (stdNum !== 1 && stdNum !== 4 && !body.writtenResponses) {
+    if (stdNum !== 1 && stdNum !== 4 && !body.writtenResponses && !hasReassessmentContent) {
       return { stdNum, skipped: true, ok: true, fatal: false }
     }
 
@@ -554,6 +621,12 @@ export function SubmissionForm({
       {/* Question section */}
       <div role="tabpanel" className="space-y-4">
         {activeStd !== 'atl' && <ScoringRubricCard rubric={SCORING_RUBRIC[activeStd]} />}
+        {activeStd !== 'atl' && teacherGrades?.feedback[activeStd] && (
+          <div className="rounded-xl bg-purple-50 border border-purple-200 px-4 py-3">
+            <p className="text-xs font-semibold text-purple-900 mb-1">Teacher Feedback</p>
+            <p className="text-sm text-purple-800">{teacherGrades.feedback[activeStd]}</p>
+          </div>
+        )}
 
         {activeStd === 'atl' && (
           <div className="space-y-4">
@@ -569,6 +642,31 @@ export function SubmissionForm({
               onChange={setEffortSelfRating}
               labels={EFFORT_RATING_LABELS}
             />
+            {teacherGrades && (
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 space-y-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                  Teacher&apos;s Approach to Learning Ratings
+                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-gray-700">Responsible &amp; prepared</span>
+                  <TeacherScoreBadge score={teacherGrades.atl.responsiblePrepared} />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-gray-700">Respectful &amp; works well</span>
+                  <TeacherScoreBadge score={teacherGrades.atl.respectfulWorks} />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-gray-700">Effort</span>
+                  <TeacherScoreBadge score={teacherGrades.atl.effortTeacherScore} />
+                </div>
+                {teacherGrades.atl.calculatedScore != null && (
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-200">
+                    <span className="text-sm font-medium text-gray-700">Overall Approach to Learning score</span>
+                    <span className="text-sm font-bold text-gray-900">{teacherGrades.atl.calculatedScore.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -596,6 +694,7 @@ export function SubmissionForm({
                           name={s.skillName}
                           value={skillRatings[s.id] ?? null}
                           onChange={(v) => setSkillRatings((prev) => ({ ...prev, [s.id]: v }))}
+                          teacherScore={teacherGrades?.skillScores[s.id]}
                         />
                       ))}
                     </div>
@@ -613,6 +712,7 @@ export function SubmissionForm({
                           name={s.skillName}
                           value={skillRatings[s.id] ?? null}
                           onChange={(v) => setSkillRatings((prev) => ({ ...prev, [s.id]: v }))}
+                          teacherScore={teacherGrades?.skillScores[s.id]}
                         />
                       ))}
                     </div>
@@ -624,7 +724,7 @@ export function SubmissionForm({
         )}
 
         {activeStd === 4 && (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <SelfRating
               label="How would you rate your teamwork and leadership this rotation?"
               name="self-rating"
@@ -632,6 +732,9 @@ export function SubmissionForm({
               onChange={setSelfRating}
               labels={S4_RATING_LABELS}
             />
+            <div className="flex justify-end">
+              <TeacherScoreBadge score={teacherGrades?.standard4Rating} />
+            </div>
           </div>
         )}
 
@@ -653,16 +756,35 @@ export function SubmissionForm({
                   placeholder="Write your response here…"
                   className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                 />
-                {(activeStd === 2 || activeStd === 3) && (
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs font-medium text-gray-500">Rate your own answer:</span>
-                    <ScoreSelector
-                      value={promptRatings[activeStd]?.[q.displayOrder] ?? null}
-                      onChange={(v) => setPromptRating(activeStd, q.displayOrder, v)}
-                      name={`self-rating-${activeStd}-${q.displayOrder}`}
-                    />
-                  </div>
-                )}
+                <div className="flex items-center justify-between gap-3 mt-2 flex-wrap">
+                  {(activeStd === 2 || activeStd === 3) && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-gray-500">Rate your own answer:</span>
+                      <ScoreSelector
+                        value={promptRatings[activeStd]?.[q.displayOrder] ?? null}
+                        onChange={(v) => setPromptRating(activeStd, q.displayOrder, v)}
+                        name={`self-rating-${activeStd}-${q.displayOrder}`}
+                      />
+                    </div>
+                  )}
+                  <TeacherScoreBadge score={teacherGrades?.promptScores[q.id]} />
+                </div>
+
+                {/* Reassessment box — always available, independent of
+                    submission/finalization status. Only fill this in if your
+                    teacher has directly told you to redo this question. */}
+                <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                    Reassessment response <span className="text-gray-400">(only if your teacher told you to redo this)</span>
+                  </label>
+                  <textarea
+                    value={reassessmentResponses[activeStd]?.[q.displayOrder] ?? ''}
+                    onChange={(e) => setReassessmentResponse(activeStd, q.displayOrder, e.target.value)}
+                    rows={3}
+                    placeholder="Write your reassessment response here…"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                  />
+                </div>
               </div>
             ))
           )

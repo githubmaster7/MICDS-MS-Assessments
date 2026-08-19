@@ -106,6 +106,7 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
   // where they need a real baseline to meaningfully change.
   const skillRatings: Record<string, number> = {}
   const responses: Record<number, Record<number, string>> = { 2: {}, 3: {}, 4: {} }
+  const reassessmentResponses: Record<number, Record<number, string>> = { 2: {}, 3: {}, 4: {} }
   const promptRatings: Record<number, Record<number, number>> = { 2: {}, 3: {} }
   let standard4SelfRating: number | null = null
 
@@ -121,7 +122,10 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
       const std = sub.standardNumber
       for (const wr of sub.writtenResponses) {
         const order = promptDisplayOrderById[wr.promptDefinitionId]
-        if (order !== undefined) responses[std][order] = wr.responseText
+        if (order !== undefined) {
+          responses[std][order] = wr.responseText
+          if (wr.reassessmentResponseText) reassessmentResponses[std][order] = wr.reassessmentResponseText
+        }
       }
       if (std === 2 || std === 3) {
         for (const pr of sub.studentPromptRatings) {
@@ -133,6 +137,27 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
         standard4SelfRating = sub.studentStandard4Ratings[0].rating
       }
     }
+  }
+
+  // The teacher's own scores and feedback, shown alongside the student's
+  // self-grading UI — the mirror of how a teacher sees the student's self-
+  // ratings while grading. Feedback text respects the same
+  // isFeedbackStudentVisible gate used everywhere else; the numeric scores
+  // themselves are never gated, matching the rest of the app.
+  const teacherAssessments = await db.teacherAssessment.findMany({
+    where: { studentProfileId: student.id, historicalClassInstanceId: instanceId },
+    include: { teacherSkillScores: true, teacherPromptScores: true, teacherStandard4Ratings: true },
+  })
+  const teacherSkillScores: Record<string, number> = {}
+  const teacherPromptScores: Record<string, number> = {}
+  let teacherStandard4Rating: number | null = null
+  const teacherFeedback: Record<1 | 2 | 3 | 4, string | null> = { 1: null, 2: null, 3: null, 4: null }
+  for (const a of teacherAssessments) {
+    const std = a.standardNumber as 1 | 2 | 3 | 4
+    if (a.isFeedbackStudentVisible && a.feedback) teacherFeedback[std] = a.feedback
+    for (const ss of a.teacherSkillScores) teacherSkillScores[ss.skillDefinitionId] = ss.score
+    for (const ps of a.teacherPromptScores) teacherPromptScores[ps.promptDefinitionId] = ps.score
+    if (a.teacherStandard4Ratings[0]) teacherStandard4Rating = a.teacherStandard4Ratings[0].rating
   }
 
   // Analytics shown on the post-submit screen: this class's own standard
@@ -151,9 +176,21 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
         historicalClassInstanceId: instanceId,
       },
     },
-    select: { effortStudentScore: true },
+    select: {
+      effortStudentScore: true,
+      responsiblePrepared: true,
+      respectfulWorks: true,
+      effortTeacherScore: true,
+      calculatedScore: true,
+    },
   })
   const effortSelfRating = atlRecord?.effortStudentScore != null ? Number(atlRecord.effortStudentScore) : null
+  const teacherAtl = {
+    responsiblePrepared: atlRecord?.responsiblePrepared != null ? Number(atlRecord.responsiblePrepared) : null,
+    respectfulWorks: atlRecord?.respectfulWorks != null ? Number(atlRecord.respectfulWorks) : null,
+    effortTeacherScore: atlRecord?.effortTeacherScore != null ? Number(atlRecord.effortTeacherScore) : null,
+    calculatedScore: atlRecord?.calculatedScore != null ? Number(atlRecord.calculatedScore) : null,
+  }
 
   return (
     <div className="p-6 max-w-3xl">
@@ -171,13 +208,27 @@ export default async function SubmitPage({ params }: { params: Promise<{ instanc
           status: s.status,
           attemptNumber: s.latestAttemptNumber,
         }))}
-        initialData={{ skillRatings, responses, promptRatings, standard4SelfRating, effortSelfRating }}
+        initialData={{
+          skillRatings,
+          responses,
+          reassessmentResponses,
+          promptRatings,
+          standard4SelfRating,
+          effortSelfRating,
+        }}
         currentClassScores={{
           standard1: currentSnapshot?.standard1Score ? Number(currentSnapshot.standard1Score) : null,
           standard2: currentSnapshot?.standard2Score ? Number(currentSnapshot.standard2Score) : null,
           standard3: currentSnapshot?.standard3Score ? Number(currentSnapshot.standard3Score) : null,
           standard4: currentSnapshot?.standard4Score ? Number(currentSnapshot.standard4Score) : null,
           letterGrade: currentSnapshot?.letterGrade ?? null,
+        }}
+        teacherGrades={{
+          skillScores: teacherSkillScores,
+          promptScores: teacherPromptScores,
+          standard4Rating: teacherStandard4Rating,
+          feedback: teacherFeedback,
+          atl: teacherAtl,
         }}
         scoreDistribution={scoreDistribution}
       />

@@ -104,7 +104,7 @@ export interface StudentGradeData {
   standardScores: Record<1 | 2 | 3 | 4, number | null>
   feedback: Record<1 | 2 | 3 | 4, string>
   feedbackVisible: Record<1 | 2 | 3 | 4, boolean>
-  writtenResponses: Record<string, { text: string }>
+  writtenResponses: Record<string, { text: string; reassessmentText: string | null }>
   submissionStatus: Record<1 | 2 | 3 | 4, string | null>
   attemptCount: Record<1 | 2 | 3 | 4, number>
   history: Record<1 | 2 | 3 | 4, HistoryAttempt[]>
@@ -1076,7 +1076,7 @@ function PromptRow({
   onChange,
 }: {
   promptText: string
-  answer?: { text: string }
+  answer?: { text: string; reassessmentText: string | null }
   score: Score | undefined
   selfRating?: Score
   onChange: (v: Score) => void
@@ -1091,6 +1091,12 @@ function PromptRow({
           <p className="text-sm text-gray-400 italic">No response submitted yet.</p>
         )}
       </div>
+      {answer?.reassessmentText && (
+        <div className="bg-amber-50 rounded-lg border border-amber-200 p-2.5 mb-2.5">
+          <p className="text-xs font-medium text-amber-800 mb-1">Reassessment response</p>
+          <p className="text-sm text-amber-900 leading-relaxed">{answer.reassessmentText}</p>
+        </div>
+      )}
       <SkillRow label="Score" value={score} selfRating={selfRating} onChange={onChange} />
     </div>
   )

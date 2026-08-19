@@ -181,7 +181,7 @@ export default async function GradeStudentsPage({
       if (a.teacherStandard4Ratings[0]) standard4TeacherRating = a.teacherStandard4Ratings[0].rating as 1 | 2 | 3 | 4
     }
 
-    const writtenResponses: Record<string, { text: string }> = {}
+    const writtenResponses: Record<string, { text: string; reassessmentText: string | null }> = {}
     const skillSelfRatings: Record<string, 1 | 2 | 3 | 4> = {}
     const promptSelfRatings: Record<string, 1 | 2 | 3 | 4> = {}
     let standard4StudentSelfRating: 1 | 2 | 3 | 4 | null = null
@@ -210,7 +210,7 @@ export default async function GradeStudentsPage({
         }
       })
       for (const wr of sub.writtenResponses) {
-        writtenResponses[wr.promptDefinitionId] = { text: wr.responseText }
+        writtenResponses[wr.promptDefinitionId] = { text: wr.responseText, reassessmentText: wr.reassessmentResponseText }
       }
       for (const sr of sub.studentSkillSelfRatings) {
         skillSelfRatings[sr.skillDefinitionId] = sr.rating as 1 | 2 | 3 | 4

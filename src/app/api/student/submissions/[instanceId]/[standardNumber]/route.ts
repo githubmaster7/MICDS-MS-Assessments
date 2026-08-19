@@ -42,6 +42,18 @@ const UpdateSubmissionSchema = z.object({
     )
     .optional(),
   standard4SelfRating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  // A separate answer box for when a teacher has directly told the student
+  // (outside this app) to redo a question as a reassessment. Always
+  // editable regardless of submission/finalization status - see the PUT
+  // handler below, where this bypasses every draft/resubmission gate.
+  reassessmentResponses: z
+    .array(
+      z.object({
+        promptDefinitionId: z.string().uuid(),
+        reassessmentResponseText: z.string().max(5000),
+      }),
+    )
+    .optional(),
   submit: z.boolean().optional().default(false),
 })
 
@@ -209,22 +221,37 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
     return NextResponse.json({ error: parsed.error.errors[0]?.message ?? 'Invalid input.' }, { status: 400 })
   }
 
-  const { writtenResponses, skillSelfRatings, promptSelfRatings, standard4SelfRating, submit } = parsed.data
+  const { writtenResponses, skillSelfRatings, promptSelfRatings, standard4SelfRating, reassessmentResponses, submit } =
+    parsed.data
 
   const alreadyFinalized =
     submission.status === SubmissionStatus.SUBMITTED || submission.status === SubmissionStatus.REASSESSMENT_SUBMITTED
 
-  // Once finalized, incremental draft saves are no longer meaningful — the
-  // only way to change a finalized submission is a full resubmission
-  // (submit: true), which is gated below.
-  if (alreadyFinalized && !submit) {
+  const hasPrimaryChanges =
+    (writtenResponses && writtenResponses.length > 0) ||
+    (skillSelfRatings && skillSelfRatings.length > 0) ||
+    (promptSelfRatings && promptSelfRatings.length > 0) ||
+    standard4SelfRating !== undefined
+  const isReassessmentOnly = !hasPrimaryChanges && !!reassessmentResponses && reassessmentResponses.length > 0
+
+  // Once finalized, incremental draft saves of the primary answer are no
+  // longer meaningful — the only way to change it is a full resubmission
+  // (submit: true), gated below. The reassessment box is independent of
+  // this entire submit/finalization flow, so a request that only touches it
+  // skips this gate regardless of submit or finalization status.
+  if (alreadyFinalized && !submit && hasPrimaryChanges) {
     return NextResponse.json(
       { error: 'This has already been submitted. Resubmit to make changes.' },
       { status: 409 },
     )
   }
 
-  const isResubmission = alreadyFinalized && submit
+  // A reassessment-only request may arrive with submit:true (the frontend's
+  // Submit/Resubmit button doesn't know per-standard whether anything
+  // primary changed) — it must never be treated as a real resubmission
+  // attempt of the primary answer, or the "no meaningful change" gate below
+  // would wrongly reject it.
+  const isResubmission = alreadyFinalized && submit && !isReassessmentOnly
 
   if (isResubmission) {
     let scoreChanged = false
@@ -323,6 +350,32 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
         )
       }
 
+      // Reassessment box — independent of submit/finalization status (see
+      // the gate above), so this always applies whenever present. Falls
+      // back to an empty primary responseText on first write for a
+      // question the student never originally answered.
+      if (reassessmentResponses && reassessmentResponses.length > 0) {
+        await Promise.all(
+          reassessmentResponses.map((rr) =>
+            tx.writtenResponse.upsert({
+              where: {
+                studentSubmissionId_promptDefinitionId: {
+                  studentSubmissionId: submission.id,
+                  promptDefinitionId: rr.promptDefinitionId,
+                },
+              },
+              create: {
+                studentSubmissionId: submission.id,
+                promptDefinitionId: rr.promptDefinitionId,
+                responseText: '',
+                reassessmentResponseText: rr.reassessmentResponseText,
+              },
+              update: { reassessmentResponseText: rr.reassessmentResponseText },
+            }),
+          ),
+        )
+      }
+
       // Update skill self-ratings
       if (skillSelfRatings && skillSelfRatings.length > 0) {
         await Promise.all(
@@ -382,8 +435,9 @@ export async function PUT(req: NextRequest, { params }: RouteParams): Promise<Ne
         })
       }
 
-      // Submit / resubmit
-      if (submit) {
+      // Submit / resubmit — never triggered by a reassessment-only request,
+      // even if it arrived with submit:true.
+      if (submit && !isReassessmentOnly) {
         await tx.studentSubmission.update({
           where: { id: submission.id },
           data: {

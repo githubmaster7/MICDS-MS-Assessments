@@ -727,6 +727,11 @@ model WrittenResponse {
   studentSubmissionId String    @db.Uuid
   promptDefinitionId  String    @db.Uuid
   responseText        String
+  // A separate answer box for when a teacher has directly told the student
+  // (outside this app) to redo this question as a reassessment. Always
+  // editable regardless of submission status - independent of responseText
+  // and of the SUBMITTED/REASSESSMENT_SUBMITTED status flow entirely.
+  reassessmentResponseText String?
   submittedAt         DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
