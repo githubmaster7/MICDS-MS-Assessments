@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { SCORING_RUBRIC } from '@/lib/grading/rubric'
 import { ScoringRubricCard } from '@/components/shared/ScoringRubricCard'
+import { isRevised } from '@/lib/grading/resubmission'
 
 const S4_RATING_LABELS: Record<number, { short: string; long: string; color: string }> = {
   4: { short: '4 - Exceeding', long: 'The class is better with me in it', color: 'border-score-exceeding-border bg-score-exceeding-bg text-score-exceeding-text' },
@@ -89,7 +90,7 @@ function ScoreSelector({
   onChange,
   name,
 }: {
-  value: number
+  value: number | null
   onChange: (v: number) => void
   name: string
 }) {
@@ -121,7 +122,7 @@ function SkillSelfRatingRow({
   onChange,
 }: {
   name: string
-  value: number
+  value: number | null
   onChange: (v: number) => void
 }) {
   return (
@@ -141,7 +142,7 @@ function SelfRating({
 }: {
   label: string
   name: string
-  value: number
+  value: number | null
   onChange: (v: number) => void
   labels: Record<number, { short: string; long: string; color: string }>
 }) {
@@ -207,8 +208,8 @@ export function SubmissionForm({
   const [promptRatings, setPromptRatings] = useState<Record<number, Record<number, number>>>(
     initialData?.promptRatings ?? { 2: {}, 3: {} },
   )
-  const [selfRating, setSelfRating] = useState(initialData?.standard4SelfRating ?? 3)
-  const [effortSelfRating, setEffortSelfRating] = useState(initialData?.effortSelfRating ?? 3)
+  const [selfRating, setSelfRating] = useState<number | null>(initialData?.standard4SelfRating ?? null)
+  const [effortSelfRating, setEffortSelfRating] = useState<number | null>(initialData?.effortSelfRating ?? null)
   const [honorCode, setHonorCode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -226,6 +227,31 @@ export function SubmissionForm({
       ...prev,
       [std]: { ...prev[std], [order]: val },
     }))
+  }
+
+  // Whether this standard's own fields differ from the last saved attempt
+  // (initialData) - used to decide, for a resubmission, which standards
+  // actually have something new to send. Eligibility itself is judged once
+  // across the whole submission in handleSubmit, not per standard.
+  function standardHasChange(stdNum: 1 | 2 | 3 | 4): boolean {
+    if (stdNum === 1) {
+      return skillDefinitions.some(
+        (s) => (skillRatings[s.id] ?? null) !== (initialData?.skillRatings[s.id] ?? null),
+      )
+    }
+    const questions = stdNum === 2 ? standard2Questions : stdNum === 3 ? standard3Questions : standard4Questions
+    const textChanged = questions.some((q) => {
+      const before = initialData?.responses[stdNum]?.[q.displayOrder] ?? ''
+      const after = responses[stdNum]?.[q.displayOrder] ?? ''
+      return isRevised(before, after)
+    })
+    if (textChanged) return true
+    if (stdNum === 2 || stdNum === 3) {
+      return questions.some(
+        (q) => (promptRatings[stdNum]?.[q.displayOrder] ?? null) !== (initialData?.promptRatings[stdNum]?.[q.displayOrder] ?? null),
+      )
+    }
+    return (selfRating ?? null) !== (initialData?.standard4SelfRating ?? null)
   }
 
   // One standard's full save (create shell + PUT). Returns a result object
@@ -246,6 +272,13 @@ export function SubmissionForm({
     if (isDraft && finalizedStandards.has(stdNum)) {
       return { stdNum, skipped: true, ok: true, fatal: false }
     }
+    // Resubmission is judged across the whole submission, not standard by
+    // standard (checked once in handleSubmit before any request is sent) — a
+    // finalized standard with no change of its own is left untouched rather
+    // than resent and rejected individually for "nothing changed here."
+    if (!isDraft && finalizedStandards.has(stdNum) && !standardHasChange(stdNum)) {
+      return { stdNum, skipped: true, ok: true, fatal: false }
+    }
 
     const questionSetsForSubmit: Record<2 | 3 | 4, Question[]> = {
       2: standard2Questions,
@@ -262,10 +295,11 @@ export function SubmissionForm({
     } = { submit: !isDraft }
 
     if (stdNum === 1) {
-      body.skillSelfRatings = skillDefinitions.map((s) => ({
-        skillDefinitionId: s.id,
-        rating: skillRatings[s.id] ?? 3,
-      }))
+      // Only send skills the student actually rated - an untouched skill has
+      // no opinion recorded, and must never be reported as a real score of 3.
+      body.skillSelfRatings = skillDefinitions
+        .filter((s) => skillRatings[s.id] != null)
+        .map((s) => ({ skillDefinitionId: s.id, rating: skillRatings[s.id] }))
     } else {
       // Only send questions the student has actually answered — other tabs
       // may not have been visited yet, and the API rejects blank written
@@ -279,13 +313,12 @@ export function SubmissionForm({
           responseText: responses[stdNum][q.displayOrder],
         }))
         if (stdNum === 2 || stdNum === 3) {
-          body.promptSelfRatings = answeredQuestions.map((q) => ({
-            promptDefinitionId: q.id,
-            rating: promptRatings[stdNum]?.[q.displayOrder] ?? 3,
-          }))
+          body.promptSelfRatings = answeredQuestions
+            .filter((q) => promptRatings[stdNum]?.[q.displayOrder] != null)
+            .map((q) => ({ promptDefinitionId: q.id, rating: promptRatings[stdNum][q.displayOrder] }))
         }
       }
-      if (stdNum === 4) body.standard4SelfRating = selfRating
+      if (stdNum === 4 && selfRating != null) body.standard4SelfRating = selfRating
     }
 
     // Nothing to save for this standard yet (student hasn't visited this
@@ -362,21 +395,35 @@ export function SubmissionForm({
         return
       }
 
+      // Resubmission eligibility is judged across the WHOLE submission, not
+      // standard by standard: every already-finalized standard with no
+      // change of its own was quietly skipped above (see submitStandard), so
+      // if literally nothing succeeded anywhere, nothing changed anywhere
+      // either — tell the student to change at least one score or comment
+      // somewhere, rather than silently doing nothing.
+      if (!isDraft && anyFinalized && !anySucceeded) {
+        setError('Change at least one score or comment somewhere before resubmitting.')
+        return
+      }
+
       // Approach to Learning effort self-rating saves independently of the
       // four standards — it's informational only (doesn't affect the letter
       // grade), so a failure here is never fatal to the overall submission.
-      try {
-        const atlRes = await fetch(`/api/student/approach-to-learning/${instanceId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ effortStudentScore: effortSelfRating }),
-        })
-        if (!atlRes.ok) {
-          const data = await atlRes.json().catch(() => ({}))
-          throw new Error(data.error ?? 'Failed to save Approach to Learning rating')
+      // Skipped entirely if the student never rated it.
+      if (effortSelfRating != null) {
+        try {
+          const atlRes = await fetch(`/api/student/approach-to-learning/${instanceId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ effortStudentScore: effortSelfRating }),
+          })
+          if (!atlRes.ok) {
+            const data = await atlRes.json().catch(() => ({}))
+            throw new Error(data.error ?? 'Failed to save Approach to Learning rating')
+          }
+        } catch (e) {
+          rejections.push(`Approach to Learning: ${e instanceof Error ? e.message : 'Failed to save.'}`)
         }
-      } catch (e) {
-        rejections.push(`Approach to Learning: ${e instanceof Error ? e.message : 'Failed to save.'}`)
       }
 
       if (rejections.length > 0) {
@@ -475,7 +522,7 @@ export function SubmissionForm({
       {allVisitedStandardsFinalized && (
         <div className="rounded-xl bg-primary-50 border border-primary-200 px-4 py-3 text-sm text-primary-900">
           You've already submitted this work. You can revise your answers and resubmit - just
-          change at least one score or edit a comment for each standard you want to resubmit.
+          change at least one score or edit a comment anywhere below.
         </div>
       )}
 
@@ -547,7 +594,7 @@ export function SubmissionForm({
                         <SkillSelfRatingRow
                           key={s.id}
                           name={s.skillName}
-                          value={skillRatings[s.id] ?? 3}
+                          value={skillRatings[s.id] ?? null}
                           onChange={(v) => setSkillRatings((prev) => ({ ...prev, [s.id]: v }))}
                         />
                       ))}
@@ -564,7 +611,7 @@ export function SubmissionForm({
                         <SkillSelfRatingRow
                           key={s.id}
                           name={s.skillName}
-                          value={skillRatings[s.id] ?? 3}
+                          value={skillRatings[s.id] ?? null}
                           onChange={(v) => setSkillRatings((prev) => ({ ...prev, [s.id]: v }))}
                         />
                       ))}
@@ -610,7 +657,7 @@ export function SubmissionForm({
                   <div className="flex items-center gap-3 mt-2">
                     <span className="text-xs font-medium text-gray-500">Rate your own answer:</span>
                     <ScoreSelector
-                      value={promptRatings[activeStd]?.[q.displayOrder] ?? 3}
+                      value={promptRatings[activeStd]?.[q.displayOrder] ?? null}
                       onChange={(v) => setPromptRating(activeStd, q.displayOrder, v)}
                       name={`self-rating-${activeStd}-${q.displayOrder}`}
                     />
